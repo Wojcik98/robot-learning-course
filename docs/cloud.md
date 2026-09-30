@@ -1,0 +1,11 @@
+# Brev use and cost boundary
+
+The course runs locally by default. Brev is a fallback for a job that the local GPU cannot finish within its measured memory or time limit. No paid Brev instance has run for this project.
+
+The user reported US$29.94 prepaid credit, auto recharge off, and no other active charge path. The Brev CLI lists no instances in the active organization. A read-only quote on 2026-10-01 showed a stoppable 24 GB L4 type (`g2-standard-4:nvidia-l4:1`) at US$0.845421 per hour, plus quoted disk storage. A quote is a time-specific offer. Check it again before an allocation. The browser console in this work session was not signed in, so a live credit balance and billing screen could not be read. Do not start a paid instance from that report alone.
+
+The [budget code](../src/vla_lab/cloud/budget.py) rejects a stale quote or billing check, auto recharge, postpaid overage, another running instance, a GPU that cannot stop or has too little memory, an hourly rate above US$3, and a job that cannot fit its deadline. It keeps US$5 of the project credit in reserve, caps each job at US$5 and two hours, and includes export and stop time in the cost bound. The [Brev adapter](../src/vla_lab/cloud/brev.py) uses the installed CLI for a fresh quote, exact instance state, and provider stop. The [monitor rules](../src/vla_lab/cloud/monitor.py) check saved work counts, heartbeat age, a stall, projected overrun, cost, and the hard deadline. The [local watchdog](../src/vla_lab/cloud/watchdog.py) can stop a named instance at a saved deadline in a separate process.
+
+Fake-provider tests cover price, credit, stale quote, stop retry, failed export, stall, lost heartbeat, projected overrun, and deadline. A real short allocation, SSH, file copy, provider stop, and independent stop test remain open. Until those checks pass, use supervised cloud sessions only. A local watchdog depends on this workstation and its network; it is not a provider deadline or a VM watchdog. Do not run unattended remote training yet.
+
+Never store a Brev token in a notebook, tracked file, run log, or remote shell command. The CLI login is already present on this workstation. Use an exact course instance name for stop commands. Do not run `brev stop --all` or delete unrelated instances.

@@ -33,7 +33,7 @@ def _workspace(root: Path) -> Path:
 
 def test_pack_and_install_restores_verified_bundle(tmp_path: Path) -> None:
     source = _workspace(tmp_path / "source")
-    archive = tmp_path / "reference.zip"
+    archive = tmp_path / "reference with spaces.zip"
     packed = pack_act_references(source, archive)
     target = tmp_path / "target"
     (target / "manifests").mkdir(parents=True)

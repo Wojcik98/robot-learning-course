@@ -55,3 +55,14 @@ The initial selected download used 20 MB of action/state Parquet shards, 371 MB 
 Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lab 0](../tutorials/00-first-run/00-first-run.ipynb) from the repository root. The default notebook runs development state 0 twice and shows each live video. On 2026-10-01, a fresh nbclient kernel ran all four code cells without an error. Both runs succeeded in 74 steps. Their recorded policy times were 4.347 s and 3.368 s; these times exclude kernel startup and video display.
 
 The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. A clean `/tmp` workspace restore passed. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.
+
+## Bash completion
+
+Load completion in the current Bash terminal without a shell startup change:
+
+```bash
+source <(_ROBOT_LAB_COMPLETE=source_bash .venv/bin/robot-lab)
+source <(just --completions bash)
+```
+
+`robot-lab demo` completes task aliases, development state IDs, the local profile, options, and file paths. The installed `just` completion supplies recipe names. The automated Bash check ran without network access. Use quotation marks around file paths with spaces when you enter a command.

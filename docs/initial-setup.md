@@ -1,6 +1,6 @@
 # Initial setup: one user checklist
 
-**Status:** Local setup and P0 implementation are in progress. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list now work. The current GPU quote and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
+**Status:** The local P0 reference and first live lab work. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list work. A read-only L4 quote was checked on 2026-10-01. The live billing screen, supervised allocation, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
 
 Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
 
@@ -88,7 +88,7 @@ Sol fills a compact redacted table here during S0; do not create another setup r
 | Driver route | Host GPU query and CUDA driver API | Passed read-only check; recheck in S0 |
 | Runtime | Exact package list, lock, tensor/render/decode checks | Passed pinned local runtime, GPU, AV1 decode, and EGL reset |
 | Hub access | Exact asset IDs and successful small downloads | Public pinned assets downloaded; token access for future assets not checked |
-| Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | User confirmed credit and charge path; quote and job controls pending |
+| Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | User confirmed credit and charge path; live L4 quote checked; current billing screen pending |
 | Remote lifecycle | SSH, export, provider stop, cost and storage record | Pending supervised S0 check |
 | Unattended jobs | Monitor, deadline, independent stop, failure tests | Pending P1 |
 | Workers | Claude login/usage access, Astra route | Pending S0 |

@@ -9,8 +9,6 @@ from typing import Annotated
 import typer
 import yaml
 
-from vla_lab.doctor import doctor_report, report_json
-from vla_lab.evaluation.demo import run_act_demo
 from vla_lab.jobs.manager import JobManager
 from vla_lab.policy.transport import install_act_references, pack_act_references
 
@@ -20,6 +18,19 @@ jobs_app = typer.Typer(help="Submit and inspect detached local jobs.")
 app.add_typer(references_app, name="references")
 app.add_typer(jobs_app, name="jobs")
 DEFAULT_WORKSPACE = Path(".")
+DEMO_TASKS = ("bowl_plate", "bowl_stove")
+
+
+def _complete_task(incomplete: str) -> list[str]:
+    return [name for name in DEMO_TASKS if name.startswith(incomplete)]
+
+
+def _complete_state(incomplete: str) -> list[str]:
+    return [str(index) for index in range(20) if str(index).startswith(incomplete)]
+
+
+def _complete_local(incomplete: str) -> list[str]:
+    return ["local"] if "local".startswith(incomplete) else []
 
 
 @app.callback()
@@ -40,6 +51,8 @@ def doctor(
     ] = False,
 ) -> None:
     """Check local GPU, data, ACT bundles, and optional live rendering."""
+    from vla_lab.doctor import doctor_report, report_json
+
     root = workspace.expanduser().resolve()
     data = (data_root or root / ".local-data").expanduser().resolve()
     report = doctor_report(root, data, live=live)
@@ -161,11 +174,24 @@ def jobs_artifacts(
 def demo(
     output: Annotated[Path, typer.Option(help="New directory for the live run and video.")],
     task: Annotated[
-        str, typer.Option(help="Task alias from configs/eval/splits.yaml.")
+        str,
+        typer.Option(
+            help="Task alias from configs/eval/splits.yaml.", autocompletion=_complete_task
+        ),
     ] = "bowl_plate",
-    state_id: Annotated[int, typer.Option(help="Development initial state ID, from 0 to 19.")] = 0,
+    state_id: Annotated[
+        int,
+        typer.Option(
+            help="Development initial state ID, from 0 to 19.", autocompletion=_complete_state
+        ),
+    ] = 0,
     checkpoint: Annotated[Path | None, typer.Option(help="ACT bundle directory.")] = None,
-    profile: Annotated[str, typer.Option(help="Execution profile. Only local is ready.")] = "local",
+    profile: Annotated[
+        str,
+        typer.Option(
+            help="Execution profile. Only local is ready.", autocompletion=_complete_local
+        ),
+    ] = "local",
     workspace: Annotated[
         Path, typer.Option(help="Course workspace directory.")
     ] = DEFAULT_WORKSPACE,
@@ -176,6 +202,8 @@ def demo(
     """Reset one LIBERO task, run ACT, and save a live video."""
     if profile != "local":
         raise typer.BadParameter("Cloud demo profile is not ready", param_hint="--profile")
+    from vla_lab.evaluation.demo import run_act_demo
+
     root = workspace.expanduser().resolve()
     if checkpoint is None:
         manifest = yaml.safe_load((root / "manifests" / "act_references.yaml").read_text())
