@@ -15,8 +15,10 @@ from vla_lab.policy.transport import install_act_references, pack_act_references
 app = typer.Typer(help="Run the pinned robot learning labs.", no_args_is_help=True)
 references_app = typer.Typer(help="Move verified ACT checkpoints between machines.")
 jobs_app = typer.Typer(help="Submit and inspect detached local jobs.")
+data_app = typer.Typer(help="Fetch pinned public LIBERO files.")
 app.add_typer(references_app, name="references")
 app.add_typer(jobs_app, name="jobs")
+app.add_typer(data_app, name="data")
 DEFAULT_WORKSPACE = Path(".")
 DEMO_TASKS = ("bowl_plate", "bowl_stove")
 
@@ -89,6 +91,24 @@ def references_install(
 
 def _jobs(workspace: Path) -> JobManager:
     return JobManager(workspace.expanduser().resolve() / ".local-data" / "jobs")
+
+
+@data_app.command("fetch")
+def data_fetch(
+    scope: Annotated[str, typer.Option(help="demo or training files.")] = "demo",
+    offline: Annotated[bool, typer.Option(help="Verify local files without a download.")] = False,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+    data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
+) -> None:
+    """Fetch exact Hub revisions for the selected course scope."""
+    from vla_lab.data.fetch import fetch_local_data
+
+    root = workspace.expanduser().resolve()
+    data = (data_root or root / ".local-data").expanduser().resolve()
+    report = fetch_local_data(root, data, scope=scope, offline=offline)
+    typer.echo(json.dumps(report, sort_keys=True))
 
 
 @jobs_app.command(

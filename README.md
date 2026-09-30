@@ -15,6 +15,8 @@ Run these commands from this repository's root after the [environment setup](doc
 
 ```bash
 uv sync --locked
+.venv/bin/robot-lab data fetch --scope demo
+.venv/bin/robot-lab references install --archive .local-data/bundles/act-references.zip
 .venv/bin/robot-lab doctor --live
 .venv/bin/jupyter lab tutorials/index.ipynb
 ```
@@ -28,6 +30,8 @@ The ACT reference checkpoints and simulator data are large files in ignored `.lo
 ```
 
 The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. The distribution location for a new learner machine is still open.
+
+Before a training lab, run `.venv/bin/robot-lab data fetch --scope training` to add the selected data shards and camera videos. The command uses the exact Hub revisions in [the core manifest](manifests/core.yaml).
 
 Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.
 

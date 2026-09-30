@@ -13,6 +13,7 @@ libero_assets:
   repository: lerobot/libero-assets
   revision: 0b3ea86be5fe169d0fd036ae63d1070ec09e90f6
   license: not_declared_in_hub_metadata
+  wall_xml_sha256: 81c5c1694f3093bb91f9632c090aa7d7722f2be53ec3d39df578f395690d81f4
 dataset:
   repository: lerobot/libero
   revision: a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4

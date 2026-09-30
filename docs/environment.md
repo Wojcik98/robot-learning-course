@@ -12,6 +12,10 @@ UV_CACHE_DIR=.local-data/uv-cache uv sync --locked --extra dev
 
 Network access is needed for the first install and for public Hub assets. Later `uv run --locked` commands use the lock. Keep `HF_HOME` at its default if you used `hf auth login` without an override. Set `HF_HUB_CACHE` and `HF_DATASETS_CACHE` under `.local-data/` to keep large files on the selected disk. The training recipe sets these cache paths. `prepare_local_libero()` writes the benchmark paths and selects EGL before LIBERO is imported. The installed `hf-libero 0.1.4` ignores the asset path in its config file, so `select_local_assets()` sets its asset cache to the pinned local download before the simulator opens.
 
+Run `.venv/bin/robot-lab data fetch --scope demo` for the first lab. It downloads the pinned simulator assets and one real AV1 sample used by `doctor`. Run `.venv/bin/robot-lab data fetch --scope training` before a training lab. That scope adds the Parquet data, metadata, and the selected two-camera video pairs. Use `--offline` to check existing files without network access. The command uses the existing Hugging Face login store if one is present and keeps large files under `.local-data/`.
+
+A new demo data root was downloaded and checked on 2026-10-01. The asset download took about 85 seconds. The offline hash check, CUDA, AV1 decode, and EGL reset passed. A live ACT rollout with that data root succeeded in 74 steps. See the [fresh data record](../artifacts/reference/data/fresh_demo.json). The training scope passed an online cached check; a full new-root training download has not run yet.
+
 ## ACT reference commands
 
 The selected dataset shards and LIBERO assets must be in `.local-data/` before these commands run. The paths and source revisions are in [the core manifest](../manifests/core.yaml). Run GPU commands through a terminal that can see the RTX 3070.

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "scope": "demo",
+  "data_root": ".local-data/fresh-demo-test",
+  "dataset_revision": "a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4",
+  "asset_revision": "0b3ea86be5fe169d0fd036ae63d1070ec09e90f6",
+  "download_elapsed_s_approx": 85,
+  "sample_sha256": "77d59b50e309e2099e562e70806603a1bdb66b893efcaecc2534b2c9fa3e02ae",
+  "offline_hash_check": "passed",
+  "doctor_cuda_av1_egl": "passed",
+  "live_act_task": "bowl_plate",
+  "live_act_development_state": 0,
+  "live_act_success": true,
+  "live_act_steps": 74,
+  "live_act_video_frames": 75,
+  "live_act_record": ".local-data/runs/lab0-fresh-data/run.json"
+}

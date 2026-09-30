@@ -8,6 +8,8 @@ Run these commands from the repository root. Use the locked environment in [the 
 
 ```bash
 uv sync --locked
+.venv/bin/robot-lab data fetch --scope demo
+.venv/bin/robot-lab references install --archive .local-data/bundles/act-references.zip
 .venv/bin/robot-lab doctor
 .venv/bin/jupyter lab tutorials/00-first-run/00-first-run.ipynb
 ```

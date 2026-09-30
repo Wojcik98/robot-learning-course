@@ -6,6 +6,12 @@ default:
 setup:
     uv sync --locked
 
+data-demo:
+    .venv/bin/robot-lab data fetch --scope demo
+
+data-training:
+    .venv/bin/robot-lab data fetch --scope training
+
 doctor:
     .venv/bin/robot-lab doctor --live
 
