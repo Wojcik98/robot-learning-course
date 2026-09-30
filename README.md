@@ -37,4 +37,4 @@ Use [local job controls](docs/jobs.md) for longer training runs. They keep a run
 
 [Brev cost and stop controls](docs/cloud.md) are under test. The local labs do not use cloud credit.
 
-The [course data flow](docs/architecture.md) now has validated packets, a basic action queue, exact-state evaluation, and paired reports. Labs 1 and 2 are in progress.
+The [course data flow](docs/architecture.md) now has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. Lab 2 is in progress.

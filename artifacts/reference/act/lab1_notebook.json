@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "source": "tutorials/01-act/01-act.ipynb",
+  "executed": ".local-data/runs/lab1-nbclient-executed.ipynb",
+  "fresh_kernel": true,
+  "elapsed_s": 11.45,
+  "code_cells": 6,
+  "error_outputs": 0,
+  "training_frames_selected": 3661,
+  "example_episode_id": 379,
+  "action_target_shape": [1, 20, 7],
+  "cvae_l1_loss": 0.8141,
+  "cvae_kl_loss": 0.0606,
+  "cvae_total_loss": 1.4197,
+  "predicted_chunk_shape": [1, 20, 7],
+  "synthetic_latest_action_at_tick_11": 0.6,
+  "synthetic_ensemble_action_at_tick_11": 0.4,
+  "limit": "One training example and a synthetic queue do not measure task success"
+}
