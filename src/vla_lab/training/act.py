@@ -10,15 +10,15 @@ import random
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 import yaml
-from lerobot.policies.act import ACTPolicy
 from torch.utils.data import DataLoader, Dataset
 
-from vla_lab.policy.act import make_act_config, make_act_processors
-from vla_lab.policy.bundle import save_act_bundle
+if TYPE_CHECKING:
+    from lerobot.policies.act import ACTPolicy
 
 
 @dataclass(frozen=True)
@@ -80,6 +80,18 @@ def train_act_reference(
     output.mkdir(parents=True, exist_ok=True)
     configs = Path(configs_root)
     data = Path(data_root).expanduser().resolve()
+    hub_cache = data / "hf" / "hub"
+    datasets_cache = data / "hf" / "datasets"
+    hub_cache.mkdir(parents=True, exist_ok=True)
+    datasets_cache.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HUB_CACHE", str(hub_cache))
+    os.environ.setdefault("HF_DATASETS_CACHE", str(datasets_cache))
+
+    from lerobot.policies.act import ACTPolicy
+
+    from vla_lab.policy.act import make_act_config, make_act_processors
+    from vla_lab.policy.bundle import save_act_bundle
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
