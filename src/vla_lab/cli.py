@@ -9,15 +9,66 @@ from typing import Annotated
 import typer
 import yaml
 
+from vla_lab.doctor import doctor_report, report_json
 from vla_lab.evaluation.demo import run_act_demo
+from vla_lab.policy.transport import install_act_references, pack_act_references
 
 app = typer.Typer(help="Run the pinned robot learning labs.", no_args_is_help=True)
+references_app = typer.Typer(help="Move verified ACT checkpoints between machines.")
+app.add_typer(references_app, name="references")
 DEFAULT_WORKSPACE = Path(".")
 
 
 @app.callback()
 def main() -> None:
     """Select a course command."""
+
+
+@app.command()
+def doctor(
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+    data_root: Annotated[
+        Path | None, typer.Option(help="Local LIBERO asset and data directory.")
+    ] = None,
+    live: Annotated[
+        bool, typer.Option(help="Reset LIBERO with EGL and inspect a camera image.")
+    ] = False,
+) -> None:
+    """Check local GPU, data, ACT bundles, and optional live rendering."""
+    root = workspace.expanduser().resolve()
+    data = (data_root or root / ".local-data").expanduser().resolve()
+    report = doctor_report(root, data, live=live)
+    typer.echo(report_json(report))
+    if not report["ok"]:
+        raise typer.Exit(code=1)
+
+
+@references_app.command("pack")
+def references_pack(
+    output: Annotated[Path, typer.Option(help="New ZIP archive path.")],
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Pack both verified ACT reference checkpoints for transfer."""
+    typer.echo(
+        json.dumps(pack_act_references(workspace.resolve(), output.resolve()), sort_keys=True)
+    )
+
+
+@references_app.command("install")
+def references_install(
+    archive: Annotated[Path, typer.Option(help="Transferred ACT ZIP archive path.")],
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Verify the archive and restore both ACT checkpoints."""
+    typer.echo(
+        json.dumps(install_act_references(workspace.resolve(), archive.resolve()), sort_keys=True)
+    )
 
 
 @app.command()

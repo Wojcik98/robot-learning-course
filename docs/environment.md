@@ -49,3 +49,9 @@ Use the activated project environment for `python`, or replace it with `.venv/bi
 The restricted shell cannot see the GPU. Use the approved host execution route for GPU and EGL checks. A CPU-only result does not pass the GPU gate. The simulator reports a 20 Hz controller. Dataset timestamps are 10 Hz labels; they do not set the simulator control period.
 
 The initial selected download used 20 MB of action/state Parquet shards, 371 MB of selected task video shards, and 409 MB of pinned simulator assets. The `uv` cache used about 9.5 GB after installation. Each 200-step ACT run used about 179 MB, including a 62 MB model file and a 124 MB optimizer file. These are setup measurements, not a full course disk bound. The exact files and source revisions are in the core manifest.
+
+## Lab 0 launch and checkpoint transfer
+
+Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lab 0](../tutorials/00-first-run/00-first-run.ipynb) from the repository root. The default notebook runs development state 0 twice and shows each live video. On 2026-10-01, a fresh nbclient kernel ran all four code cells without an error. Both runs succeeded in 74 steps. Their recorded policy times were 4.347 s and 3.368 s; these times exclude kernel startup and video display.
+
+The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. A clean `/tmp` workspace restore passed. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.

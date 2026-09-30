@@ -1,6 +1,6 @@
 # End-to-end robot learning
 
-This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. The P0 feasibility gate is in progress. It does not yet include the trained ACT checkpoint or a released learner lab.
+This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Lab 0 is ready to run on the prepared local machine. Later labs are in progress.
 
 ## Setup
 
@@ -8,3 +8,23 @@ This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy
 - [Initial setup checklist and GPU access](docs/initial-setup.md)
 - [Selected local environment](docs/environment.md)
 - [Measured feasibility and open gates](docs/feasibility.md)
+
+## First live lab
+
+Run these commands from this repository's root after the [environment setup](docs/environment.md):
+
+```bash
+uv sync --locked
+.venv/bin/robot-lab doctor --live
+.venv/bin/jupyter lab tutorials/index.ipynb
+```
+
+Open [Lab 0](tutorials/00-first-run/00-first-run.ipynb) from the index. It loads a trained ACT checkpoint, runs a LIBERO-Goal task, saves a live video, and resets the task for a second run. The [Lab 0 guide](tutorials/00-first-run/README.md) gives a terminal path and an exercise.
+
+The ACT reference checkpoints and simulator data are large files in ignored `.local-data/`. A prepared archive is at `.local-data/bundles/act-references.zip` on this machine. For another machine, copy that archive and run:
+
+```bash
+.venv/bin/robot-lab references install --archive /path/to/act-references.zip
+```
+
+The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. The distribution location for a new learner machine is still open.

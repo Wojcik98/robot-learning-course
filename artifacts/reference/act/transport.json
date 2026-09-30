@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "archive_path": ".local-data/bundles/act-references.zip",
+  "archive_sha256": "0e4494cfabdc989cb005254b1521a8536191fed5a6023350ed4ec10318589f88",
+  "archive_size_bytes": 115596447,
+  "checkpoint_files": 14,
+  "verified_restore": "clean /tmp workspace on 2026-10-01",
+  "distribution_status": "local archive only"
+}

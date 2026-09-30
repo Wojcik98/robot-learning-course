@@ -84,10 +84,10 @@ Sol fills a compact redacted table here during S0; do not create another setup r
 
 | Check | Required evidence | Status |
 |---|---|---|
-| Storage | Writable selected path, free space, download reserve | Pending S0 |
+| Storage | Writable selected path, free space, download reserve | Passed local path; 150.3 GiB free on 2026-10-01 |
 | Driver route | Host GPU query and CUDA driver API | Passed read-only check; recheck in S0 |
-| Runtime | Exact package list, lock, tensor/render/decode checks | Pending P0 |
-| Hub access | Exact asset IDs and successful small downloads | Pending S0 |
+| Runtime | Exact package list, lock, tensor/render/decode checks | Passed pinned local runtime, GPU, AV1 decode, and EGL reset |
+| Hub access | Exact asset IDs and successful small downloads | Public pinned assets downloaded; token access for future assets not checked |
 | Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | User confirmed credit and charge path; quote and job controls pending |
 | Remote lifecycle | SSH, export, provider stop, cost and storage record | Pending supervised S0 check |
 | Unattended jobs | Monitor, deadline, independent stop, failure tests | Pending P1 |
