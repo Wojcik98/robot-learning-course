@@ -11,11 +11,14 @@ import yaml
 
 from vla_lab.doctor import doctor_report, report_json
 from vla_lab.evaluation.demo import run_act_demo
+from vla_lab.jobs.manager import JobManager
 from vla_lab.policy.transport import install_act_references, pack_act_references
 
 app = typer.Typer(help="Run the pinned robot learning labs.", no_args_is_help=True)
 references_app = typer.Typer(help="Move verified ACT checkpoints between machines.")
+jobs_app = typer.Typer(help="Submit and inspect detached local jobs.")
 app.add_typer(references_app, name="references")
+app.add_typer(jobs_app, name="jobs")
 DEFAULT_WORKSPACE = Path(".")
 
 
@@ -69,6 +72,89 @@ def references_install(
     typer.echo(
         json.dumps(install_act_references(workspace.resolve(), archive.resolve()), sort_keys=True)
     )
+
+
+def _jobs(workspace: Path) -> JobManager:
+    return JobManager(workspace.expanduser().resolve() / ".local-data" / "jobs")
+
+
+@jobs_app.command(
+    "submit", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def jobs_submit(
+    context: typer.Context,
+    config: Annotated[Path, typer.Option(help="Resolved YAML or JSON job configuration.")],
+    purpose: Annotated[str, typer.Option(help="Purpose of this run.")],
+    seed: Annotated[int, typer.Option(help="Random seed for this run.")],
+    repeat: Annotated[bool, typer.Option(help="Start a new run after a prior result.")] = False,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Run the argument list after `--` outside the notebook kernel."""
+    command = list(context.args)
+    if command and command[0] == "--":
+        command.pop(0)
+    resolved = yaml.safe_load(config.read_text())
+    if not isinstance(resolved, dict):
+        raise typer.BadParameter("Job config must be a mapping", param_hint="--config")
+    report = _jobs(workspace).submit(
+        config=resolved, purpose=purpose, seed=seed, command=command, repeat=repeat
+    )
+    typer.echo(json.dumps(report, sort_keys=True))
+
+
+@jobs_app.command("status")
+def jobs_status(
+    run_id: str,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Reconnect to a run after a notebook or terminal closes."""
+    typer.echo(json.dumps(_jobs(workspace).status(run_id), sort_keys=True))
+
+
+@jobs_app.command("cancel")
+def jobs_cancel(
+    run_id: str,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Stop one verified local worker process group."""
+    typer.echo(json.dumps(_jobs(workspace).cancel(run_id), sort_keys=True))
+
+
+@jobs_app.command("logs")
+def jobs_logs(
+    run_id: str,
+    lines: Annotated[int, typer.Option(help="Number of last log lines.")] = 40,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """Show saved output from a detached job."""
+    typer.echo(_jobs(workspace).log_tail(run_id, lines=lines))
+
+
+@jobs_app.command("artifacts")
+def jobs_artifacts(
+    run_id: str,
+    output: Annotated[Path | None, typer.Option(help="New directory for copied artifacts.")] = None,
+    max_bytes: Annotated[int, typer.Option(help="Maximum transfer size in bytes.")] = 2**30,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+) -> None:
+    """List or copy bounded files saved by one run."""
+    manager = _jobs(workspace)
+    files = (
+        manager.artifacts(run_id)
+        if output is None
+        else manager.retrieve(run_id, output, max_bytes=max_bytes)
+    )
+    typer.echo(json.dumps(files))
 
 
 @app.command()

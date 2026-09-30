@@ -28,3 +28,5 @@ The ACT reference checkpoints and simulator data are large files in ignored `.lo
 ```
 
 The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. The distribution location for a new learner machine is still open.
+
+Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.

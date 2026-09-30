@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "profile": "local",
+  "run_id": "abde2f2fe0314153875e5235308a616d",
+  "purpose": "train-act-probe",
+  "seed": 20260930,
+  "task_alias": "bowl_plate",
+  "steps": 1,
+  "exit_code": 0,
+  "last_loss": 78.99512481689453,
+  "saved_checkpoint": "training/checkpoint-000001",
+  "saved_artifact_count": 10,
+  "artifact_copy_model_hash_match": true,
+  "job_root": ".local-data/jobs/runs",
+  "evidence_date": "2026-10-01"
+}

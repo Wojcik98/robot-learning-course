@@ -183,6 +183,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--task", choices=("bowl_plate", "bowl_stove"), required=True)
     parser.add_argument("--steps", type=int, required=True)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--seed", type=int, default=20260930)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--data-root", type=Path, default=Path(".local-data"))
@@ -195,6 +196,7 @@ def main(argv: list[str] | None = None) -> None:
         output_dir=arguments.output,
         steps=arguments.steps,
         batch_size=arguments.batch_size,
+        seed=arguments.seed,
         checkpoint_every=arguments.checkpoint_every,
         device=arguments.device,
     )
