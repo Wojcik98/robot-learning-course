@@ -36,3 +36,5 @@ Before a training lab, run `.venv/bin/robot-lab data fetch --scope training` to 
 Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.
 
 [Brev cost and stop controls](docs/cloud.md) are under test. The local labs do not use cloud credit.
+
+The [course data flow](docs/architecture.md) now has validated packets, a basic action queue, exact-state evaluation, and paired reports. Labs 1 and 2 are in progress.

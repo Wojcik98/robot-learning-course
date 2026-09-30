@@ -28,3 +28,4 @@ def test_demo_values_complete_without_network() -> None:
     assert _complete("robot-lab demo --task bo", 3) == ["bowl_plate", "bowl_stove"]
     assert _complete("robot-lab demo --profile lo", 3) == ["local"]
     assert "19" in _complete("robot-lab demo --state-id 1", 3)
+    assert _complete("robot-lab eval --policy di", 3) == ["diffusion"]

@@ -25,6 +25,11 @@ class EpisodeResult:
     success: bool
     steps: int
     clipped_values: int
+    termination_reason: str = "unknown"
+
+
+class PolicyActionError(ValueError):
+    """A policy sent an action that cannot enter the controller."""
 
 
 def _task_split(task_alias: str, configs_root: str | Path) -> dict[str, Any]:
@@ -109,6 +114,7 @@ def run_policy_episode(
     libero_processor = LiberoProcessorStep()
     clipped_values = 0
     success = False
+    termination_reason = "timeout"
     for step in range(1, max_steps + 1):
         processed = libero_processor.observation(
             preprocess_observation(_single_env_batch(observation))
@@ -121,7 +127,7 @@ def run_policy_episode(
             physical_action = postprocessor(normalized_action)
         action = np.asarray(physical_action, dtype=np.float32).reshape(-1)
         if action.shape != (7,) or not np.isfinite(action).all():
-            raise ValueError("Policy returned an invalid seven-value action")
+            raise PolicyActionError("Policy returned an invalid seven-value action")
         clipped_values += int(np.count_nonzero((action < -1.0) | (action > 1.0)))
         action = np.clip(action, -1.0, 1.0)
         observation, _, terminated, truncated, info = environment.step(action)
@@ -129,8 +135,11 @@ def run_policy_episode(
             on_frame(np.ascontiguousarray(observation["pixels"]["image"][::-1, ::-1]))
         success = bool(info.get("is_success", False))
         if success or terminated or truncated:
+            termination_reason = (
+                "success" if success else "terminated" if terminated else "truncated"
+            )
             break
-    return EpisodeResult(task_alias, state_id, success, step, clipped_values)
+    return EpisodeResult(task_alias, state_id, success, step, clipped_values, termination_reason)
 
 
 def run_act_episode(

@@ -35,6 +35,10 @@ def _complete_local(incomplete: str) -> list[str]:
     return ["local"] if "local".startswith(incomplete) else []
 
 
+def _complete_policy(incomplete: str) -> list[str]:
+    return [name for name in ("act", "smolvla", "diffusion") if name.startswith(incomplete)]
+
+
 @app.callback()
 def main() -> None:
     """Select a course command."""
@@ -250,6 +254,61 @@ def demo(
         output_dir=output,
     )
     typer.echo(json.dumps(record, sort_keys=True))
+
+
+@app.command("eval")
+def evaluate(
+    output: Annotated[Path, typer.Option(help="New directory for episode records and videos.")],
+    checkpoint: Annotated[Path, typer.Option(help="Complete ACT bundle directory.")],
+    state_ids: Annotated[
+        list[int] | None,
+        typer.Option("--state-id", help="One development state ID; repeat for more states."),
+    ] = None,
+    policy: Annotated[
+        str, typer.Option(help="Policy type. ACT is ready.", autocompletion=_complete_policy)
+    ] = "act",
+    profile: Annotated[
+        str,
+        typer.Option(
+            help="Execution profile. Only local is ready.", autocompletion=_complete_local
+        ),
+    ] = "local",
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+    data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
+) -> None:
+    """Run ACT on exact development states and save each result."""
+    if policy != "act" or profile != "local":
+        raise typer.BadParameter("Only local ACT evaluation is ready")
+    if not state_ids:
+        raise typer.BadParameter("Give at least one --state-id", param_hint="--state-id")
+    from vla_lab.evaluation.states import evaluate_act_states
+
+    root = workspace.expanduser().resolve()
+    source = checkpoint if checkpoint.is_absolute() else root / checkpoint
+    data = (data_root or root / ".local-data").expanduser().resolve()
+    target = output if output.is_absolute() else root / output
+    result = evaluate_act_states(
+        checkpoint=source,
+        configs_root=root / "configs",
+        data_root=data,
+        output_dir=target,
+        state_ids=state_ids,
+    )
+    typer.echo(json.dumps(result, sort_keys=True))
+
+
+@app.command()
+def compare(
+    a: Annotated[Path, typer.Option(help="First episodes.jsonl path.")],
+    b: Annotated[Path, typer.Option(help="Second episodes.jsonl path.")],
+    output: Annotated[Path, typer.Option(help="New paired JSON report path.")],
+) -> None:
+    """Compare two policies on one exact state sequence."""
+    from vla_lab.evaluation.paired import write_paired_report
+
+    typer.echo(json.dumps(write_paired_report(a, b, output), sort_keys=True))
 
 
 if __name__ == "__main__":
