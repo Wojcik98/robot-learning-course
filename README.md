@@ -1,6 +1,6 @@
 # End-to-end robot learning
 
-This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Lab 0 is ready to run on the prepared local machine. Later labs are in progress.
+This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Labs 0–2 run on the prepared local machine. Later labs are in progress.
 
 ## Setup
 
@@ -37,4 +37,4 @@ Use [local job controls](docs/jobs.md) for longer training runs. They keep a run
 
 [Brev cost and stop controls](docs/cloud.md) are under test. The local labs do not use cloud credit.
 
-The [course data flow](docs/architecture.md) now has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. Lab 2 is in progress.
+The [course data flow](docs/architecture.md) has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. [Lab 2](tutorials/02-data-evaluation/02-data-evaluation.ipynb) audits a complete demonstration and runs two fixed development states.
