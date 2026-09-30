@@ -1,0 +1,37 @@
+schema_version: 1
+checked_on: '2026-09-30'
+availability: local_checkpoint_in_ignored_data_root
+data_root: .local-data
+tasks:
+  bowl_plate:
+    checkpoint_path: .local-data/runs/act-bowl-plate-probe-200/checkpoint-000200
+    checkpoint_files_sha256:
+      config.json: 5945b645f1db6c02cd85f96a503331d16b961986cca0fd678c0ade42c1086bcc
+      manifest.json: bcb9c8fc4c2270b75dbc1a7eb936c9d27658f84685155face67c9b00f7041c33
+      model.safetensors: e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107
+      policy_postprocessor.json: 3b51f092c70c710ce0213ee1b63bf51b4878ec67828dd2d67daf9ef51081a41a
+      policy_postprocessor_step_0_unnormalizer_processor.safetensors: f014dc2b229d7474168b08d52ae259b1cd91d1b1b846b40cc6f73ba154b01b44
+      policy_preprocessor.json: 3ec3567f2ef31bf39eb00a46ab5d45a01720853df7faede42a9244ecda22d794
+      policy_preprocessor_step_3_normalizer_processor.safetensors: f014dc2b229d7474168b08d52ae259b1cd91d1b1b846b40cc6f73ba154b01b44
+    video_path: .local-data/runs/act-bowl-plate-probe-200/rollout-state-000.mp4
+    video_sha256: c2a756f7e10f338399cf44953af1468aa766d3ff963f08f45170c1d6abd81f55
+    evidence_dir: artifacts/reference/act/bowl_plate
+    training_steps: 200
+    development_successes: 19
+    development_episodes: 20
+  bowl_stove:
+    checkpoint_path: .local-data/runs/act-bowl-stove-probe-200/checkpoint-000200
+    checkpoint_files_sha256:
+      config.json: 5945b645f1db6c02cd85f96a503331d16b961986cca0fd678c0ade42c1086bcc
+      manifest.json: 7f7a7f630d28eb47729e115f91e8edde1d151da6bd6d2b258ad2df87b1b8799b
+      model.safetensors: 54c398526b21829039117b667de45b9e40574e70042e9e2f16778a31730114fc
+      policy_postprocessor.json: 3b51f092c70c710ce0213ee1b63bf51b4878ec67828dd2d67daf9ef51081a41a
+      policy_postprocessor_step_0_unnormalizer_processor.safetensors: 5677edf1d917fa6a14f8f145ff2007530cb0dc6d6942aaf72229cd2df1d0d962
+      policy_preprocessor.json: 3ec3567f2ef31bf39eb00a46ab5d45a01720853df7faede42a9244ecda22d794
+      policy_preprocessor_step_3_normalizer_processor.safetensors: 5677edf1d917fa6a14f8f145ff2007530cb0dc6d6942aaf72229cd2df1d0d962
+    video_path: .local-data/runs/act-bowl-stove-probe-200/rollout-state-000.mp4
+    video_sha256: 618535fbd3e0773e062553236b456c80eccfda48dca27305ce06bacc6862779b
+    evidence_dir: artifacts/reference/act/bowl_stove
+    training_steps: 200
+    development_successes: 20
+    development_episodes: 20

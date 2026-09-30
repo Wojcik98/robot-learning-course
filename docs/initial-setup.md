@@ -1,8 +1,8 @@
 # Initial setup: one user checklist
 
-**Status:** Plan for S0. Implementation and paid cloud jobs have not started. Complete account and administrator steps together after plan approval.
+**Status:** Local setup and P0 implementation are in progress. No paid cloud job has started. The user reported a US$29.94 Brev balance with auto recharge off. Brev CLI login, active organization, current GPU quote, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
 
-Sol prepares the exact bootstrap commands, asset list, and current cloud quote first. Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
+Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
 
 ## 1. Defaults and existing authorization
 
@@ -36,13 +36,13 @@ Keep passwords and tokens out of chat, notebook cells, tracked files, and comman
 
 ### Hugging Face access
 
-Sol installs a pinned CLI and gives the matching login command. The current [CLI guide](https://huggingface.co/docs/huggingface_hub/guides/cli) documents `hf auth login` and `hf auth whoami`. Use a dedicated read token only when needed, with access to the selected repositories. Public assets may work without login; verify every required model, tokenizer, and dataset before unattended work.
+The installed CLI provides `hf auth login` and `hf auth whoami`, as described in the [CLI guide](https://huggingface.co/docs/huggingface_hub/guides/cli). Use a dedicated read token when access needs one. Public core assets worked without login in the P0 download. A token file is now present on this host; its access to each future asset is not yet verified.
 
-Test metadata and a small download for each asset family. Keep the authentication location stable and configure the bulk cache separately. On a VM, use a scoped credential through an encrypted channel or secret facility. Do not copy an entire local credential directory.
+Test metadata and a small download for each asset family. Keep the authentication location stable. Set `HF_HUB_CACHE` and `HF_DATASETS_CACHE` for large files without changing `HF_HOME` after login. On a VM, use a scoped credential through an encrypted channel or secret facility. Do not copy an entire local credential directory.
 
 ### Brev access and billing
 
-Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/getting-started/quickstart). Sol checks the installed CLI commands before presenting them. A separate API token is needed only if the chosen automation route requires one.
+Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/latest/cli/getting-started). The CLI is not yet installed on this host. The user has the Linux install and `brev login` commands. A separate API token is needed only if the chosen automation route requires one.
 
 The [billing guide](https://docs.nvidia.com/brev/guides/console-reference#billing--usage) describes shared credit and auto recharge. Confirm the account settings; a prepaid balance is useful only if recharge or overage does not defeat the limit. If that boundary cannot be established, continue local work and report the cloud blocker.
 

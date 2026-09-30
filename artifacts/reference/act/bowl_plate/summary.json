@@ -1,0 +1,31 @@
+{
+  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/act-bowl-plate-probe-200/checkpoint-000200",
+  "episodes": 20,
+  "partition": "development",
+  "schema_version": 1,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "success_rate": 0.95,
+  "successes": 19,
+  "task_alias": "bowl_plate"
+}
