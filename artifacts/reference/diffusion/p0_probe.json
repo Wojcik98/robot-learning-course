@@ -24,5 +24,7 @@
   "gpu_live_step_success": false,
   "gpu_live_step_elapsed_s": 2.981,
   "gpu_live_peak_pytorch_mib": 184,
+  "gpu_total_mib_with_renderer": 2875,
+  "gpu_total_mib": 8192,
   "trained_reference": "pending"
 }

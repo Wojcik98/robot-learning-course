@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "policy": "HuggingFaceVLA/smolvla_libero",
+  "policy_revision": "6721902bc4d61e50a3bfdb11dfb4cb626f05d102",
+  "sample_episode_id": 379,
+  "sample_dataset_revision": "a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4",
+  "action_chunk_shape": [1, 50, 7],
+  "execution_horizon": 10,
+  "inference_delay_ticks": 2,
+  "mask": "RTC v2 equation 5 soft mask",
+  "ordinary_chunk_finite": true,
+  "ordinary_peak_pytorch_mib": 1508,
+  "checked_guidance_finite": true,
+  "checked_guidance_peak_pytorch_mib": 1628,
+  "upstream_guidance_peak_pytorch_mib": 2367,
+  "upstream_jacobian_check": "failed: the model output is computed before the action tensor starts tracking gradients",
+  "checked_jacobian_unit_test": "passed",
+  "total_gpu_mib_with_renderer_ordinary": 4214,
+  "total_gpu_mib_with_renderer_checked_guidance": 4359,
+  "gpu_total_mib": 8192
+}

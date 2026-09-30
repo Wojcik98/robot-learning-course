@@ -42,7 +42,9 @@ Use the activated project environment for `python`, or replace it with `.venv/bi
 | LIBERO-Goal reset and one action | Passed with EGL, 20 Hz relative control, two rendered cameras |
 | ACT with simulator and LeRobot processors | One live inference step and two 200-step training runs passed |
 | ACT development rollout | 19/20 bowl-on-plate and 20/20 bowl-on-stove states succeeded |
-| SmolVLA and Diffusion Policy | Policy probes pending |
+| Published SmolVLA with simulator | Passed a live step; selected ten-action setting succeeded on 14/20 development states |
+| SmolVLA learner training probe | Finite loss and gradients; one optimizer step saved and strictly reloaded |
+| Diffusion Policy with simulator | Finite action and one live step; saved CPU probe reloaded |
 
 The restricted shell cannot see the GPU. Use the approved host execution route for GPU and EGL checks. A CPU-only result does not pass the GPU gate. The simulator reports a 20 Hz controller. Dataset timestamps are 10 Hz labels; they do not set the simulator control period.
 
