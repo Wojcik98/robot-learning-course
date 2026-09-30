@@ -1,6 +1,6 @@
 # Initial setup: one user checklist
 
-**Status:** Local setup and P0 implementation are in progress. No paid cloud job has started. The user reported a US$29.94 Brev balance with auto recharge off. Brev CLI login, active organization, current GPU quote, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
+**Status:** Local setup and P0 implementation are in progress. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list now work. The current GPU quote and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
 
 Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
 
@@ -42,9 +42,9 @@ Test metadata and a small download for each asset family. Keep the authenticatio
 
 ### Brev access and billing
 
-Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/latest/cli/getting-started). The CLI is not yet installed on this host. The user has the Linux install and `brev login` commands. A separate API token is needed only if the chosen automation route requires one.
+Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/latest/cli/getting-started). The user installed Brev CLI v0.6.335 and completed browser login. A host CLI check returned `No instances in org wojcikmichal98-0-tsk8`. A separate API token is needed only if the chosen automation route requires one.
 
-The [billing guide](https://docs.nvidia.com/brev/guides/console-reference#billing--usage) describes shared credit and auto recharge. Confirm the account settings; a prepaid balance is useful only if recharge or overage does not defeat the limit. If that boundary cannot be established, continue local work and report the cloud blocker.
+The [billing guide](https://docs.nvidia.com/brev/guides/console-reference#billing--usage) describes shared credit and auto recharge. The user checked the Billing page and reported no active charge path beyond the US$29.94 credit, with auto recharge off. Check the live quote and stop controls before allocation. If that boundary cannot be established, continue local work and report the cloud blocker.
 
 Within the authorized allowance, verify one short supervised allocation: SSH, file transfer, command execution, export, and provider stop. Record cost and provider state. [Stopped instances can retain storage charges](https://docs.nvidia.com/brev/concepts/gpu-instances). Export required files before deletion or credit exhaustion. Never delete unrelated resources.
 
@@ -88,7 +88,7 @@ Sol fills a compact redacted table here during S0; do not create another setup r
 | Driver route | Host GPU query and CUDA driver API | Passed read-only check; recheck in S0 |
 | Runtime | Exact package list, lock, tensor/render/decode checks | Pending P0 |
 | Hub access | Exact asset IDs and successful small downloads | Pending S0 |
-| Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | Pending S0 |
+| Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | User confirmed credit and charge path; quote and job controls pending |
 | Remote lifecycle | SSH, export, provider stop, cost and storage record | Pending supervised S0 check |
 | Unattended jobs | Monitor, deadline, independent stop, failure tests | Pending P1 |
 | Workers | Claude login/usage access, Astra route | Pending S0 |

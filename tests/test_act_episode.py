@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from vla_lab.policy.act import make_act_config, make_act_processors
-from vla_lab.sim.episode import run_act_episode
+from vla_lab.sim.episode import run_act_episode, run_policy_episode
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
 
@@ -107,3 +107,26 @@ def test_act_episode_emits_visual_frames_at_reset_and_after_action() -> None:
     assert len(frames) == 2
     assert frames[0].shape == (256, 256, 3)
     assert frames[0][-1, -1, 0] == 255
+
+
+def test_language_policy_receives_prompt_for_each_action() -> None:
+    policy = FixedPolicy()
+    environment = OneStepEnv()
+    preprocessor, postprocessor = make_act_processors(
+        make_act_config(device="cpu"), "bowl_plate", CONFIGS
+    )
+
+    result = run_policy_episode(
+        environment,
+        policy,
+        preprocessor,
+        postprocessor,
+        "bowl_plate",
+        0,
+        CONFIGS,
+        task_prompt="put the bowl on the plate",
+        max_steps=1,
+    )
+
+    assert result.success is True
+    assert policy.observation["task"] == ["put the bowl on the plate"]

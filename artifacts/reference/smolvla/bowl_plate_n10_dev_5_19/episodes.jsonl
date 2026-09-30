@@ -1,0 +1,15 @@
+{"task_alias": "bowl_plate", "state_id": 5, "seed": 20260935, "success": true, "steps": 102, "clipped_values": 53, "elapsed_s": 10.359}
+{"task_alias": "bowl_plate", "state_id": 6, "seed": 20260936, "success": false, "steps": 300, "clipped_values": 53, "elapsed_s": 20.679}
+{"task_alias": "bowl_plate", "state_id": 7, "seed": 20260937, "success": true, "steps": 81, "clipped_values": 32, "elapsed_s": 7.681}
+{"task_alias": "bowl_plate", "state_id": 8, "seed": 20260938, "success": false, "steps": 300, "clipped_values": 106, "elapsed_s": 20.419}
+{"task_alias": "bowl_plate", "state_id": 9, "seed": 20260939, "success": true, "steps": 76, "clipped_values": 38, "elapsed_s": 7.167}
+{"task_alias": "bowl_plate", "state_id": 10, "seed": 20260940, "success": true, "steps": 84, "clipped_values": 38, "elapsed_s": 7.726}
+{"task_alias": "bowl_plate", "state_id": 11, "seed": 20260941, "success": true, "steps": 74, "clipped_values": 33, "elapsed_s": 7.036}
+{"task_alias": "bowl_plate", "state_id": 12, "seed": 20260942, "success": true, "steps": 73, "clipped_values": 36, "elapsed_s": 7.053}
+{"task_alias": "bowl_plate", "state_id": 13, "seed": 20260943, "success": false, "steps": 300, "clipped_values": 117, "elapsed_s": 20.491}
+{"task_alias": "bowl_plate", "state_id": 14, "seed": 20260944, "success": true, "steps": 67, "clipped_values": 24, "elapsed_s": 6.591}
+{"task_alias": "bowl_plate", "state_id": 15, "seed": 20260945, "success": true, "steps": 70, "clipped_values": 33, "elapsed_s": 6.456}
+{"task_alias": "bowl_plate", "state_id": 16, "seed": 20260946, "success": false, "steps": 300, "clipped_values": 200, "elapsed_s": 20.412}
+{"task_alias": "bowl_plate", "state_id": 17, "seed": 20260947, "success": false, "steps": 300, "clipped_values": 89, "elapsed_s": 20.336}
+{"task_alias": "bowl_plate", "state_id": 18, "seed": 20260948, "success": true, "steps": 66, "clipped_values": 29, "elapsed_s": 6.481}
+{"task_alias": "bowl_plate", "state_id": 19, "seed": 20260949, "success": true, "steps": 81, "clipped_values": 31, "elapsed_s": 7.653}

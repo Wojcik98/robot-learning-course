@@ -79,7 +79,7 @@ def open_libero_task(
     )
 
 
-def run_act_episode(
+def run_policy_episode(
     environment: Any,
     policy: Any,
     preprocessor: PolicyProcessorPipeline,
@@ -91,8 +91,9 @@ def run_act_episode(
     partition: str = "development",
     max_steps: int = 300,
     on_frame: Callable[[np.ndarray], None] | None = None,
+    task_prompt: str | None = None,
 ) -> EpisodeResult:
-    """Run ACT on a declared state partition and use LeRobot transforms."""
+    """Run one policy on a declared state partition."""
     task = _task_split(task_alias, configs_root)
     if partition not in ("development", "final"):
         raise ValueError(f"Unknown state partition: {partition}")
@@ -112,13 +113,15 @@ def run_act_episode(
         processed = libero_processor.observation(
             preprocess_observation(_single_env_batch(observation))
         )
+        if task_prompt is not None:
+            processed["task"] = task_prompt
         batch = preprocessor(processed)
         with torch.no_grad():
             normalized_action = policy.select_action(batch)
             physical_action = postprocessor(normalized_action)
         action = np.asarray(physical_action, dtype=np.float32).reshape(-1)
         if action.shape != (7,) or not np.isfinite(action).all():
-            raise ValueError("ACT returned an invalid seven-value action")
+            raise ValueError("Policy returned an invalid seven-value action")
         clipped_values += int(np.count_nonzero((action < -1.0) | (action > 1.0)))
         action = np.clip(action, -1.0, 1.0)
         observation, _, terminated, truncated, info = environment.step(action)
@@ -128,3 +131,31 @@ def run_act_episode(
         if success or terminated or truncated:
             break
     return EpisodeResult(task_alias, state_id, success, step, clipped_values)
+
+
+def run_act_episode(
+    environment: Any,
+    policy: Any,
+    preprocessor: PolicyProcessorPipeline,
+    postprocessor: PolicyProcessorPipeline,
+    task_alias: str,
+    state_id: int,
+    configs_root: str | Path,
+    *,
+    partition: str = "development",
+    max_steps: int = 300,
+    on_frame: Callable[[np.ndarray], None] | None = None,
+) -> EpisodeResult:
+    """Run ACT with the shared LIBERO observation path."""
+    return run_policy_episode(
+        environment,
+        policy,
+        preprocessor,
+        postprocessor,
+        task_alias,
+        state_id,
+        configs_root,
+        partition=partition,
+        max_steps=max_steps,
+        on_frame=on_frame,
+    )

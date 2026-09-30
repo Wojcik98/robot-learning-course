@@ -1,0 +1,36 @@
+schema_version: 1
+published_reference:
+  repo: HuggingFaceVLA/smolvla_libero
+  revision: 6721902bc4d61e50a3bfdb11dfb4cb626f05d102
+  local_dir: .local-data/models/smolvla-libero
+  model_sha256: 71d9563c8295284acba8fc2d5c19de000d6fe9ba58a406832af7ef3d221ed52f
+  bundled_processor_stats_sha256: 7008ba73c73887e5a7e631d478de9563ec5a0c51b7f0327f2530d7326c4b039e
+  training_data: unknown
+  selected_n_action_steps: 10
+  comparison:
+    task: bowl_plate
+    partition: development
+    state_ids: [0, 1, 2, 3, 4]
+    base_seed: 20260930
+    published_n_action_steps_1_successes: 2
+    changed_n_action_steps_10_successes: 4
+    one_action_result: artifacts/reference/smolvla/bowl_plate_n1_dev_0_4
+    ten_action_result: artifacts/reference/smolvla/bowl_plate_n10_dev_0_4
+  selected_result:
+    task: bowl_plate
+    partition: development
+    state_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    base_seed: 20260930
+    successes: 14
+    episodes: 20
+    result_dir: artifacts/reference/smolvla/bowl_plate_n10_dev_all
+learner_start:
+  repo: HuggingFaceTB/SmolVLM2-500M-Video-Instruct
+  revision: 7b375e1b73b11138ff12fe22c8f2822d8fe03467
+  local_dir: .local-data/models/smolvlm2-500m-video-instruct
+  model_sha256: b9bfd456c9472c0acd5719d6e514c4b859891af205ee1a736552fd3497b8b0c3
+  loaded_vlm_tensors_matched: 345
+  loaded_vlm_tensors_missing: 0
+  parameter_audit: artifacts/reference/smolvla/learner_init_audit.json
+  one_step_probe: .local-data/runs/smolvla-learner-p0-one-step
+  trained_reference: pending

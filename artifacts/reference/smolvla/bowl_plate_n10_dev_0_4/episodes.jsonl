@@ -1,0 +1,5 @@
+{"task_alias": "bowl_plate", "state_id": 0, "seed": 20260930, "success": true, "steps": 80, "clipped_values": 18, "elapsed_s": 8.384}
+{"task_alias": "bowl_plate", "state_id": 1, "seed": 20260931, "success": true, "steps": 245, "clipped_values": 100, "elapsed_s": 17.472}
+{"task_alias": "bowl_plate", "state_id": 2, "seed": 20260932, "success": false, "steps": 300, "clipped_values": 71, "elapsed_s": 20.444}
+{"task_alias": "bowl_plate", "state_id": 3, "seed": 20260933, "success": true, "steps": 81, "clipped_values": 34, "elapsed_s": 7.583}
+{"task_alias": "bowl_plate", "state_id": 4, "seed": 20260934, "success": true, "steps": 84, "clipped_values": 36, "elapsed_s": 7.636}

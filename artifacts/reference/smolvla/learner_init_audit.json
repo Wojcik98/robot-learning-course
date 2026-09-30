@@ -1,0 +1,55 @@
+{
+  "groups": {
+    "action_expert": {
+      "parameters": 98245840,
+      "source": "initialized",
+      "tensors": 145,
+      "trainable_parameters": 98245840
+    },
+    "action_input_projection": {
+      "parameters": 23760,
+      "source": "initialized",
+      "tensors": 2,
+      "trainable_parameters": 23760
+    },
+    "action_output_projection": {
+      "parameters": 23072,
+      "source": "initialized",
+      "tensors": 2,
+      "trainable_parameters": 23072
+    },
+    "action_time_input": {
+      "parameters": 1037520,
+      "source": "initialized",
+      "tensors": 2,
+      "trainable_parameters": 1037520
+    },
+    "action_time_output": {
+      "parameters": 519120,
+      "source": "initialized",
+      "tensors": 2,
+      "trainable_parameters": 519120
+    },
+    "state_projection": {
+      "parameters": 31680,
+      "source": "initialized",
+      "tensors": 2,
+      "trainable_parameters": 31680
+    },
+    "vlm_backbone": {
+      "parameters": 350165184,
+      "source": "loaded",
+      "tensors": 345,
+      "trainable_parameters": 0
+    }
+  },
+  "matched_loaded_tensors": 345,
+  "missing_loaded_tensors": 0,
+  "model": "smolvla_learner_A",
+  "parameters": 450046176,
+  "schema_version": 1,
+  "source_repo": "HuggingFaceTB/SmolVLM2-500M-Video-Instruct",
+  "source_revision": "7b375e1b73b11138ff12fe22c8f2822d8fe03467",
+  "source_sha256": "b9bfd456c9472c0acd5719d6e514c4b859891af205ee1a736552fd3497b8b0c3",
+  "trainable_parameters": 99880992
+}
