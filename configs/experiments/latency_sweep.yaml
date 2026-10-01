@@ -1,0 +1,29 @@
+schema_version: 1
+experiment: latency_sweep
+task_alias: bowl_plate
+partition: development
+state_id: 0
+reset_seed: 20260930
+noise_seed: 4100
+max_steps: 300
+dataset_revision: a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4
+train_split_sha256: ef237195fc6ace8a78ff69fcf472362a89adb64a4ff079b5fb84724157bb82f4
+task_prompt: put the bowl on the plate
+learner:
+  checkpoint: .local-data/runs/smolvla-c2-5000-development/checkpoint-005000
+  vlm_dir: .local-data/models/smolvlm2-500m-video-instruct
+  model_sha256: 5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1
+  vlm_sha256: b9bfd456c9472c0acd5719d6e514c4b859891af205ee1a736552fd3497b8b0c3
+runtime:
+  horizon: 50
+  num_steps: 5
+  ensemble_decay: 0.25
+# Synchronous with d=0 and naive_async with d=0 and the same stride are one condition.
+# The first grid that lists it keeps it, so (stride 10, d=0) runs once as synchronous.
+grids:
+  - mode: synchronous
+    strides: [1, 5, 10]
+    delays: [0]
+  - mode: naive_async
+    strides: [10]
+    delays: [0, 1, 2, 4]

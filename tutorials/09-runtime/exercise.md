@@ -11,4 +11,5 @@ Use the notebook helper `make_chunk` and `VirtualScheduler`. Write your predicti
 7. Let a chunk end while the gripper value is 1. Show the action at the first underflow tick. Explain why the scheduler holds the gripper.
 8. Reset to a new reset counter while a reply is pending. Show that the old reply cannot reach the controller. State what else the runner must reset outside the scheduler.
 9. Time one CPU call with `measure_calls`. Report cold time, warm p50, warm p95, and deadline misses. Convert warm p95 to a delay with `latency_to_ticks`. State why this conversion is conservative. State why you cannot call it a GPU speed result.
-10. Write two sentences that state what this lab does not prove about SmolVLA, RTC, and LIBERO.
+10. Read the saved settings sweep. Compare synchronous strides 1, 5, and 10 on development state 0. State the request count and success for each. Compare asynchronous delays 1, 2, and 4 ticks. Explain why these six runs cannot rank the settings.
+11. Write two sentences that state what the synthetic cells and the one-state sweep do not prove about SmolVLA, RTC, and LIBERO.
