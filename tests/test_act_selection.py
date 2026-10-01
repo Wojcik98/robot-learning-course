@@ -91,3 +91,17 @@ def test_selection_rejects_count_outside_frozen_train_ids(tmp_path: Path) -> Non
             output_dir=tmp_path / "bad",
             episode_rows=_rows(),
         )
+
+
+def test_selection_rejects_misaligned_state_and_action_rows(tmp_path: Path) -> None:
+    source = _configs(tmp_path)
+    rows = _rows()
+    rows[2]["action"] = rows[2]["action"][:1]
+    with pytest.raises(ValueError, match="aligned"):
+        prepare_act_selection(
+            configs_root=source,
+            task_alias="task",
+            episode_count=2,
+            output_dir=tmp_path / "bad",
+            episode_rows=rows,
+        )

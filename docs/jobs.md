@@ -30,4 +30,6 @@ Use these commands with the printed ID:
 
 These commands run on the local host. They do not start or stop a Brev instance. Remote jobs require the cloud checks in [the plan](plans/vla-tutorial-plan.md#7-cloud-operation-and-budget).
 
+On 2026-10-01, a long ACT suite worker started from the managed Codex command host but stopped about when that command host returned. It wrote a `running` status and the recipe, but no training log or terminal status. The manager marked the run `interrupted`. The exact cause is not confirmed. The short worker tests and one-step probe passed; they do not prove that this command host can keep a long worker after its launcher exits. The ACT reference suite therefore used a monitored local command session. Before an unattended learner run, verify a long worker from the intended terminal or Jupyter host after closing its launcher. Keep the run ID and stop command available.
+
 On 2026-10-01, this one-step job completed with exit code 0, finite loss 78.9951, ten saved files, and a copied model file with the same hash. The compact [probe record](../artifacts/reference/jobs/local_act_probe.json) gives its run ID. This verifies job control and one optimizer step; it does not establish a trained policy's task success.

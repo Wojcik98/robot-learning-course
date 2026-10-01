@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "execution": "fresh_kernel_sequential",
+  "notebooks": [
+    {"path": "tutorials/00-first-run/00-first-run.ipynb", "code_cells": 4, "errors": 0, "elapsed_s": 18.65},
+    {"path": "tutorials/01-act/01-act.ipynb", "code_cells": 6, "errors": 0, "elapsed_s": 8.24},
+    {"path": "tutorials/02-data-evaluation/02-data-evaluation.ipynb", "code_cells": 5, "errors": 0, "elapsed_s": 17.81},
+    {"path": "tutorials/03-train-act/03-train-act.ipynb", "code_cells": 7, "errors": 0, "elapsed_s": 10.85}
+  ],
+  "total_code_cells": 22,
+  "total_errors": 0,
+  "final_states_used": false,
+  "long_detached_job_survival_verified": false,
+  "new_machine_checkpoint_distribution_verified": false
+}

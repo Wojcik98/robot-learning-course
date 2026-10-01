@@ -18,6 +18,9 @@ doctor:
 lab0:
     .venv/bin/jupyter lab tutorials/index.ipynb
 
+lab3:
+    .venv/bin/jupyter lab tutorials/03-train-act/03-train-act.ipynb
+
 test:
     PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OMP_NUM_THREADS=4 .venv/bin/python -m pytest -q
 

@@ -71,7 +71,11 @@ def prepare_act_selection(
     train_ids = task["train_episode_ids"]
     validation_ids = task["validation_episode_ids"]
     frozen = split_episodes(train_ids + validation_ids)
-    if frozen.sha256 != task["split_sha256"]:
+    if (
+        frozen.sha256 != task["split_sha256"]
+        or tuple(train_ids) != frozen.train_ids
+        or tuple(validation_ids) != frozen.validation_ids
+    ):
         raise ValueError("source split hash differs from the frozen episode IDs")
     if not 1 <= episode_count <= len(train_ids):
         raise ValueError("episode_count must fit the frozen training episode count")
@@ -96,6 +100,18 @@ def prepare_act_selection(
             if data_root is None:
                 raise ValueError("data_root is required to calculate subset statistics")
             episode_rows = _selected_rows(source, Path(data_root), task_alias, selected)
+        for episode_id in selected:
+            state = np.asarray(episode_rows[episode_id]["observation.state"])
+            action = np.asarray(episode_rows[episode_id]["action"])
+            if (
+                state.ndim != 2
+                or action.ndim != 2
+                or state.shape[1] != 8
+                or action.shape[1] != 7
+                or state.shape[0] < 1
+                or state.shape[0] != action.shape[0]
+            ):
+                raise ValueError("state and action rows must be aligned with widths 8 and 7")
         stats = {
             "schema_version": 1,
             "dataset_revision": manifest["dataset_revision"],

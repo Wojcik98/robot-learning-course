@@ -34,3 +34,9 @@
 - Check the live GPU quote, cost limit, and provider stop controls before any paid job. No paid cloud job has started.
 
 No final simulator state has been used for model selection. The reported ACT rates are development results for this fixed setup. They are not benchmark estimates. The source demonstration overlap with simulator initial states is not resolved. The bowl-on-stove run clipped 1,317 action values across 1,446 steps; bowl-on-plate clipped 541 values across 1,735 steps. The course must show this action limit and study its effect.
+
+## ACT training lab update (2026-10-01)
+
+Labs 0–3 ran from fresh notebook kernels on the prepared local machine. Lab 3 restored a GPU checkpoint after one step and completed a second step. A separate 200-step-per-variant local suite used the same 20 bowl-plate development states for three variants. The 10-episode, 20-action variant succeeded on 11/20 states; the 39-episode, 20-action variant on 17/20; and the 39-episode, 10-action variant on 12/20. All 60 attempts produced records, with no infrastructure errors. The suite took about 381 seconds. The [reference record](../artifacts/reference/act/lab3_suite.json) has split hashes, model hashes, Wilson intervals, and paired results. One training seed and 20 development states do not support a stable ranking. Final states remain closed.
+
+The long detached suite worker stopped in the managed command host before it wrote a training log. A monitored local command completed the reference. The independent long-worker survival check remains open in the [job guide](jobs.md). The ACT archive distribution path for a new machine also remains open.

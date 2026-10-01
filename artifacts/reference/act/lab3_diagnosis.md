@@ -1,0 +1,9 @@
+# Lab 3 failure diagnosis
+
+The [ACT suite record](lab3_suite.json) covers three policies on the same 20 bowl-plate development states. Each policy trained for 200 steps with one seed. The policies succeeded on 11, 17, and 12 states. All failed attempts ended at the 300-step timeout. No attempt had a policy or infrastructure error. The evaluator kept each failed state and its video.
+
+State 1 failed for all three variants. The 39-episode, 20-action policy also failed on states 5 and 11. Its state-1 video shows that the arm changed pose near the plate; the frames do not establish why the success condition stayed false. The saved run record reports 68 clipped action values for this attempt. Across all 20 states, this variant had 1,077 clipped action values. The 10-episode variant had 1,478, and the 10-action variant had 1,571. Clipping is an observed controller limit event. These counts do not prove that clipping caused a timeout.
+
+On paired states, the 39-episode, 20-action policy succeeded on eight states where the 10-episode policy failed; the 10-episode policy alone succeeded on two. The difference is six of 20 states. The exact McNemar value is 0.109. For the chunk comparison, the 20-action policy alone succeeded on six states and the 10-action policy alone on one; the exact value is 0.125. These results can guide a development choice, but they do not establish a stable ranking. One training seed, 20 starts, and unresolved overlap with source demonstrations limit the claim. No final simulator state was used.
+
+The earlier P0 ACT reference used another training sampler and succeeded on 19/20 development states. It is a usable Lab 0 checkpoint. The new 17/20 full-data result is part of the fixed three-variant comparison. The score gap between these two runs is not evidence for a data effect.

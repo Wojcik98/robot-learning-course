@@ -155,7 +155,7 @@ def train_act_reference(
         if bundle["chunk_size"] != chunk_size:
             raise ValueError("Resume chunk_size differs from the saved checkpoint")
         checkpoint_state = torch.load(
-            source / "optimizer.pt", map_location=device, weights_only=True
+            source / "optimizer.pt", map_location="cpu", weights_only=True
         )
         start_step = int(checkpoint_state["step"])
         if steps <= start_step:
