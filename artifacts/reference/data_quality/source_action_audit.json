@@ -1,0 +1,21 @@
+{
+  "dataset_revision": "a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4",
+  "episode_length_max": 126,
+  "episode_length_min": 79,
+  "motion_metric": "maximum absolute value across six arm action components",
+  "near_zero_counts": {
+    "0.001": 0,
+    "0.01": 11,
+    "0.05": 61
+  },
+  "schema_version": 1,
+  "task_alias": "bowl_plate",
+  "thresholds_in_controller_units": [
+    0.001,
+    0.01,
+    0.05
+  ],
+  "timing_limit": "Dataset timestamps and action counts do not recover filtered physical elapsed time.",
+  "training_episode_count": 39,
+  "training_frame_count": 3661
+}

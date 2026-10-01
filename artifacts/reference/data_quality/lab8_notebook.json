@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-10-01T11:10:10.037000+00:00",
+  "error_outputs": 0,
+  "executed_code_cells": 8,
+  "executed_notebook": ".local-data/runs/lab8-data-quality-nbclient-executed.ipynb",
+  "executed_sha256": "493b8cba965c81b62d564943b4cb3d318acf68d272005d2cb48f570f3b235529",
+  "heldout_attempt_rows_read": 45,
+  "kernel": "python3",
+  "local_policy_generated_recordings_loaded": 5,
+  "schema_version": 1,
+  "source_notebook": "tutorials/08-data-quality/08-data-quality.ipynb",
+  "source_sha256": "f47850ecf699073a3085d879ebc2c5487cc80d125d9457a838987d0c28bbf736"
+}

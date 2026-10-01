@@ -1,0 +1,21 @@
+{
+  "action_count": 12,
+  "controller_period_ms": 50,
+  "files": {
+    "synthetic_clean": {
+      "path": "artifacts/reference/data_quality/synthetic_clean.npz",
+      "sha256": "3a123e73ba2191283cbb78588a1b781abfe875aebd5dcaddee3d3fb96fcc3943"
+    },
+    "synthetic_defect": {
+      "path": "artifacts/reference/data_quality/synthetic_defect.npz",
+      "sha256": "f56647a8f5936c9cdbdce0be2412e1969e4d9268b23bc897b1018e5a7ed317c4"
+    },
+    "synthetic_repaired": {
+      "path": "artifacts/reference/data_quality/synthetic_repaired.npz",
+      "sha256": "3a123e73ba2191283cbb78588a1b781abfe875aebd5dcaddee3d3fb96fcc3943"
+    }
+  },
+  "observation_count": 13,
+  "schema_version": 1,
+  "source": "deterministic synthetic simulator fixture; not a LIBERO demonstration"
+}

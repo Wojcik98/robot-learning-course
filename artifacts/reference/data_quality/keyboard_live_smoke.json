@@ -1,0 +1,19 @@
+{
+  "action_count": 3,
+  "gripper_commands": [
+    1.0,
+    -1.0,
+    0.0
+  ],
+  "human_usability_tested": false,
+  "npz_path": ".local-data/runs/data-quality-keyboard-live-smoke/state-00.npz",
+  "npz_sha256": "e772e60af308ac2342e2235f5df2a1e18cd248144de2cb3e0c330927fe22286a",
+  "observation_count": 4,
+  "replay_all_numeric_exact": true,
+  "replay_numeric_max_abs_error": 0.0,
+  "reset_seed": 20260930,
+  "schema_version": 1,
+  "source_type": "injected_keyboard_events_live_libero",
+  "state_id": 0,
+  "task_alias": "bowl_plate"
+}

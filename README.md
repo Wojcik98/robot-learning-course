@@ -1,6 +1,6 @@
 # End-to-end robot learning
 
-This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Labs 0–3 run on the prepared local machine. Later labs are in progress.
+This project is building a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Labs 0–8 run on the prepared local machine. Timing and deployment labs are in progress.
 
 ## Setup
 
@@ -40,3 +40,5 @@ Use [local job controls](docs/jobs.md) for longer training runs. They keep a run
 The [course data flow](docs/architecture.md) has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. [Lab 2](tutorials/02-data-evaluation/02-data-evaluation.ipynb) audits a complete demonstration and runs two fixed development states.
 
 [Lab 3](tutorials/03-train-act/03-train-act.ipynb) trains ACT, resumes a checkpoint, and compares three saved local variants on the same 20 development states. The [reference record](artifacts/reference/act/lab3_suite.json) has every count and checkpoint hash. A long detached job was interrupted on this managed command host, so the full reference used a monitored local command. The [job guide](docs/jobs.md) records the remaining lifecycle check.
+
+[Labs 4 and 5](tutorials/04-smolvla/04-smolvla.ipynb) run a published SmolVLA checkpoint and adapt a separate learner. [Lab 6](tutorials/06-diffusion/06-diffusion.ipynb) trains and evaluates Diffusion Policy. [Lab 7](tutorials/07-comparison/07-comparison.ipynb) reads checked final results for bowl-plate and stove-on tasks. [Lab 8](tutorials/08-data-quality/08-data-quality.ipynb) checks action timing and a bounded recovery continuation. The [course index](tutorials/index.ipynb) gives the lesson order and time estimates.

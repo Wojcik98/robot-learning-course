@@ -1,0 +1,89 @@
+{
+  "accepted_recordings": 5,
+  "assessment_state_ids": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "base_model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+  "base_seed": 20260930,
+  "collection_state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "human_demonstrations": 0,
+  "paired_base_only_state_ids": [
+    5
+  ],
+  "paired_continuation_only_state_ids": [
+    8
+  ],
+  "partition": "development",
+  "resampled_diagnostic_note": "An earlier adapter kept only even ticks to match 10 Hz dataset metadata. It made 188 samples and failed on all 15 assessment states. This resampling contradicts the verified 50 ms controller period and is excluded from the valid reference.",
+  "results": {
+    "base": {
+      "attempts": 15,
+      "episodes_file": "artifacts/reference/data_quality/heldout/base/episodes.jsonl",
+      "failed_state_ids": [
+        8
+      ],
+      "successes": 14
+    },
+    "resampled_diagnostic": {
+      "attempts": 15,
+      "episodes_file": "artifacts/reference/data_quality/heldout/resampled_diagnostic/episodes.jsonl",
+      "failed_state_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "successes": 0
+    },
+    "tick_aligned": {
+      "attempts": 15,
+      "episodes_file": "artifacts/reference/data_quality/heldout/tick_aligned/episodes.jsonl",
+      "failed_state_ids": [
+        5
+      ],
+      "successes": 14
+    }
+  },
+  "schema_version": 1,
+  "scope": "One teacher checkpoint, one recording set, and one training seed. The corrected continuation changes which one of 15 states fails but does not improve the total success count. No final state was opened for this selection.",
+  "source_recording_manifest": "artifacts/reference/data_quality/teacher_manifest.json",
+  "source_type": "policy_generated",
+  "task_alias": "bowl_plate",
+  "teacher_model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+  "tick_aligned_model_sha256": "e2716230a87861c1bb6ccf15c57783c3718fc99fd82b3fbc6de902ca7ce17a0b",
+  "tick_aligned_sample_count": 375,
+  "tick_aligned_sampling": "Each recorded 50 ms controller tick contributes one observation and a 20-action window.",
+  "training_continuation_steps": 200,
+  "training_seed": 20261001
+}

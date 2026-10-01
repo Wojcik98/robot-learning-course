@@ -1,0 +1,87 @@
+{
+  "attempted_state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "candidate_state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "heldout_development_state_ids": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "provenance_limit": "These examples came from ACT, not a human keyboard operator.",
+  "recordings": [
+    {
+      "accepted": true,
+      "action_count": 74,
+      "path": ".local-data/runs/data-quality-teacher/accepted/state-00.npz",
+      "reset_seed": 20260930,
+      "sha256": "aa2f3d2d626c3c747f2ef835b1e6ffdf8558f1df0c8bfedc0328c39580fdec1f",
+      "state_id": 0
+    },
+    {
+      "accepted": true,
+      "action_count": 74,
+      "path": ".local-data/runs/data-quality-teacher/accepted/state-01.npz",
+      "reset_seed": 20260931,
+      "sha256": "478b2ea996eccdffd2119426594e73a1ac7abc7c950d426e6dae15cb13062799",
+      "state_id": 1
+    },
+    {
+      "accepted": true,
+      "action_count": 76,
+      "path": ".local-data/runs/data-quality-teacher/accepted/state-02.npz",
+      "reset_seed": 20260932,
+      "sha256": "5505ef711d8d0194ecd15eb8f706761c42af90be96e4c3b5e6726429e21617bf",
+      "state_id": 2
+    },
+    {
+      "accepted": true,
+      "action_count": 76,
+      "path": ".local-data/runs/data-quality-teacher/accepted/state-03.npz",
+      "reset_seed": 20260933,
+      "sha256": "efc8b7b80a6ef52c12902f66e68a2f7526a1c3982e3ab9fcd9f4e714c7235da1",
+      "state_id": 3
+    },
+    {
+      "accepted": true,
+      "action_count": 75,
+      "path": ".local-data/runs/data-quality-teacher/accepted/state-04.npz",
+      "reset_seed": 20260934,
+      "sha256": "ce9855672c52290f633860493ef12a32738ec32af5047bf879c06820df622567",
+      "state_id": 4
+    }
+  ],
+  "rejected_recordings": [],
+  "schema_version": 1,
+  "source_checkpoint": ".local-data/runs/act-bowl-plate-probe-200/checkpoint-000200",
+  "source_model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+  "source_type": "policy_generated",
+  "task_alias": "bowl_plate"
+}

@@ -1,0 +1,39 @@
+schema_version: 1
+task_alias: bowl_plate
+controller:
+  mode: relative
+  period_ms: 50
+  max_steps_per_episode: 300
+  action_bounds:
+    minimum: -1.0
+    maximum: 1.0
+  keyboard:
+    translation_step: 0.25
+    rotation_step: 0.25
+    positive_x: w
+    negative_x: s
+    positive_y: d
+    negative_y: a
+    positive_z: r
+    negative_z: f
+    positive_rx: u
+    negative_rx: o
+    positive_ry: j
+    negative_ry: l
+    positive_rz: i
+    negative_rz: k
+    gripper_open: open
+    gripper_close: close
+recording:
+  action_tick_rule: apply the action to the observation at the same tick
+  observation_count: one more than the action count
+  replay: reset the simulator, then apply saved actions in order
+lesson_fault:
+  label: synthetic timing defect
+  kind: action_tick_offset
+  offset_ticks: 1
+  provenance: synthetic; source filtering history is uncertain
+  repair: subtract the labelled offset from action ticks
+recovery:
+  minimum_demonstrations: 5
+  maximum_demonstrations: 10

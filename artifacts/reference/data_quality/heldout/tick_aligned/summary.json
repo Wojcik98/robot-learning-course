@@ -1,0 +1,8 @@
+{
+  "attempts": 15,
+  "episodes_file": "artifacts/reference/data_quality/heldout/tick_aligned/episodes.jsonl",
+  "failed_state_ids": [
+    5
+  ],
+  "successes": 14
+}
