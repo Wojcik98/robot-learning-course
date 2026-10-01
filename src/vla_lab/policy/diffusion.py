@@ -43,6 +43,7 @@ def make_diffusion_config(*, device: str = "cpu") -> DiffusionConfig:
         down_dims=(128, 256, 512),
         num_train_timesteps=100,
         num_inference_steps=20,
+        do_mask_loss_for_padding=True,
     )
 
 
