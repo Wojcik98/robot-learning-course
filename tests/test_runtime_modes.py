@@ -1,5 +1,6 @@
 """Check latency config, result identity, resume, and summaries on CPU."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from vla_lab.runtime.experiment import MODES, BoundaryRecord, EpisodeResult, Tic
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "configs" / "experiments" / "latency.yaml"
+FINAL_CONFIG = ROOT / "configs" / "experiments" / "latency_final.yaml"
 
 
 def write_config(tmp_path: Path, **changes) -> Path:
@@ -48,12 +50,35 @@ def test_config_pins_development_recipe() -> None:
     assert len(config["config_sha256"]) == 64
 
 
+def test_frozen_final_config_uses_only_final_states_and_development_evidence() -> None:
+    config = load_latency_config(FINAL_CONFIG, ROOT / "configs")
+
+    assert config["partition"] == "final"
+    assert config["state_ids"] == list(range(20, 30))
+    assert (
+        config["development_report_sha256"]
+        == hashlib.sha256(
+            (ROOT / "artifacts/reference/runtime/development_modes.json").read_bytes()
+        ).hexdigest()
+    )
+
+
+def test_final_config_rejects_changed_development_report_hash(tmp_path: Path) -> None:
+    payload = yaml.safe_load(FINAL_CONFIG.read_text())
+    payload["development_report_sha256"] = "0" * 64
+    path = tmp_path / "latency_final.yaml"
+    path.write_text(yaml.safe_dump(payload))
+
+    with pytest.raises(ValueError, match="development report"):
+        load_latency_config(path, ROOT / "configs")
+
+
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
         ({"state_ids": [0, 20]}, "partition"),
         ({"state_ids": [0, 0]}, "unique"),
-        ({"partition": "final"}, "development"),
+        ({"partition": "final"}, "missing or unknown keys"),
         ({"modes": ["rtc_soft", "synchronous"]}, "modes"),
         ({"learner__model_sha256": "0" * 64}, "pinned"),
         ({"learner__vlm_dir": ".local-data/models/other"}, "pinned"),

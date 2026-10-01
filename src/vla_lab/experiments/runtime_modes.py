@@ -42,6 +42,7 @@ TOP_KEYS = {
     "runtime",
     "modes",
 }
+FINAL_EXTRA_KEYS = {"development_report_sha256"}
 LEARNER_KEYS = {"checkpoint", "vlm_dir", "model_sha256", "vlm_sha256"}
 RUNTIME_KEYS = {"horizon", "stride", "delay", "num_steps", "ensemble_decay"}
 
@@ -55,15 +56,27 @@ def _sha256(path: Path) -> str:
 
 
 def load_latency_config(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
-    """Read the development-only latency config and reject any pin that differs."""
+    """Read the development or frozen final config and check its source pins."""
     content = Path(path).read_bytes()
     config = yaml.safe_load(content)
-    if not isinstance(config, dict) or set(config) != TOP_KEYS:
+    if not isinstance(config, dict):
+        raise TypeError("Latency config must be a mapping")
+    partition = config.get("partition")
+    expected_keys = TOP_KEYS | FINAL_EXTRA_KEYS if partition == "final" else TOP_KEYS
+    if set(config) != expected_keys:
         raise ValueError("Latency config has missing or unknown keys")
-    if config["schema_version"] != SCHEMA_VERSION or config["experiment"] != "latency":
-        raise ValueError("Latency config needs schema version 1 and the latency experiment")
-    if config["partition"] != "development":
-        raise ValueError("Latency comparison may only use the development partition")
+    expected_experiment = "latency_final" if partition == "final" else "latency"
+    if config["schema_version"] != SCHEMA_VERSION or config["experiment"] != expected_experiment:
+        raise ValueError("Latency config needs schema version 1 and the correct experiment")
+    if partition not in ("development", "final"):
+        raise ValueError("Latency partition must be development or final")
+    if partition == "final":
+        report_path = (
+            Path(configs_root).resolve().parent
+            / "artifacts/reference/runtime/development_modes.json"
+        )
+        if _sha256(report_path) != config["development_report_sha256"]:
+            raise ValueError("Final latency development report hash differs from frozen evidence")
     learner, runtime = config["learner"], config["runtime"]
     if set(learner) != LEARNER_KEYS or set(runtime) != RUNTIME_KEYS:
         raise ValueError("Latency learner or runtime section has missing or unknown keys")
@@ -95,8 +108,10 @@ def load_latency_config(path: str | Path, configs_root: str | Path) -> dict[str,
         raise ValueError("Latency max_steps must be positive")
     task_alias = str(config["task_alias"])
     config["state_ids"] = selected_state_ids(
-        configs_root, task_alias, "development", config["state_ids"]
+        configs_root, task_alias, partition, config["state_ids"], allow_final=partition == "final"
     )
+    if partition == "final" and config["state_ids"] != list(range(20, 30)):
+        raise ValueError("Final latency states differ from the frozen matrix")
     episodes = yaml.safe_load((Path(configs_root) / "data" / "episodes.yaml").read_text())
     task = episodes["tasks"][task_alias]
     if (
@@ -390,7 +405,13 @@ def run_latency_experiment(
     config = load_latency_config(config_path, configs_root)
     chosen_modes = list(modes) if modes is not None else list(config["modes"])
     chosen_states = (
-        selected_state_ids(configs_root, config["task_alias"], "development", state_ids)
+        selected_state_ids(
+            configs_root,
+            config["task_alias"],
+            config["partition"],
+            state_ids,
+            allow_final=config["partition"] == "final",
+        )
         if state_ids is not None
         else list(config["state_ids"])
     )
@@ -454,8 +475,8 @@ def run_latency_experiment(
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Compare runtime modes on development states; finished episodes are reused."""
-    parser = argparse.ArgumentParser(description="Compare P5 runtime modes on development states")
+    """Compare runtime modes on declared states; finished episodes are reused."""
+    parser = argparse.ArgumentParser(description="Compare P5 runtime modes on declared states")
     parser.add_argument("--config", type=Path, default=Path("configs/experiments/latency.yaml"))
     parser.add_argument("--configs-root", type=Path, default=Path("configs"))
     parser.add_argument("--data-root", type=Path, default=Path(".local-data"))

@@ -1,0 +1,25 @@
+schema_version: 1
+experiment: latency_final
+task_alias: bowl_plate
+partition: final
+state_ids: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+development_report_sha256: a2ade9ddd845e2b553b8095fd7492697ea03d88823c9f625ad9f919dbb0091fa
+reset_seed_base: 20260930
+noise_seed_base: 4100
+noise_seed_state_stride: 1000
+max_steps: 300
+dataset_revision: a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4
+train_split_sha256: ef237195fc6ace8a78ff69fcf472362a89adb64a4ff079b5fb84724157bb82f4
+task_prompt: put the bowl on the plate
+learner:
+  checkpoint: .local-data/runs/smolvla-c2-5000-development/checkpoint-005000
+  vlm_dir: .local-data/models/smolvlm2-500m-video-instruct
+  model_sha256: 5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1
+  vlm_sha256: b9bfd456c9472c0acd5719d6e514c4b859891af205ee1a736552fd3497b8b0c3
+runtime:
+  horizon: 50
+  stride: 10
+  delay: 2
+  num_steps: 5
+  ensemble_decay: 0.25
+modes: [synchronous, naive_async, temporal_ensemble, rtc_hard, rtc_soft]
