@@ -1,0 +1,61 @@
+{
+  "methods": {
+    "act": {
+      "batch_size": 8,
+      "optimizer_loop_s": 16.655,
+      "pretraining": "none",
+      "robot_training_steps": 200,
+      "sampled_windows": 1600,
+      "source": ".local-data/runs/act-bowl-plate-probe-200/metrics.jsonl",
+      "source_sha256": "a8e76f61c32d72bb222b05fbb2f6cdd2aca4569dc1358ee76d84f67a3d7220a2"
+    },
+    "diffusion": {
+      "batch_size": 8,
+      "optimizer_loop_s": 195.329,
+      "pretraining": "pinned ImageNet ResNet-18 visual encoder",
+      "robot_training_steps": 2000,
+      "sampled_windows": 16000,
+      "source": ".local-data/runs/diffusion-bowl-plate-reference-2000/metrics.jsonl",
+      "source_sha256": "85a6e825e279a03a3b782b2ce7695cebbed4f56c7c055961b52018b92b57e90d"
+    },
+    "smolvla_learner": {
+      "batch_size": 1,
+      "optimizer_loop_s": 828.829,
+      "pretraining": "pinned SmolVLM2-500M-Video-Instruct VLM source; full pretraining exposure is unknown",
+      "robot_training_steps": 5000,
+      "sampled_windows": 5000,
+      "stages": [
+        {
+          "elapsed_s": 16.791,
+          "source": ".local-data/runs/smolvla-c1-reference-v1/result.json",
+          "source_sha256": "360a6881371b3a219c9d04d4144d8aec7cd9ba6f33da3ec7fbc7bcd5b5a80c12",
+          "target_step": 100
+        },
+        {
+          "elapsed_s": 69.897,
+          "source": ".local-data/runs/smolvla-c2-reference-v1/result.json",
+          "source_sha256": "069870a23541d44510078537afe39b73bb3904616da0cb257ad1d673945e6663",
+          "target_step": 500
+        },
+        {
+          "elapsed_s": 248.818,
+          "source": ".local-data/runs/smolvla-c2-2000-development/result.json",
+          "source_sha256": "00a2a6cdd626b248cd10a7368ac86cbfb793ef3b3c085adfa0eff01c4807fee2",
+          "target_step": 2000
+        },
+        {
+          "elapsed_s": 493.323,
+          "source": ".local-data/runs/smolvla-c2-5000-development/result.json",
+          "source_sha256": "efb84fe3f9ad05012c2b7e7bcb31dd879a4cf2511a0d7668bbf0a2fa6b6e05fc",
+          "target_step": 5000
+        }
+      ]
+    }
+  },
+  "schema_version": 1,
+  "sample_count_meaning": "Optimizer steps times batch size. Repeated training windows count again.",
+  "task_alias": "bowl_plate",
+  "time_scope": "Recorded optimizer-loop time on this local RTX 3070. It excludes data download, setup, and final evaluation.",
+  "training_episode_count": 39,
+  "training_frame_count": 3661
+}

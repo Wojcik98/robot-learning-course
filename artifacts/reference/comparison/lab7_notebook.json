@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-10-01T10:21:31.101787+00:00",
+  "comparison_config_sha256": "b927d1af8602af3a098091b88dd21fc55f09d89d70046ba98cf168dbd166d207",
+  "error_outputs": 0,
+  "executed_code_cells": 6,
+  "executed_notebook": ".local-data/runs/lab7-final-nbclient-executed.ipynb",
+  "executed_sha256": "852cb605b6e69c247e380b776b5c20a35263e6e7899d32cb0a6685d55a9d4e1b",
+  "final_attempts_read": 90,
+  "kernel": "python3",
+  "schema_version": 1,
+  "source_notebook": "tutorials/07-comparison/07-comparison.ipynb",
+  "source_sha256": "7d4a2fc68f7de7c98d7bc86850054fedc3c4476ed4de65f09f5553bb6c7f2201"
+}
