@@ -1,0 +1,121 @@
+{
+  "base_seed": 20260930,
+  "horizon": 16,
+  "measurement": "CUDA synchronized around Diffusion Policy generate_actions on the local RTX 3070. The weighted mean uses all sampler calls in the five live episodes, including the first cold call. Simulator time and processor time are excluded.",
+  "model_sha256": "8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea",
+  "n_action_steps": 8,
+  "n_obs_steps": 2,
+  "partition": "development",
+  "sampling_steps": {
+    "20": {
+      "attempts": 5,
+      "per_state": [
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 104.331,
+          "sampler_p50_ms": 95.427,
+          "state_id": 0,
+          "steps": 300,
+          "success": false
+        },
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 97.127,
+          "sampler_p50_ms": 95.595,
+          "state_id": 1,
+          "steps": 300,
+          "success": false
+        },
+        {
+          "sampler_calls": 11,
+          "sampler_mean_ms": 95.456,
+          "sampler_p50_ms": 95.092,
+          "state_id": 2,
+          "steps": 83,
+          "success": true
+        },
+        {
+          "sampler_calls": 11,
+          "sampler_mean_ms": 95.866,
+          "sampler_p50_ms": 95.351,
+          "state_id": 3,
+          "steps": 81,
+          "success": true
+        },
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 98.418,
+          "sampler_p50_ms": 98.064,
+          "state_id": 4,
+          "steps": 300,
+          "success": false
+        }
+      ],
+      "result_dir": "artifacts/reference/diffusion/seeded_dev_20step_timed_0_4",
+      "sampler_calls": 136,
+      "successes": 2,
+      "weighted_mean_sampler_ms": 99.263
+    },
+    "5": {
+      "attempts": 5,
+      "per_state": [
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 34.684,
+          "sampler_p50_ms": 26.788,
+          "state_id": 0,
+          "steps": 300,
+          "success": false
+        },
+        {
+          "sampler_calls": 25,
+          "sampler_mean_ms": 27.098,
+          "sampler_p50_ms": 26.866,
+          "state_id": 1,
+          "steps": 195,
+          "success": true
+        },
+        {
+          "sampler_calls": 10,
+          "sampler_mean_ms": 26.722,
+          "sampler_p50_ms": 26.609,
+          "state_id": 2,
+          "steps": 78,
+          "success": true
+        },
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 27.333,
+          "sampler_p50_ms": 26.912,
+          "state_id": 3,
+          "steps": 300,
+          "success": false
+        },
+        {
+          "sampler_calls": 38,
+          "sampler_mean_ms": 27.037,
+          "sampler_p50_ms": 26.971,
+          "state_id": 4,
+          "steps": 300,
+          "success": false
+        }
+      ],
+      "result_dir": "artifacts/reference/diffusion/seeded_dev_5step_timed_0_4",
+      "sampler_calls": 149,
+      "successes": 2,
+      "weighted_mean_sampler_ms": 29.052
+    }
+  },
+  "schema_version": 1,
+  "selected_sampling_steps": 20,
+  "selection_reason": "The 20-step recipe passed 15 of 20 development states in the full run. This five-state ablation has equal success counts but different successful states. The five-state result is too small to select a new recipe.",
+  "speed_ratio_20_over_5": 3.417,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "task_alias": "bowl_plate"
+}

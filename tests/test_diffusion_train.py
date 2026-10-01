@@ -508,6 +508,20 @@ def test_bundle_rejects_stats_hashes_that_differ_from_the_saved_processors(
         load_diffusion_bundle(target)
 
 
+def test_bundle_rejects_an_incomplete_processor_file_list(tmp_path: Path) -> None:
+    policy = _small_policy()
+    preprocessor, postprocessor = make_diffusion_processors(policy.config, "bowl_plate", CONFIGS)
+    target = tmp_path / "bundle"
+    save_diffusion_bundle(policy, preprocessor, postprocessor, target, "bowl_plate", CONFIGS)
+    manifest_path = target / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    del manifest["processor_files_sha256"]["policy_preprocessor.json"]
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="processor file list"):
+        load_diffusion_bundle(target)
+
+
 def test_training_uses_only_eligible_samples(tmp_path: Path) -> None:
     dataset = SyntheticWindows(length=6)
 
@@ -580,3 +594,29 @@ def test_training_rejects_nonfinite_input(tmp_path: Path) -> None:
 
 def test_policy_config_drops_the_same_frames_as_the_training_module() -> None:
     assert make_diffusion_config(device="cpu").drop_n_last_frames == DROP_N_LAST_FRAMES
+
+
+def test_policy_reset_discards_old_observation_and_action_history() -> None:
+    policy = _small_policy()
+    histories: list[list[float]] = []
+
+    def generate(batch: dict[str, torch.Tensor], noise: torch.Tensor | None = None) -> torch.Tensor:
+        histories.append(batch["observation.state"][0, :, 0].tolist())
+        return torch.zeros(1, policy.config.n_action_steps, 7)
+
+    policy.diffusion.generate_actions = generate
+
+    def observation(value: float) -> dict[str, torch.Tensor]:
+        image = torch.zeros(1, 3, 256, 256)
+        return {
+            "observation.state": torch.full((1, 8), value),
+            "observation.images.image": image,
+            "observation.images.image2": image,
+        }
+
+    policy.select_action(observation(1.0))
+    assert any(len(queue) > 0 for queue in policy._queues.values())
+    policy.reset()
+    assert all(len(queue) == 0 for queue in policy._queues.values())
+    policy.select_action(observation(3.0))
+    assert histories == [[1.0, 1.0], [3.0, 3.0]]

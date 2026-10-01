@@ -1,9 +1,11 @@
 """Check exact development states and seeds for Diffusion Policy evaluation."""
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from vla_lab.evaluation.diffusion import evaluate_diffusion_reference
 from vla_lab.sim.episode import EpisodeResult
@@ -14,12 +16,18 @@ CONFIGS = Path(__file__).resolve().parents[1] / "configs"
 def _checkpoint(tmp_path: Path) -> Path:
     checkpoint = tmp_path / "checkpoint"
     checkpoint.mkdir()
+    split = yaml.safe_load((CONFIGS / "data" / "episodes.yaml").read_text())
     (checkpoint / "manifest.json").write_text(
         json.dumps(
             {
                 "policy": "diffusion",
                 "task_alias": "bowl_plate",
                 "model_sha256": "model-digest",
+                "dataset_revision": split["dataset_revision"],
+                "split_sha256": split["tasks"]["bowl_plate"]["split_sha256"],
+                "training_stats_file_sha256": hashlib.sha256(
+                    (CONFIGS / "data" / "stats" / "bowl_plate.json").read_bytes()
+                ).hexdigest(),
                 "n_obs_steps": 2,
                 "horizon": 16,
                 "n_action_steps": 8,
@@ -71,3 +79,20 @@ def test_diffusion_eval_rejects_final_states_and_invalid_sampler(tmp_path: Path)
         evaluate_diffusion_reference(**options, state_ids=[20])
     with pytest.raises(ValueError, match="inference steps"):
         evaluate_diffusion_reference(**options, state_ids=[0], inference_steps=0)
+
+
+def test_diffusion_eval_rejects_checkpoint_for_another_data_split(tmp_path: Path) -> None:
+    checkpoint = _checkpoint(tmp_path)
+    manifest_path = checkpoint / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["split_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="data split"):
+        evaluate_diffusion_reference(
+            checkpoint=checkpoint,
+            configs_root=CONFIGS,
+            data_root=tmp_path,
+            output_dir=tmp_path / "result",
+            state_ids=[0],
+            run_one=lambda state_id: EpisodeResult("bowl_plate", state_id, False, 1, 0),
+        )

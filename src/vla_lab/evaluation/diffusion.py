@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -36,6 +38,18 @@ def evaluate_diffusion_reference(
         raise ValueError("Checkpoint is not a Diffusion Policy bundle")
     task_alias = str(manifest["task_alias"])
     configs = Path(configs_root)
+    data_split = yaml.safe_load((configs / "data" / "episodes.yaml").read_text())
+    if (
+        manifest["dataset_revision"] != data_split["dataset_revision"]
+        or manifest["split_sha256"] != data_split["tasks"][task_alias]["split_sha256"]
+    ):
+        raise ValueError("Diffusion checkpoint data split differs from the frozen course split")
+    stats_file = configs / "data" / "stats" / f"{task_alias}.json"
+    if (
+        hashlib.sha256(stats_file.read_bytes()).hexdigest()
+        != manifest["training_stats_file_sha256"]
+    ):
+        raise ValueError("Diffusion checkpoint statistics differ from the frozen course statistics")
     partitions = yaml.safe_load((configs / "eval" / "splits.yaml").read_text())
     development_ids = partitions["tasks"][task_alias]["development_state_ids"]
     selected = selected_state_ids(
@@ -46,6 +60,7 @@ def evaluate_diffusion_reference(
     )
     if inference_steps is not None and not 1 <= inference_steps <= 100:
         raise ValueError("Diffusion inference steps must be from 1 to 100")
+    sample_times_ms: list[float] = []
     if run_one is None:
         from vla_lab.sim.episode import open_libero_task, run_policy_episode
         from vla_lab.training.diffusion import load_diffusion_bundle
@@ -58,6 +73,19 @@ def evaluate_diffusion_reference(
             policy.diffusion.num_inference_steps = inference_steps
         inference_steps = policy.diffusion.num_inference_steps
         policy.eval()
+        generate_actions = policy.diffusion.generate_actions
+
+        def timed_generate_actions(*args: Any, **kwargs: Any) -> Any:
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            start = time.perf_counter()
+            actions = generate_actions(*args, **kwargs)
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            sample_times_ms.append((time.perf_counter() - start) * 1000)
+            return actions
+
+        policy.diffusion.generate_actions = timed_generate_actions
 
         def run_one(state_id: int) -> EpisodeResult:
             environment = open_libero_task(task_alias, state_id, configs, data_root)
@@ -79,12 +107,22 @@ def evaluate_diffusion_reference(
 
     def run_record(state_id: int) -> EpisodeOutcome:
         episode_seed = seed + state_id
+        sample_times_ms.clear()
         random.seed(episode_seed)
         np.random.seed(episode_seed)
         torch.manual_seed(episode_seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(episode_seed)
         result = run_one(state_id)
+        metrics = {
+            "steps": result.steps,
+            "clipped_values": result.clipped_values,
+            "seed": episode_seed,
+            "sampler_calls": len(sample_times_ms),
+        }
+        if sample_times_ms:
+            metrics["sampler_mean_ms"] = float(np.mean(sample_times_ms))
+            metrics["sampler_p50_ms"] = float(np.median(sample_times_ms))
         return EpisodeOutcome(
             task_id=result.task_alias,
             initial_state_id=result.state_id,
@@ -93,11 +131,7 @@ def evaluate_diffusion_reference(
             success_predicate_version="libero-goal-v1",
             success=result.success,
             termination_reason=result.termination_reason,
-            metrics={
-                "steps": result.steps,
-                "clipped_values": result.clipped_values,
-                "seed": episode_seed,
-            },
+            metrics=metrics,
             artifact_paths={},
         )
 

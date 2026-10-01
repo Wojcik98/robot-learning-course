@@ -386,6 +386,20 @@ def load_diffusion_bundle(
     manifest = json.loads(manifest_path.read_text())
     if manifest.get("schema_version") != 1 or manifest.get("policy") != "diffusion":
         raise ValueError("Unsupported Diffusion checkpoint manifest")
+    required_processors = {
+        "policy_preprocessor.json",
+        "policy_preprocessor_step_3_normalizer_processor.safetensors",
+        "policy_postprocessor.json",
+        "policy_postprocessor_step_0_unnormalizer_processor.safetensors",
+    }
+    listed_processors = set(manifest["processor_files_sha256"])
+    present_processors = {
+        path.name
+        for path in root.iterdir()
+        if path.is_file() and path.name.startswith(("policy_preprocessor", "policy_postprocessor"))
+    }
+    if not required_processors <= listed_processors or listed_processors != present_processors:
+        raise ValueError("Saved Diffusion processor file list is incomplete or changed")
     for name, expected in (
         ("model.safetensors", manifest["model_sha256"]),
         ("config.json", manifest["config_sha256"]),

@@ -1,0 +1,33 @@
+schema_version: 1
+policy: diffusion
+task_alias: bowl_plate
+availability: local_checkpoint_in_ignored_data_root
+trained_reference:
+  checkpoint: .local-data/runs/diffusion-bowl-plate-reference-2000/checkpoint-002000
+  model_sha256: 8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea
+  train_config_sha256: 3163b0fc07ad55181c08f398f4207d8310c8c99f08dbcdd8e148a73618df6149
+  steps: 2000
+  train_episode_count: 39
+  train_frame_count: 3661
+  train_window_count: 3388
+  elapsed_training_s: 195.329
+  last_training_loss: 0.22025319933891296
+  base_seed: 20260930
+  state_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  selected_inference_steps: 20
+  n_obs_steps: 2
+  horizon: 16
+  n_action_steps: 8
+  development_successes: 15
+  development_attempts: 20
+  development_result: artifacts/reference/diffusion/seeded_dev_20step_all
+  sampler_ablation_result: artifacts/reference/diffusion/sampler_ablation.json
+  checkpoint_files_sha256:
+    config.json: 1ca6eecefecfd8613b3d84e9f3f9fcb9de54db9dbf6a1726432fc9c93af66016
+    manifest.json: 1630819126297539ebb1f9ec0a32bd2ab1c44d2fb5a7e1cccdb7f4d12aa2375f
+    model.safetensors: 8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea
+    policy_postprocessor.json: 697e6bf50a3f99b0677a9e797babb5ce2e0d17acf8fcd15596ba3ac0bc7a5a72
+    policy_postprocessor_step_0_unnormalizer_processor.safetensors: f9c00810754e9dcbf6ba4e22bb0835ac07fe5b1e0890e27a9bad373faa59c082
+    policy_preprocessor.json: 5a3576f9fb26f7f41f7f61b21e46116e67be4df1ed50558c0b6efac1005f17d4
+    policy_preprocessor_step_3_normalizer_processor.safetensors: f74b1a7116ad9cb9fac266890dc34de72937799324786e2d91ea709cf7a10a5a
+    training_stats.json: 78ccf547f4fb3c74447fcfe1e8022c93e39467426aa1632b0dcab102b82df168

@@ -1,0 +1,27 @@
+{
+  "attempts": 5,
+  "base_seed": 20260930,
+  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/diffusion-bowl-plate-reference-2000/checkpoint-002000",
+  "horizon": 16,
+  "inference_steps": 5,
+  "infrastructure_errors": 0,
+  "model_sha256": "8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea",
+  "n_action_steps": 8,
+  "n_obs_steps": 2,
+  "partition": "development",
+  "policy": "diffusion",
+  "policy_errors": 0,
+  "policy_revision": "8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea",
+  "schema_version": 1,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "success_rate": 0.4,
+  "successes": 2,
+  "task_alias": "bowl_plate",
+  "task_id": "bowl_plate"
+}
