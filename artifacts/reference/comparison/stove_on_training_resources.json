@@ -1,0 +1,62 @@
+{
+  "methods": {
+    "act": {
+      "pretraining": "none",
+      "selection_cost": "A 200-step pilot reached 5/20 development successes; 800 more steps led to 20/20. Both development checks were needed for the selected 1000-step checkpoint.",
+      "stages": [
+        {
+          "batch_size": 8,
+          "optimizer_loop_s": 17.271,
+          "robot_training_steps": 200,
+          "source": ".local-data/runs/act-stove-on-200/metrics.jsonl",
+          "source_sha256": "01156d07b33d3f78afd1f71f6fa8c49d613f97a83b38db01650f92370bed123b"
+        },
+        {
+          "batch_size": 8,
+          "optimizer_loop_s": 66.51,
+          "robot_training_steps": 800,
+          "source": ".local-data/runs/act-stove-on-1000/metrics.jsonl",
+          "source_sha256": "d8b0c0056cbce0173d3b4097153fdfbca3aabd956cfe177f08c66ce62a82b588"
+        }
+      ],
+      "total_optimizer_loop_s": 83.781
+    },
+    "diffusion": {
+      "pretraining": "pinned ImageNet ResNet-18 visual encoder",
+      "stages": [
+        {
+          "batch_size": 8,
+          "optimizer_loop_s": 196.468,
+          "robot_training_steps": 2000,
+          "source": ".local-data/runs/diffusion-stove-on-2000/metrics.jsonl",
+          "source_sha256": "6b85d90dab4f742309a84f2e367d793b2ebba50817b7e0f93b68af1d663c630f"
+        }
+      ],
+      "total_optimizer_loop_s": 196.468
+    },
+    "smolvla_learner": {
+      "pretraining": "pinned SmolVLM2 source; full pretraining exposure is unknown",
+      "stages": [
+        {
+          "batch_size": 1,
+          "optimizer_loop_s": 18.081,
+          "robot_training_steps": 100,
+          "source": ".local-data/runs/smolvla-stove-on-c1-100/result.json",
+          "source_sha256": "d2c67ceb9e331a59aae6c79e382ebeab9b831c72cf0661ff21e669d651ec8edd"
+        },
+        {
+          "batch_size": 1,
+          "optimizer_loop_s": 819.938,
+          "robot_training_steps": 4900,
+          "source": ".local-data/runs/smolvla-stove-on-c2-5000/result.json",
+          "source_sha256": "6497982b1cc7ff49949cba3402eae37267cafeaa11780f2e8430bf1a18463e29"
+        }
+      ],
+      "total_optimizer_loop_s": 838.019
+    }
+  },
+  "schema_version": 1,
+  "task_alias": "stove_on",
+  "time_scope": "Recorded optimizer-loop time on the local RTX 3070. Download, setup, and evaluation time are excluded.",
+  "training_episode_count": 40
+}

@@ -25,6 +25,18 @@ The training times come from one local RTX 3070 run. They exclude download, setu
 
 The report is [three_method_report.json](../../artifacts/reference/comparison/final/three_method_report.json). The raw attempt rows are next to it. The exact config is [comparison.yaml](../../configs/experiments/comparison.yaml). The report checks the config hash, all state IDs, reset seeds, model hashes, and errors. The 30 states can share scene structure with the source demonstrations. The interval is a descriptive binomial interval for this set, not a claim about new scenes.
 
-The stove-on third task stays outside this final comparison until its task-specific development baselines meet the plan gate. The first ACT stove-on reference reached 5/20 development successes. Its final states remain closed. The published SmolVLA prompt study is a separate one-state development exercise; its source training data are unknown.
+## Third task: Turn on the stove
+
+The [development gate](../../artifacts/reference/comparison/third_task_gate.json) records ACT at 5/20 after 200 steps and 20/20 after 1,000 steps. Learner SmolVLA reached 17/20 after 5,000 steps, and Diffusion Policy reached 19/20 after 2,000 steps. Each selected method passed the 10/20 task gate. The [stove-on recipe](../../configs/experiments/comparison_stove_on.yaml) was committed as `cb634d8` before any stove-on final state was opened.
+
+| Recipe | Stove-on final successes | 95% Wilson interval | Robot optimizer steps | Recorded training loop |
+| --- | ---: | ---: | ---: | ---: |
+| ACT | 30/30 | 0.886–1.000 | 1,000 | 83.8 s |
+| Learner SmolVLA C2 | 28/30 | 0.787–0.982 | 5,000 | 838.0 s |
+| Diffusion Policy | 29/30 | 0.833–0.994 | 2,000 | 196.5 s |
+
+All 90 stove-on final attempts completed without policy or infrastructure errors. The [checked stove-on report](../../artifacts/reference/comparison/stove_on_final/three_method_report.json) has every paired result and the raw attempt paths. ACT succeeded on two states where learner SmolVLA failed and one state where Diffusion Policy failed. These few differences do not establish a stable method ranking. The [training resource record](../../artifacts/reference/comparison/stove_on_training_resources.json) shows that ACT needed a 200-step pilot, one development check, an 800-step continuation, and a second development check for this task. This external checkpoint selection took extra work. The optimizer-loop times exclude those evaluations and all setup time.
+
+The published SmolVLA prompt study is a separate one-state development exercise. Its source training data are unknown.
 
 Read the [exercise](exercise.md) after the notebook. Save your answer before you read the [solution guide](../../solutions/07-comparison.md).
