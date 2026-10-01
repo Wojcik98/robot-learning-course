@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import yaml
@@ -32,6 +32,73 @@ class KeyboardRecordingResult:
     path: Path | None
 
 
+class KeyboardControlState:
+    """Keep a short motion pulse and one persistent gripper command."""
+
+    _MOTION_LABELS: ClassVar[dict[str, str]] = {
+        "w": "W X+",
+        "s": "S X-",
+        "a": "A Y-",
+        "d": "D Y+",
+        "r": "R Z+",
+        "f": "F Z-",
+        "u": "U ROLL+",
+        "o": "O ROLL-",
+        "j": "J PITCH+",
+        "l": "L PITCH-",
+        "i": "I YAW+",
+        "k": "K YAW-",
+    }
+
+    def __init__(self, *, motion_ticks: int = 4) -> None:
+        if motion_ticks < 1:
+            raise ValueError("Motion pulse needs at least one controller tick")
+        self.motion_ticks = motion_ticks
+        self._motion_key: str | None = None
+        self._motion_ticks_left = 0
+        self._gripper_closed = False
+        self.last_key_label = "NONE"
+
+    @property
+    def gripper_label(self) -> str:
+        """Show the command sent to the gripper on each tick."""
+        return "CLOSE" if self._gripper_closed else "OPEN"
+
+    @property
+    def motion_label(self) -> str:
+        """Show the arm action that the next tick will use."""
+        return self._MOTION_LABELS[self._motion_key] if self._motion_ticks_left else "HOLD"
+
+    def interpret(self, keycode: int) -> KeyboardEvent:
+        """Convert one OpenCV key event into one visible controller command."""
+        key = chr(keycode & 0xFF).lower() if keycode >= 0 else ""
+        if key in ("q", "\x1b"):
+            self.last_key_label = "QUIT"
+            return KeyboardEvent(quit=True)
+        if key == "x":
+            self.last_key_label = "SAVE"
+            return KeyboardEvent(save=True)
+        if key in self._MOTION_LABELS:
+            self._motion_key = key
+            self._motion_ticks_left = self.motion_ticks
+            self.last_key_label = key.upper()
+        elif key in ("1", "["):
+            self._gripper_closed = False
+            self.last_key_label = "OPEN"
+        elif key in ("2", "]"):
+            self._gripper_closed = True
+            self.last_key_label = "CLOSE"
+        elif key == " ":
+            self._gripper_closed = not self._gripper_closed
+            self.last_key_label = "SPACE"
+        keys = {"close" if self._gripper_closed else "open"}
+        if self._motion_ticks_left:
+            assert self._motion_key is not None
+            keys.add(self._motion_key)
+            self._motion_ticks_left -= 1
+        return KeyboardEvent(keys=frozenset(keys))
+
+
 def validate_development_state(task_alias: str, state_id: int, configs_root: str | Path) -> int:
     """Reject any state that is outside the declared development partition."""
     manifest_path = Path(configs_root) / "eval" / "splits.yaml"
@@ -47,14 +114,16 @@ def validate_development_state(task_alias: str, state_id: int, configs_root: str
 
 
 class OpenCVKeyboardInterface:
-    """Show each camera frame and read one key event for a 50 ms tick."""
+    """Show a camera and an action panel for each 50 ms controller tick."""
 
     def __init__(self, window_name: str = "VLA keyboard recording") -> None:
         import cv2
 
         self._cv2 = cv2
         self._window_name = window_name
+        self._controls = KeyboardControlState()
         self._cv2.namedWindow(window_name, self._cv2.WINDOW_NORMAL)
+        self._cv2.resizeWindow(window_name, 760, 400)
 
     def tick(self, frame: np.ndarray, delay_ms: int = CONTROL_PERIOD_MS) -> KeyboardEvent:
         """Display a frame and return keys pressed during this tick."""
@@ -62,50 +131,43 @@ class OpenCVKeyboardInterface:
         if image.ndim != 3 or image.shape[2] != 3:
             raise ValueError("Camera frame must have three color channels")
         camera = np.ascontiguousarray(image[::-1, ::-1, ::-1])
-        view = np.zeros((max(camera.shape[0], 256), camera.shape[1] + 260, 3), dtype=np.uint8)
-        view[: camera.shape[0], : camera.shape[1]] = camera
-        for line, label in enumerate(
+        camera = self._cv2.resize(camera, (360, 360))
+        view = np.zeros((400, 760, 3), dtype=np.uint8)
+        view[:360, :360] = camera
+        labels = (
+            ("CLICK WINDOW. PRESS W TO MOVE.", 28),
+            ("MOVE ARM: TAP OR HOLD", 61),
+            ("W/S: X + / X -", 87),
+            ("A/D: Y - / Y +", 113),
+            ("R/F: Z + / Z -", 139),
+            ("ROTATE ARM", 172),
+            ("U/O: ROLL  J/L: PITCH", 198),
+            ("I/K: YAW", 224),
+            ("GRIPPER", 256),
+            ("SPACE: SWITCH GRIPPER", 282),
+            ("1: OPEN  2: CLOSE", 308),
+            ("X: SAVE  Q: DISCARD", 335),
+            (f"LAST KEY: {self._controls.last_key_label}", 361),
             (
-                "W/S: x   A/D: y",
-                "R/F: z",
-                "U/O: roll",
-                "J/L: pitch",
-                "I/K: yaw",
-                "[: open   ]: close",
-                "X: save and stop",
-                "Q: discard and stop",
+                f"ARM: {self._controls.motion_label}  GRIP: {self._controls.gripper_label}",
+                387,
             ),
-            start=1,
-        ):
+        )
+        for label, y in labels:
+            color = (0, 220, 255) if y in (28, 387) else (255, 255, 255)
             self._cv2.putText(
                 view,
                 label,
-                (camera.shape[1] + 8, 12 + 27 * line),
+                (372, y),
                 self._cv2.FONT_HERSHEY_SIMPLEX,
-                0.45,
-                (255, 255, 255),
+                0.55,
+                color,
                 1,
                 self._cv2.LINE_AA,
             )
         self._cv2.imshow(self._window_name, view)
         keycode = self._cv2.waitKeyEx(delay_ms)
-        key = keycode & 0xFF
-        if key in (ord("q"), ord("Q"), 27):
-            return KeyboardEvent(quit=True)
-        if key in (ord("x"), ord("X")):
-            return KeyboardEvent(save=True)
-        keys = {
-            ord("["): "open",
-            ord("]"): "close",
-        }
-        if key in keys:
-            return KeyboardEvent(keys=frozenset({keys[key]}))
-        try:
-            char = chr(key).lower()
-        except ValueError:
-            return KeyboardEvent()
-        allowed = "wsdarfuojlik"
-        return KeyboardEvent(keys=frozenset({char}) if char in allowed else frozenset())
+        return self._controls.interpret(keycode)
 
     def close(self) -> None:
         """Close the display window."""
@@ -184,9 +246,9 @@ def main(argv: list[str] | None = None) -> int:
     """Open a development state and record keyboard actions."""
     parser = argparse.ArgumentParser(
         description=(
-            "Record LIBERO keyboard actions on a development state. "
-            "W/S move x, A/D move y, R/F move z, U/O roll, J/L pitch, "
-            "I/K yaw, [ opens and ] closes the gripper. X saves and stops; Q quits."
+            "Record LIBERO keyboard actions on a development state. Click the window first. "
+            "W/S move X, A/D move Y, R/F move Z. U/O, J/L, and I/K rotate. "
+            "Space toggles the gripper; 1 opens and 2 closes it. X saves; Q quits."
         )
     )
     parser.add_argument("--task", default="bowl_plate", help="task alias from the state split")

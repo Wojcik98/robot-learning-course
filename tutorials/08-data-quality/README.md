@@ -22,7 +22,9 @@ Use a desktop terminal with the pinned local LIBERO assets. Only development sta
   --output .local-data/keyboard-recordings/my-first-demo.npz
 ```
 
-The window shows the agent camera and the key map. Press one motion key per tick. Use `[` to open the gripper (`-1`) and `]` to close it (`+1`). Press `X` to save or `Q` to discard. A save or quit key causes one final zero-motion action before the recorder stops; that action is in the saved file. Use a new output path for each episode. Check the saved action and observation count before training. The default data root is `.local-data`.
+Click the camera window to give it keyboard focus. Press `W` to move the arm along `+X`. Use `S` for `-X`, `A` and `D` for `-Y` and `+Y`, and `R` and `F` for `+Z` and `-Z`. Use `U/O` for roll, `J/L` for pitch, and `I/K` for yaw. A motion key tap sends four controller actions over 200 ms. Hold the key for longer motion. The panel shows the last key and active command.
+
+Press `Space` to switch the gripper command. Press `1` to open (`-1`) or `2` to close (`+1`). The selected gripper command stays active until you change it. The `[` and `]` keys are optional aliases for `1` and `2`. Press `X` to save or `Q` to discard. A save or quit key causes one final zero-motion action before the recorder stops; that action is in the saved file. Use a new output path for each episode. Check the saved action and observation count before training. The default data root is `.local-data`.
 The reset seed is `20260930 + state_id` and is saved in the NPZ file.
 
 Record 5–10 short accepted episodes. Put failed or rejected files in a different directory. Build a checked manifest from only the accepted files:
@@ -45,6 +47,6 @@ The command checks file hashes, task IDs, reset seeds, and the development split
 
 The supplied [reference report](../../artifacts/reference/data_quality/recovery_reference.json) uses five separately labelled ACT-generated demonstrations. The valid tick-aligned continuation reached 14/15 on held-out development states, as did the unchanged base checkpoint; the failure state changed. An earlier adapter that kept only even 20 Hz ticks reached 0/15. The course keeps every recorded 50 ms controller tick. The [teacher manifest](../../artifacts/reference/data_quality/teacher_manifest.json) gives hashes and local paths for the five full NPZ files. They are in ignored `.local-data/` on this prepared machine. Their source is a policy, not a human.
 
-The OpenCV window passed a key-event smoke check in a virtual display. A [live LIBERO smoke test](../../artifacts/reference/data_quality/keyboard_live_smoke.json) applied injected open and close keys, saved three actions, and replayed all four numeric observations exactly. A human usability check remains open.
+The earlier [live LIBERO smoke test](../../artifacts/reference/data_quality/keyboard_live_smoke.json) applied injected open and close keys, saved three actions, and replayed all four numeric observations exactly. A human test then saved a 300-action file with no arm motion. The panel and key behavior were revised. The [new live check](../../artifacts/reference/data_quality/keyboard_ui_live_smoke.json) applied injected `W`, `Space`, `2`, and `X` key events in the OpenCV window path. It saved six actions and replayed all seven numeric observations exactly. A human retest remains open.
 
 Read the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/08-data-quality.md) after you save your answer.

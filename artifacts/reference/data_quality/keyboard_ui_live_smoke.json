@@ -1,0 +1,77 @@
+{
+  "action_count": 6,
+  "actions": [
+    [
+      0.25,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.0
+    ],
+    [
+      0.25,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.0
+    ],
+    [
+      0.25,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.0
+    ],
+    [
+      0.25,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "human_usability_tested": false,
+  "injected_keys": [
+    "W",
+    "none",
+    "none",
+    "SPACE",
+    "2",
+    "X"
+  ],
+  "npz_path": ".local-data/runs/keyboard-ui-live-smoke/state-00.npz",
+  "npz_sha256": "86da9dcc7ac2c3af07facf1438480080b1f0a33c100f42a5fe8f7d524cc03d4a",
+  "observation_count": 7,
+  "replay_all_numeric_max_abs_error": 0.0,
+  "reset_seed": 20260930,
+  "schema_version": 1,
+  "source_type": "injected_opencv_keys_live_libero",
+  "state_id": 0,
+  "task_alias": "bowl_plate"
+}

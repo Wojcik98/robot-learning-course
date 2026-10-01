@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from vla_lab.data.keyboard import (
+    KeyboardControlState,
     KeyboardEvent,
     run_keyboard_recording,
     validate_development_state,
@@ -61,6 +62,31 @@ def test_mapper_combines_and_bounds_keys() -> None:
     assert action.tolist() == pytest.approx([0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 1.0])
     assert KeyboardActionMapper().action_for({"open"})[6] == -1.0
     assert np.all((-1.0 <= action) & (action <= 1.0))
+
+
+def test_key_state_makes_a_tap_visible_and_keeps_gripper_command() -> None:
+    controls = KeyboardControlState(motion_ticks=4)
+
+    first = controls.interpret(ord("w"))
+    assert first.keys == frozenset({"w", "open"})
+    assert all("w" in controls.interpret(-1).keys for _ in range(3))
+    assert controls.interpret(-1).keys == frozenset({"open"})
+
+    assert controls.interpret(ord(" ")).keys == frozenset({"close"})
+    assert controls.interpret(-1).keys == frozenset({"close"})
+    assert controls.interpret(ord("1")).keys == frozenset({"open"})
+    assert controls.interpret(ord("2")).keys == frozenset({"close"})
+    assert controls.interpret(ord("[")).keys == frozenset({"open"})
+    assert controls.interpret(ord("]")).keys == frozenset({"close"})
+    assert controls.gripper_label == "CLOSE"
+
+
+def test_key_state_reports_save_and_quit_without_motion() -> None:
+    controls = KeyboardControlState()
+    controls.interpret(ord("w"))
+
+    assert controls.interpret(ord("x")) == KeyboardEvent(save=True)
+    assert controls.interpret(ord("q")) == KeyboardEvent(quit=True)
 
 
 def test_save_event_stops_and_writes_recorded_data(tmp_path: Path) -> None:
