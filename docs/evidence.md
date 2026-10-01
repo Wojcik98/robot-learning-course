@@ -4,6 +4,8 @@ This page points to the checked records for the prepared local course. Run comma
 
 The [Release 3 notebook record](../artifacts/reference/release/course_notebooks.json) checks the source and executed hashes for Labs 0–11. Twelve fresh kernels ran 84 code cells with zero error outputs. It also records the course index links and short local CLI checks. The run reused saved long jobs; it did not retrain every model.
 
+A [clean local checkout check](../artifacts/reference/release/clean_checkout.json) cloned commit `66e9ac0` into a new directory on the same workstation. A normal locked `uv sync` installed the environment, the ACT archive restored all 14 checked files, the pinned public demo assets downloaded, and `doctor --live` passed 20 checks. A new ACT demo succeeded in 74 steps. An offline first install could not find the pinned TorchCodec wheel in the cache; a normal online install passed. This check did not use a new machine.
+
 ## What the course checks
 
 | Area | Checked record | Result and limit |
@@ -38,7 +40,7 @@ The course used the local RTX 3070. [The measured resource table](../artifacts/r
 
 ## Open limits
 
-- The large local assets need a distribution location and a new-machine setup check. The ACT archive has a checked local restore, but no public download location.
+- The large local assets need a distribution location for learners who cannot access this workstation. The ACT archive passed a clean local checkout, but no public download location or new-machine check exists.
 - Source demonstration overlap with simulator initial states is unresolved.
 - No physical robot, new GPU type, or new host has run the course.
 - Human keyboard use was checked, but the five recovery demonstrations and the training continuation came from an ACT policy, not a person.

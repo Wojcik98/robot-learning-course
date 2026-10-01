@@ -1,6 +1,6 @@
 # Initial setup: one user checklist
 
-**Status:** Labs 0–11 passed on the prepared local host. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list work. A read-only L4 quote was checked on 2026-10-01. The live billing screen, supervised allocation, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
+**Status:** Labs 0–11 passed on the prepared local host. A fresh local clone passed the first live ACT path after an online locked install. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list work. A read-only L4 quote was checked on 2026-10-01. The live billing screen, supervised allocation, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
 
 Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
 

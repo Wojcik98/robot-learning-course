@@ -34,6 +34,8 @@ The ACT reference checkpoints and simulator data are large files in ignored `.lo
 
 The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. The distribution location for a new learner machine is still open.
 
+A [clean local checkout test](artifacts/reference/release/clean_checkout.json) repeated the locked install, archive restore, public demo fetch, live doctor, and ACT demo from a fresh clone on this workstation. It passed. A different host has not run this setup.
+
 Before a training lab, run `.venv/bin/robot-lab data fetch --scope training` to add the selected data shards and camera videos. The command uses the exact Hub revisions in [the core manifest](manifests/core.yaml).
 
 Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.

@@ -1,0 +1,44 @@
+{
+  "act_demo": {
+    "model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+    "partition": "development",
+    "reset_seed": 20260930,
+    "run_record_sha256": "686d46a7f2196028f1cb79441f6e1c17e3ec8ee3a490d40b10fb5b679c509298",
+    "state_id": 0,
+    "steps": 74,
+    "success": true,
+    "task_alias": "bowl_plate",
+    "video_frames": 75,
+    "video_sha256": "1ef845a93f0d00f14a896fc0aca3d59c5688850287f71ac72173a289db83029f"
+  },
+  "checked_at_utc": "2026-10-01T12:29:37.187239+00:00",
+  "doctor_live": {
+    "checks": 20,
+    "cuda_device": "NVIDIA GeForce RTX 3070",
+    "doctor_output_sha256": "ee8ef59fc587b9371755dac9c48df7430ccaf58cf0e2b3a7029e409eb50be2e3",
+    "failed_checks": [],
+    "ok": true
+  },
+  "limits": [
+    "This was a clean checkout on the same machine, not a different GPU, operating system, or physical robot.",
+    "The ACT archive was copied from the prepared checkout; it has no public distribution endpoint.",
+    "The test fetched demo assets only. Training assets and other policy models were already checked in the prepared course checkout.",
+    "Online package and public asset access were required for this clean setup."
+  ],
+  "paid_cloud_cost_usd": 0,
+  "schema_version": 1,
+  "scope": "Fresh local Git clone on the same Ubuntu 24.04 RTX 3070 workstation",
+  "setup": {
+    "act_archive_files_verified": 14,
+    "act_archive_sha256": "0e4494cfabdc989cb005254b1521a8536191fed5a6023350ed4ec10318589f88",
+    "asset_revision": "0b3ea86be5fe169d0fd036ae63d1070ec09e90f6",
+    "dataset_revision": "a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4",
+    "demo_sample_sha256": "77d59b50e309e2099e562e70806603a1bdb66b893efcaecc2534b2c9fa3e02ae",
+    "offline_first_attempt": "Stopped because the pinned TorchCodec wheel was not in the uv cache.",
+    "online_uv_prepare_time": "2m 35s reported by uv; package download time can differ by host and cache.",
+    "online_uv_sync": "Passed with the locked 228-package resolution; 221 packages were installed.",
+    "public_demo_fetch": "Passed at pinned revisions, then passed an offline file check."
+  },
+  "source_commit": "66e9ac0",
+  "uv_lock_sha256": "cb432c602e1120c8dd0df9e33f4c33c470da9a78e4aa16b9caffa5973868715a"
+}

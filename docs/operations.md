@@ -130,7 +130,7 @@ Then fetch data and check the result:
 .venv/bin/robot-lab doctor --live
 ```
 
-A new training-data root was not downloaded in full. The training scope passed only an online cached check. Time a full download before you promise a setup time.
+A [clean local checkout test](../artifacts/reference/release/clean_checkout.json) installed the locked environment online, restored the ACT archive, fetched demo data and simulator assets, passed the live doctor, and ran one ACT demo. It used the same workstation and GPU. A new training-data root was not downloaded in full. The training scope passed only an online cached check. Time a full training download before you promise a setup time.
 
 ### 4.2 Restore after an interrupted job
 
