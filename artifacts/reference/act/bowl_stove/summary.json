@@ -1,5 +1,5 @@
 {
-  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/act-bowl-stove-probe-200/checkpoint-000200",
+  "checkpoint": ".local-data/runs/act-bowl-stove-probe-200/checkpoint-000200",
   "episodes": 20,
   "partition": "development",
   "schema_version": 1,

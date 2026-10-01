@@ -1,7 +1,7 @@
 {
   "attempts": 20,
   "base_seed": 20260930,
-  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/smolvla-c2-5000-development/checkpoint-005000",
+  "checkpoint": ".local-data/runs/smolvla-c2-5000-development/checkpoint-005000",
   "infrastructure_errors": 0,
   "model_sha256": "5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1",
   "parent_model_sha256": "2e718213bfd2d4cdd5317b532ea8d2b687f9ccc6d79277b3c106760a5e5010c5",

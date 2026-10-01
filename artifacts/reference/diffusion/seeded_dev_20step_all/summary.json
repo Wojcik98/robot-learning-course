@@ -1,7 +1,7 @@
 {
   "attempts": 20,
   "base_seed": 20260930,
-  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/diffusion-bowl-plate-reference-2000/checkpoint-002000",
+  "checkpoint": ".local-data/runs/diffusion-bowl-plate-reference-2000/checkpoint-002000",
   "horizon": 16,
   "inference_steps": 20,
   "infrastructure_errors": 0,

@@ -1,7 +1,7 @@
 # Feasibility record
 
 **Date:** 2026-10-01
-**Gate:** P3c complete. Labs 0–6 passed fresh-kernel checks. The later course remains open.
+**Gate:** Release 3 local check complete. Labs 0–11 passed fresh-kernel checks on the prepared host. Distribution to a new machine and paid cloud operation remain open.
 
 ## Verified
 
@@ -23,15 +23,14 @@
 - Diffusion Policy used two cameras, two observation steps, a 16-step horizon, and eight actions per selection. It loaded the pinned ImageNet ResNet-18 weights. Its real-sample CPU loss was finite (1.0724), and all 276 gradient tensors were finite. The model and processors saved and reloaded. A CPU action was finite. A GPU action passed one live LIBERO step with 184 MiB peak PyTorch allocation and 2.981 seconds for the reset and step. Total GPU use with the renderer active was 2,875 MiB. This policy is untrained and did not complete the task. The [probe record](../artifacts/reference/diffusion/p0_probe.json) has the settings.
 - The local [RTC guidance path](../src/vla_lab/rtc/guidance.py) applies the [RTC v2 soft mask and vector-Jacobian correction](https://arxiv.org/html/2506.07339v2). A toy derivative test confirms that the correction includes the model derivative. It also leaves padded action values outside the mask. With the pinned SmolVLA model, delay two ticks, and execution horizon ten, ordinary sampling used 1,508 MiB peak PyTorch memory; checked guidance used 1,628 MiB. Both returned finite `1 × 50 × 7` chunks. With the LIBERO renderer active, total GPU use was 4,214 MiB for ordinary sampling and 4,359 MiB for checked guidance. The [probe record](../artifacts/reference/rtc/p0_guidance_probe.json) has the inputs and measurements.
 - The pinned LeRobot RTC processor starts tracking the action tensor after it computes the model output. A toy derivative check therefore returned a correction without the model derivative. Its 2,367 MiB peak PyTorch allocation is recorded for diagnosis; it is not the checked RTC recipe.
-- The user completed Brev login and reported a US$29.94 balance, auto recharge off, and no other charge path. A host `brev list` check showed no instances in organization `wojcikmichal98-0-tsk8`. No paid instance has started.
+- The user completed Brev login and reported a US$29.94 balance, auto recharge off, and no other charge path. A host `brev list` check showed no instances in the active organization. No paid instance has started.
 
 ## Open gates
 
-- Check camera order and state/action meaning against source demonstrations and simulator frames. The processor path is now tested, but visual and motion alignment still need an independent check.
-- Measure cold and warm action latency for each policy and total VRAM for Diffusion Policy with rendering active. PyTorch allocation alone does not include every renderer allocation.
-- Freeze the three-method recipe and complete the final-state comparison in P3d. The final states remain closed at this stage.
-- Give learners a reliable way to retrieve the ACT bundles on a new machine. The current reference paths are local to this workstation.
-- Check the live GPU quote, cost limit, and provider stop controls before any paid job. No paid cloud job has started.
+- Independently inspect source camera labels and state/action meaning against simulator motion. The processor path and real rollouts passed, but wrong upstream labels would still pass the packet checks.
+- Give learners a distribution location for the large local assets and check setup on a new machine. The ACT archive passed one clean local restore.
+- Check the live GPU balance, quote, cost limit, provider stop, independent stop, and monitoring before any paid job. No paid cloud job has started.
+- Test the course on another GPU and on a physical robot before making claims for those settings.
 
 No final simulator state has been used for model selection. The reported ACT rates are development results for this fixed setup. They are not benchmark estimates. The source demonstration overlap with simulator initial states is not resolved. The bowl-on-stove run clipped 1,317 action values across 1,446 steps; bowl-on-plate clipped 541 values across 1,735 steps. The course must show this action limit and study its effect.
 
@@ -95,8 +94,22 @@ The [stove-on training resource record](../artifacts/reference/comparison/stove_
 
 The [Lab 8 source audit](../artifacts/reference/data_quality/source_action_audit.json) examined all 3,661 bowl-plate training actions. At maximum arm-action magnitude thresholds 0.001, 0.01, and 0.05, the near-zero counts were 0, 11, and 61. The source filtering history is unknown. A small synthetic fixture has one labelled action-tick offset; its repair restores tick labels without changing action values. This fixture does not show a defect in the source dataset.
 
-The live reference collector saved five successful ACT-generated development episodes on states 0–4, with 74–76 applied actions each. The [teacher manifest](../artifacts/reference/data_quality/teacher_manifest.json) gives each NPZ hash and reset seed. These are policy-generated demonstrations, not human recordings. A separate [live keyboard-path smoke test](../artifacts/reference/data_quality/keyboard_live_smoke.json) used injected keys on LIBERO state 0. It saved close, open, and zero actions, then replayed all four numeric observations exactly with the same seed. Human usability remains untested.
+The live reference collector saved five successful ACT-generated development episodes on states 0–4, with 74–76 applied actions each. The [teacher manifest](../artifacts/reference/data_quality/teacher_manifest.json) gives each NPZ hash and reset seed. These are policy-generated demonstrations, not human recordings. A separate [live keyboard-path smoke test](../artifacts/reference/data_quality/keyboard_live_smoke.json) used injected keys on LIBERO state 0. It saved close, open, and zero actions, then replayed all four numeric observations exactly with the same seed. After a visible-control fix, the user reported that the keyboard window works. The [human retest record](../artifacts/reference/data_quality/keyboard_human_retest.json) checks 87 saved actions, including 24 nonzero arm values. This is a usability and recording check, not a human-recovery training result.
 
 The first recovery adapter kept only even 20 Hz ticks to match the source dataset's 10 Hz timestamp label. This broke the verified 50 ms controller alignment: its 200-step ACT continuation failed on all **15/15** held-out development states. The corrected adapter keeps every recorded controller tick and gave 375 training samples from the five episodes. Its separate 200-step continuation succeeded on **14/15** held-out states 5–19. The unchanged base ACT checkpoint also succeeded on **14/15**. The base failed on state 8; the continuation failed on state 5. The [checked recovery report](../artifacts/reference/data_quality/recovery_reference.json) holds all 45 attempt rows, model hashes, and the invalid diagnostic label. This one recording set and one training seed show no net recovery gain. No final state was used for this continuation choice.
 
 Lab 8 ran eight code cells from a fresh nbclient kernel, loaded the five local policy-generated recordings, and read all 45 saved held-out attempts. Its [notebook check](../artifacts/reference/data_quality/lab8_notebook.json) records zero error outputs. The full NPZ files and ACT continuation checkpoint are in ignored `.local-data/` on this prepared host. New-machine retrieval remains a release gate.
+
+## Runtime and RTC check
+
+The [settings sweep](../artifacts/reference/runtime/settings_sweep.json) used one bowl-plate development state and the learner SmolVLA C2 checkpoint. Synchronous strides 1, 5, and 10 made 300, 16, and 8 requests. Stride 1 failed at the 300-tick limit; strides 5 and 10 succeeded. Asynchronous delay settings 1, 2, and 4 ticks each succeeded. One state does not rank the settings.
+
+The [five-mode final recipe](../configs/experiments/latency_final.yaml) was committed at `8398755` before P5 final state IDs 20–29 were opened. Its SHA-256 value is `31b6935ee99b50512c9cd23d39050c8964f8dee7fdb824f3feb190397e466066`. All 50 same-model final attempts completed without runner errors. The [checked report](../artifacts/reference/runtime/final_modes.json) records synchronous 7/10, naive asynchronous 9/10, temporal ensemble 9/10, RTC hard 7/10, and RTC soft 4/10. The matching underflow totals were 0, 20, 20, 20, and 20 ticks. All measured policy requests exceeded the set 100 ms virtual delay. RTC guidance used more request time than ordinary sampling. RTC soft reduced mean adjacent-action L2 change, but it had fewer successes in these ten states. The metric includes all adjacent bounded controller actions, not only chunk handovers. One checkpoint, ten static states, and a delay shorter than measured request time do not support a stable mode ranking or a real-time claim.
+
+Lab 9 and Lab 10 each passed fresh CPU kernels. Their [check records](../artifacts/reference/runtime/lab9_notebook.json) and [Lab 10 record](../artifacts/reference/runtime/lab10_notebook.json) identify the notebook source hashes. The deterministic scheduler tests cover delay, jitter, duplicates, reordering, underflow, and reset identity.
+
+## Release 3 local check
+
+A controlled [ACT interruption and restore](../artifacts/reference/jobs/act_interrupted_restore.json) sent `SIGTERM` after a complete checkpoint. A new process resumed from step 1 to step 3. The last loss differed by 0.0000038, and the maximum saved model tensor difference from the uninterrupted run was 0.000203. The models were not bitwise equal. A fourth process loaded the restored bundle and completed one live LIBERO step. This does not test a new machine or long detached worker.
+
+The [course-wide release check](../artifacts/reference/release/course_notebooks.json) ran Labs 0–11 in order with 12 fresh kernels and 84 code cells. It recorded zero notebook errors. It reused saved long-training and final-evaluation records, while the short ACT, SmolVLA, and Diffusion Policy live paths ran on local development states. The local `robot-lab doctor --live` command passed, and separate ACT `demo` and `eval` CLI runs on development state 0 succeeded. The [Lab 11 check](../artifacts/reference/deployment/lab11_notebook.json) tested release records and rollback in a temporary directory. [Release metadata](../artifacts/reference/release/act_bowl_plate_200.json) records the selected ACT checkpoint and its unknown source commit. No paid cloud job, physical robot, or new machine was tested.

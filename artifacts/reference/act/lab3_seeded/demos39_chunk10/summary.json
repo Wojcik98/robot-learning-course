@@ -1,6 +1,6 @@
 {
   "base_seed": 20260930,
-  "checkpoint": "/home/michal/code/vlas_tutorial/.local-data/runs/act-lab3-reference-v1/variants/demos39_chunk10/training/checkpoint-000200",
+  "checkpoint": ".local-data/runs/act-lab3-reference-v1/variants/demos39_chunk10/training/checkpoint-000200",
   "episodes": 20,
   "partition": "development",
   "schema_version": 1,

@@ -1,0 +1,226 @@
+{
+  "checked_at_utc": "2026-10-01T12:21:19.510841+00:00",
+  "cli_checks": {
+    "act_demo": {
+      "reset_seed": 20260930,
+      "result_path": ".local-data/runs/release3-cli-demo/run.json",
+      "result_sha256": "d4073469fcd7748cec59458ea0505eaa86b9ddd0d86df9e03adcc0bf58eecbb0",
+      "state_id": 0,
+      "steps": 74,
+      "success": true
+    },
+    "act_eval": {
+      "attempts": 1,
+      "infrastructure_errors": 0,
+      "result_path": ".local-data/runs/release3-cli-eval/summary.json",
+      "result_sha256": "a5836de66eef017618944f9f75c9b760a32f2ac8890172ee877abd77e8bb7e57",
+      "state_ids": [
+        0
+      ],
+      "successes": 1
+    },
+    "doctor_live": {
+      "ok": true,
+      "source": "observed CLI output during release check"
+    }
+  },
+  "environment": {
+    "python": "3.12.3",
+    "torch": "2.11.0+cu128",
+    "uv_lock_sha256": "cb432c602e1120c8dd0df9e33f4c33c470da9a78e4aa16b9caffa5973868715a"
+  },
+  "fresh_kernel": "One new python3 kernel for each notebook, in Lab 0 to Lab 11 order. No saved notebook state was reused.",
+  "index": {
+    "lab_links": [
+      "00-first-run/00-first-run.ipynb",
+      "01-act/01-act.ipynb",
+      "02-data-evaluation/02-data-evaluation.ipynb",
+      "03-train-act/03-train-act.ipynb",
+      "04-smolvla/04-smolvla.ipynb",
+      "05-adapt-smolvla/05-adapt-smolvla.ipynb",
+      "06-diffusion/06-diffusion.ipynb",
+      "07-comparison/07-comparison.ipynb",
+      "08-data-quality/08-data-quality.ipynb",
+      "09-runtime/09-runtime.ipynb",
+      "10-rtc/10-rtc.ipynb",
+      "11-deployment/11-deployment.ipynb"
+    ],
+    "missing_links": [],
+    "path": "tutorials/index.ipynb",
+    "source_sha256": "deea89a53500143fa77a387a664e2e8ba6461ddbdd66c8f3f45f5dd94b62bb21"
+  },
+  "limits": [
+    "Executed notebooks and large results are in ignored .local-data on this prepared host.",
+    "The notebook sequence reuses saved long training and final evaluation results; it does not repeat those long jobs.",
+    "The live notebook cells and CLI checks use development states. Reading a saved final report does not open a new final simulator state.",
+    "No paid cloud job, new machine, or physical robot was tested."
+  ],
+  "live_short_paths": [
+    "Lab 0 ACT demo and reset",
+    "Lab 2 ACT evaluation on development states",
+    "Lab 5 learner SmolVLA development rollout",
+    "Lab 6 Diffusion Policy development rollout"
+  ],
+  "notebooks": [
+    {
+      "elapsed_s": 18.008,
+      "error_outputs": 0,
+      "executed_code_cells": 4,
+      "executed_notebook": ".local-data/runs/release3-notebooks/00-first-run-executed.ipynb",
+      "executed_sha256": "d9d0e12e6f2645840a3627314175755fc96113f0642a85c4ad51307e1a5dd853",
+      "lab": 0,
+      "source_notebook": "tutorials/00-first-run/00-first-run.ipynb",
+      "source_sha256": "4d3d1abbdd854af60f8e1180c1a16abb32af1303d0d5fc38dc4ca5751d14a9fb",
+      "started_at_utc": "2026-10-01T12:18:25.417613+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 8.103,
+      "error_outputs": 0,
+      "executed_code_cells": 6,
+      "executed_notebook": ".local-data/runs/release3-notebooks/01-act-executed.ipynb",
+      "executed_sha256": "5e9497fd5a9a52563685096dcdad18274f7efd443048b5fec4e54a2b09fe640a",
+      "lab": 1,
+      "source_notebook": "tutorials/01-act/01-act.ipynb",
+      "source_sha256": "958b91a4bd020aa42bc4e9eac10088053add9321b0c627527348de04ecb10848",
+      "started_at_utc": "2026-10-01T12:18:43.426533+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 17.695,
+      "error_outputs": 0,
+      "executed_code_cells": 5,
+      "executed_notebook": ".local-data/runs/release3-notebooks/02-data-evaluation-executed.ipynb",
+      "executed_sha256": "1f09f881e07de91ed33e2295259ce5b536f53f6fb9edc7299eb4ee4d8d765a72",
+      "lab": 2,
+      "source_notebook": "tutorials/02-data-evaluation/02-data-evaluation.ipynb",
+      "source_sha256": "7fc5021cb89709b4dc358e71520cd4e1ae34be1d61a6087e4f7779fee01f92bb",
+      "started_at_utc": "2026-10-01T12:18:51.529297+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 10.739,
+      "error_outputs": 0,
+      "executed_code_cells": 7,
+      "executed_notebook": ".local-data/runs/release3-notebooks/03-train-act-executed.ipynb",
+      "executed_sha256": "20ffea60a2c164dcf95c37261c214dbcc7258c50887a0dc711e15bb5a0b5bbd0",
+      "lab": 3,
+      "source_notebook": "tutorials/03-train-act/03-train-act.ipynb",
+      "source_sha256": "8e9c645379de06a7b65f55f37592077b44f5ced0773d0beea7d6108658e8bde3",
+      "started_at_utc": "2026-10-01T12:19:09.224475+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 23.747,
+      "error_outputs": 0,
+      "executed_code_cells": 5,
+      "executed_notebook": ".local-data/runs/release3-notebooks/04-smolvla-executed.ipynb",
+      "executed_sha256": "b10c5ef3300a148b6e1878ce2dac69ca4f3946696df33d3d5a112c7efdd18962",
+      "lab": 4,
+      "source_notebook": "tutorials/04-smolvla/04-smolvla.ipynb",
+      "source_sha256": "245e33a05346a9c455b5428b7792c187bcd495e7e156c993c454f2ee2b020119",
+      "started_at_utc": "2026-10-01T12:19:19.963777+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 38.031,
+      "error_outputs": 0,
+      "executed_code_cells": 7,
+      "executed_notebook": ".local-data/runs/release3-notebooks/05-adapt-smolvla-executed.ipynb",
+      "executed_sha256": "7cf5ad3797f1ec646aefd84edcb09a43f001802608ce8c3d86c69f558f37a64f",
+      "lab": 5,
+      "source_notebook": "tutorials/05-adapt-smolvla/05-adapt-smolvla.ipynb",
+      "source_sha256": "0d0bd9b080fce1abab3ad7386edd2c1f43769bb79de974fd3819cf8ee4afefec",
+      "started_at_utc": "2026-10-01T12:19:43.711200+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 16.382,
+      "error_outputs": 0,
+      "executed_code_cells": 9,
+      "executed_notebook": ".local-data/runs/release3-notebooks/06-diffusion-executed.ipynb",
+      "executed_sha256": "0d7909a6b22cc80adf07940bd0b26a67fdb4dbf0993df3c0e39fb116f1e01c76",
+      "lab": 6,
+      "source_notebook": "tutorials/06-diffusion/06-diffusion.ipynb",
+      "source_sha256": "cd84877ae6570b0f5655a3dc8e112038a66ed5e2eada415e7d112d4bc0228268",
+      "started_at_utc": "2026-10-01T12:20:21.742395+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 1.212,
+      "error_outputs": 0,
+      "executed_code_cells": 7,
+      "executed_notebook": ".local-data/runs/release3-notebooks/07-comparison-executed.ipynb",
+      "executed_sha256": "45a9d58f4b21d3167344b3bb2defbdbab0ec0ce6e08e7b7690d34a3b7e63a474",
+      "lab": 7,
+      "source_notebook": "tutorials/07-comparison/07-comparison.ipynb",
+      "source_sha256": "438d14aacdcb5b9e3c1d5bcba0ca2208402b240d7ebf9c3c257bc05088b57333",
+      "started_at_utc": "2026-10-01T12:20:38.124912+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 7.475,
+      "error_outputs": 0,
+      "executed_code_cells": 8,
+      "executed_notebook": ".local-data/runs/release3-notebooks/08-data-quality-executed.ipynb",
+      "executed_sha256": "df8169c71e245bbcb8377a452d96bad79b4c9fd9d3ee4c6ef7ce824fd30ce26f",
+      "lab": 8,
+      "source_notebook": "tutorials/08-data-quality/08-data-quality.ipynb",
+      "source_sha256": "f47850ecf699073a3085d879ebc2c5487cc80d125d9457a838987d0c28bbf736",
+      "started_at_utc": "2026-10-01T12:20:39.337074+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 0.705,
+      "error_outputs": 0,
+      "executed_code_cells": 10,
+      "executed_notebook": ".local-data/runs/release3-notebooks/09-runtime-executed.ipynb",
+      "executed_sha256": "e1673dd624e6d9d7076792617a4cc762cb5b1c56a773132007a2ddab9f5af184",
+      "lab": 9,
+      "source_notebook": "tutorials/09-runtime/09-runtime.ipynb",
+      "source_sha256": "c5a1a0cf806389b44cb2700101a2f6f1b428fed4da2c4c31794a236104af00cf",
+      "started_at_utc": "2026-10-01T12:20:46.812030+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 6.611,
+      "error_outputs": 0,
+      "executed_code_cells": 7,
+      "executed_notebook": ".local-data/runs/release3-notebooks/10-rtc-executed.ipynb",
+      "executed_sha256": "2a9ece1b48ae4e50fa09c04f40861f28eaadd8539f2f4813bf894ffda88dd19e",
+      "lab": 10,
+      "source_notebook": "tutorials/10-rtc/10-rtc.ipynb",
+      "source_sha256": "b18ca44457855b29f0a1583f2848d61546ca0a337307e2812ea94110527b0302",
+      "started_at_utc": "2026-10-01T12:20:47.517583+00:00",
+      "status": "passed"
+    },
+    {
+      "elapsed_s": 0.821,
+      "error_outputs": 0,
+      "executed_code_cells": 9,
+      "executed_notebook": ".local-data/runs/release3-notebooks/11-deployment-executed.ipynb",
+      "executed_sha256": "5d1d2805db9b0cc4ad0b18addad6f5c78ca000079cda3188b239ff05a5659cf5",
+      "lab": 11,
+      "source_notebook": "tutorials/11-deployment/11-deployment.ipynb",
+      "source_sha256": "5cc0d832e1d5248bf14a1cd0a6a841b6c0ae940f98af89a5782925dba225aa3a",
+      "started_at_utc": "2026-10-01T12:20:54.128690+00:00",
+      "status": "passed"
+    }
+  ],
+  "profile": "prepared local Ubuntu host, RTX 3070, no paid cloud",
+  "reused_long_job_artifacts": [
+    "ACT training variant suite",
+    "SmolVLA C1 and C2 training",
+    "Diffusion Policy 2000-step training",
+    "three-method final evaluations",
+    "recovery continuation",
+    "runtime five-mode final matrix"
+  ],
+  "schema_version": 1,
+  "totals": {
+    "elapsed_s": 149.529,
+    "error_outputs": 0,
+    "executed_code_cells": 84,
+    "labs": 12
+  }
+}

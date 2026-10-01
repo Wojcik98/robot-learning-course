@@ -1,0 +1,42 @@
+{
+  "baseline_last_loss": 36.6646842956543,
+  "baseline_model_sha256": "51649166c95aa4335974fb84db309085a19d572e98aa650f0990b420f6ba6898",
+  "baseline_vs_interrupted_step1": {
+    "changed_tensors": 3,
+    "max_abs": 3.725290298461914e-09,
+    "tensor_count": 186
+  },
+  "baseline_vs_restored_step3": {
+    "changed_tensors": 98,
+    "max_abs": 0.00020292215049266815,
+    "tensor_count": 186
+  },
+  "batch_size": 8,
+  "bitwise_equal": false,
+  "checked_at_utc": "2026-10-01T11:56:34.075073+00:00",
+  "chunk_size": 20,
+  "fresh_process_live_step": {
+    "clipped_values": 0,
+    "completed_steps": 1,
+    "policy_errors": 0,
+    "reset_seed": 20260930,
+    "state_id": 0,
+    "task_alias": "bowl_plate"
+  },
+  "interruption": "SIGTERM sent after checkpoint-000002 optimizer file appeared",
+  "last_loss_abs_diff": 3.814697265625e-06,
+  "limits": [
+    "The restored model is not bitwise equal to the baseline. Small tensor differences already appeared after the first step of two separate runs.",
+    "This is a separate Python process on the same locked local machine, not a new host or a long detached job.",
+    "One live simulator step proves load and action shape only; it does not prove task success."
+  ],
+  "reset_seed": 20260930,
+  "restored_last_loss": 36.66468048095703,
+  "restored_model_sha256": "8699bb222b49b9f1ea113f3d47e73b859c7f173b46ec22f1bc97cb68db72f0b9",
+  "resume_checkpoint": ".local-data/runs/act-resume-interrupted/checkpoint-000001",
+  "resume_process": "fresh Python process in the same locked local environment",
+  "schema_version": 1,
+  "target_step": 3,
+  "task_alias": "bowl_plate",
+  "worker_exit_code": -15
+}

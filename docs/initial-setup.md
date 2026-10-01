@@ -1,6 +1,6 @@
 # Initial setup: one user checklist
 
-**Status:** The local P0 reference and first live lab work. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list work. A read-only L4 quote was checked on 2026-10-01. The live billing screen, supervised allocation, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
+**Status:** Labs 0–11 passed on the prepared local host. No paid cloud job has started. The user reported a US$29.94 Brev balance, auto recharge off, and no other active charge path. The Brev CLI login and organization list work. A read-only L4 quote was checked on 2026-10-01. The live billing screen, supervised allocation, and provider stop still need checks. A Hugging Face token file is present on this host; do not copy or print it.
 
 Use the defaults below unless the user supplies an override. Do not ask again for decisions already made.
 
@@ -42,7 +42,7 @@ Test metadata and a small download for each asset family. Keep the authenticatio
 
 ### Brev access and billing
 
-Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/latest/cli/getting-started). The user installed Brev CLI v0.6.335 and completed browser login. A host CLI check returned `No instances in org wojcikmichal98-0-tsk8`. A separate API token is needed only if the chosen automation route requires one.
+Use the [Brev console](https://brev.nvidia.com) and the supported [CLI login workflow](https://docs.nvidia.com/brev/latest/cli/getting-started). The user installed Brev CLI v0.6.335 and completed browser login. A host CLI check returned no instances in the active organization. A separate API token is needed only if the chosen automation route requires one.
 
 The [billing guide](https://docs.nvidia.com/brev/guides/console-reference#billing--usage) describes shared credit and auto recharge. The user checked the Billing page and reported no active charge path beyond the US$29.94 credit, with auto recharge off. Check the live quote and stop controls before allocation. If that boundary cannot be established, continue local work and report the cloud blocker.
 
@@ -84,14 +84,14 @@ Sol fills a compact redacted table here during S0; do not create another setup r
 
 | Check | Required evidence | Status |
 |---|---|---|
-| Storage | Writable selected path, free space, download reserve | Passed local path; 150.3 GiB free on 2026-10-01 |
-| Driver route | Host GPU query and CUDA driver API | Passed read-only check; recheck in S0 |
+| Storage | Writable selected path, free space, download reserve | Passed local path; `doctor --live` reported 128.7 GiB free on 2026-10-01 |
+| Driver route | Host GPU query and CUDA driver API | Passed host check and live local GPU notebooks |
 | Runtime | Exact package list, lock, tensor/render/decode checks | Passed pinned local runtime, GPU, AV1 decode, and EGL reset |
 | Hub access | Exact asset IDs and successful small downloads | Public pinned assets downloaded; token access for future assets not checked |
 | Cloud billing | Allocated credit, current quote, recharge/overage settings, job limits | User confirmed credit and charge path; live L4 quote checked; current billing screen pending |
 | Remote lifecycle | SSH, export, provider stop, cost and storage record | Pending supervised S0 check |
 | Unattended jobs | Monitor, deadline, independent stop, failure tests | Pending P1 |
-| Workers | Claude login/usage access, Astra route | Pending S0 |
-| Completion | Bash tests for installed tools, then project CLI | S0 and P1 |
+| Workers | Claude login/usage access, Astra route | Claude Code CLI was used for bounded course tasks; an Astra route is not part of the learner setup |
+| Completion | Bash tests for installed tools, then project CLI | `just --list` and the offline Bash completion tests passed; shell startup installation was not checked |
 
 Collect missing user actions in one message. Local work can continue when a cloud or external-review route is unavailable, but dependent work must remain marked as blocked. Later questions are needed only for changed scope, failed access, costs outside the allowance, or enforced tool approvals. Do not repeat the standing spending or lifecycle questions.

@@ -1,9 +1,9 @@
 {
-  "checked_at_utc": "2026-10-01T12:03:21.880346+00:00",
+  "checked_at_utc": "2026-10-01T12:21:19.510841+00:00",
   "error_outputs": 0,
   "executed_code_cells": 7,
-  "executed_notebook": ".local-data/runs/lab10-rtc-release-executed.ipynb",
-  "executed_sha256": "4e12a955360156d9b4a1c4b39dba189e4940b31b66ba51045263f0f866771b29",
+  "executed_notebook": ".local-data/runs/release3-notebooks/10-rtc-executed.ipynb",
+  "executed_sha256": "2a9ece1b48ae4e50fa09c04f40861f28eaadd8539f2f4813bf894ffda88dd19e",
   "kernel": "python3",
   "schema_version": 1,
   "source_notebook": "tutorials/10-rtc/10-rtc.ipynb",

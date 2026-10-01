@@ -1,0 +1,122 @@
+{
+  "checkpoint_files_sha256": {
+    "config.json": "5945b645f1db6c02cd85f96a503331d16b961986cca0fd678c0ade42c1086bcc",
+    "manifest.json": "bcb9c8fc4c2270b75dbc1a7eb936c9d27658f84685155face67c9b00f7041c33",
+    "model.safetensors": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+    "policy_postprocessor.json": "3b51f092c70c710ce0213ee1b63bf51b4878ec67828dd2d67daf9ef51081a41a",
+    "policy_postprocessor_step_0_unnormalizer_processor.safetensors": "f014dc2b229d7474168b08d52ae259b1cd91d1b1b846b40cc6f73ba154b01b44",
+    "policy_preprocessor.json": "3ec3567f2ef31bf39eb00a46ab5d45a01720853df7faede42a9244ecda22d794",
+    "policy_preprocessor_step_3_normalizer_processor.safetensors": "f014dc2b229d7474168b08d52ae259b1cd91d1b1b846b40cc6f73ba154b01b44"
+  },
+  "checkpoint_manifest": {
+    "chunk_size": 20,
+    "dataset_revision": "a1aaacb7f6cd6ee5fb43120f673cebb0cfea7dd4",
+    "n_action_steps": 10,
+    "policy": "act",
+    "schema_version": 1,
+    "split_sha256": "ef237195fc6ace8a78ff69fcf472362a89adb64a4ff079b5fb84724157bb82f4",
+    "task_alias": "bowl_plate",
+    "training_stats_sha256": {
+      "action": "d2706bf63364f128125e253b20b59a1f80c590a888254b85ca662cd8261deb3a",
+      "observation.state": "4bd3106c075fbd7b802d116c712e608f45e4b5418a67900b6f3de1b3cc779bc7"
+    }
+  },
+  "checkpoint_path": ".local-data/runs/act-bowl-plate-probe-200/checkpoint-000200",
+  "created_at_utc": "2026-10-01T12:07:10.986970+00:00",
+  "evaluation": {
+    "development": {
+      "attempts": 20,
+      "partition": "development",
+      "result_path": "artifacts/reference/act/bowl_plate_seeded_dev_all/episodes.jsonl",
+      "result_sha256": "f9f8f5cf2035784234053b0475777ef6fcec8550c95f7ffcc40f7e25ef5e4b08",
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "successes": 19
+    },
+    "final": {
+      "attempts": 30,
+      "frozen_config_sha256": "b927d1af8602af3a098091b88dd21fc55f09d89d70046ba98cf168dbd166d207",
+      "frozen_recipe_commit": "dd49d3f",
+      "partition": "final",
+      "result_path": "artifacts/reference/comparison/final/three_method_report.json",
+      "result_sha256": "9756ac115822e41a9daab16118985ce437e402c1fd04fdb8ecbd09ba97001e35",
+      "state_ids": [
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "successes": 30
+    }
+  },
+  "limits": [
+    "The checkpoint source commit was not stored with the original checkpoint.",
+    "The source demonstrations may overlap simulator initial states.",
+    "Results use one training seed, one local GPU, and fixed LIBERO tasks.",
+    "The ACT archive is available on this prepared host only; no public distribution endpoint is set.",
+    "No physical robot or paid cloud allocation was tested."
+  ],
+  "local_transport": {
+    "archive_path": ".local-data/bundles/act-references.zip",
+    "archive_sha256": "0e4494cfabdc989cb005254b1521a8536191fed5a6023350ed4ec10318589f88"
+  },
+  "model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+  "paid_cloud_cost_usd": 0,
+  "parent_release": null,
+  "release_id": "bowl-plate-act-200-reference",
+  "repository": {
+    "checkpoint_source_commit": null,
+    "frozen_comparison_commit": "dd49d3f",
+    "record_created_from_commit": "484c8b3",
+    "record_created_with_uncommitted_release_docs": true
+  },
+  "schema_version": 1,
+  "task_alias": "bowl_plate",
+  "uv_lock_sha256": "cb432c602e1120c8dd0df9e33f4c33c470da9a78e4aa16b9caffa5973868715a"
+}

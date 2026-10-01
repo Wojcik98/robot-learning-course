@@ -1,13 +1,13 @@
 {
-  "checked_at_utc": "2026-10-01T12:02:53.054001+00:00",
+  "checked_at_utc": "2026-10-01T12:21:19.510841+00:00",
   "error_outputs": 0,
   "executed_code_cells": 10,
-  "executed_notebook": ".local-data/runs/lab9-runtime-release-executed.ipynb",
-  "executed_sha256": "0f1ee0520125346b043b66a50452b4da0e1139ade5e6ebefb57cdbb4e5f8362b",
+  "executed_notebook": ".local-data/runs/release3-notebooks/09-runtime-executed.ipynb",
+  "executed_sha256": "e1673dd624e6d9d7076792617a4cc762cb5b1c56a773132007a2ddab9f5af184",
   "kernel": "python3",
   "schema_version": 1,
   "source_notebook": "tutorials/09-runtime/09-runtime.ipynb",
-  "source_sha256": "0c29ea20ffc06fcf6b884e080d16ab60286eb8b816dd5e9d8819944f50d16979",
+  "source_sha256": "c5a1a0cf806389b44cb2700101a2f6f1b428fed4da2c4c31794a236104af00cf",
   "uses_live_policy": false,
   "uses_live_simulator": false
 }

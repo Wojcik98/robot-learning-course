@@ -1,0 +1,23 @@
+{
+  "action_shape": [
+    87,
+    7
+  ],
+  "checked_at_utc": "2026-10-01T12:06:37.573005+00:00",
+  "gripper_value_counts": {
+    "-1.0": 71,
+    "0.0": 1,
+    "1.0": 15
+  },
+  "limits": [
+    "The user report confirms desktop usability on this host. The repository did not measure the operator intent or task success.",
+    "The full recording remains ignored under .local-data. This compact record stores no camera frames."
+  ],
+  "nonzero_arm_values": 24,
+  "recording_path": ".local-data/keyboard-recordings/human-retest.npz",
+  "recording_sha256": "7a2724acd2b5fb910ded3e20f00e569fdac838d60040eb7b4d68e35eaa81a5de",
+  "schema_version": 1,
+  "scope": "user-operated local keyboard retest after visible-control fix",
+  "source_type": "human-operated keyboard input",
+  "user_report": "The user reported: It works now."
+}

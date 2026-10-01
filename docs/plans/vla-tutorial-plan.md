@@ -99,7 +99,7 @@ After S0, routine installation, downloads, training, cloud lifecycle actions, an
 
 ## 3. Technical basis and feasibility checks
 
-Primary sources were rechecked for the review on 2026-09-30. Full runtime compatibility remains a P0 check. The [Claude review](claude-review.md) includes a response table; this plan contains the implementation decisions.
+Primary sources were rechecked for the review on 2026-09-30. Full runtime compatibility remained a P0 check at that time. The original Claude review notes are not in this repository; this plan contains the accepted implementation decisions.
 
 ### Method map
 
@@ -680,7 +680,7 @@ Run each package's reference notebooks with nbclient from a fresh kernel at its 
 - Set one resume timer for the returned session reset time. On wake, check usage and current user instructions before resuming. If the user cancels the timer, require a new request to resume.
 - Ask the user to resolve scope or spending changes with the concrete result and cost visible. Routine implementation decisions stay with Sol.
 
-The [Claude review and response table](claude-review.md) record the review. Keep its findings as review history. This plan is the implementation authority after user approval. Store no separate review prompts or duplicate handoff documents.
+The original Claude review notes were not retained in this repository. This plan is the implementation authority after user approval. Do not infer a review finding from a missing source document.
 
 ## 12. Completion criteria and final review
 
