@@ -52,6 +52,7 @@ def evaluate_states(
     output_dir: str | Path,
     run_one: Callable[[int], EpisodeOutcome],
     allow_final: bool = False,
+    error_metrics: Callable[[int], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Run each selected state once and save success and failure rows."""
     selected = selected_state_ids(
@@ -84,7 +85,7 @@ def evaluate_states(
                 "libero-goal-v1",
                 False,
                 "policy_error" if policy_fault else "infrastructure_error",
-                {},
+                error_metrics(state_id) if error_metrics is not None else {},
                 error.artifact_paths if isinstance(error, EvaluationRunError) else {},
             )
             error_text = f"{type(error).__name__}: {error}"
@@ -97,7 +98,7 @@ def evaluate_states(
                 "libero-goal-v1",
                 False,
                 "infrastructure_error",
-                {},
+                error_metrics(state_id) if error_metrics is not None else {},
                 {},
             )
             error_text = f"{type(error).__name__}: {error}"
