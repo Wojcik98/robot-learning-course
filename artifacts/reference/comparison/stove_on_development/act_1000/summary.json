@@ -1,0 +1,33 @@
+{
+  "base_seed": 20260930,
+  "checkpoint": ".local-data/runs/act-stove-on-1000/checkpoint-001000",
+  "episodes": 20,
+  "model_sha256": "b9a481fa836db6caffcc0c99218355a8f6a68253d927ca9469bcc7d9c0c514e3",
+  "partition": "development",
+  "schema_version": 1,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "success_rate": 1.0,
+  "successes": 20,
+  "task_alias": "stove_on"
+}

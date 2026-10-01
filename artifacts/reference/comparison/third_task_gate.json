@@ -1,0 +1,73 @@
+{
+  "base_seed": 20260930,
+  "entries": [
+    {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/act-stove-on-200/checkpoint-000200",
+      "episodes_file": "artifacts/reference/comparison/stove_on_development/act_200/episodes.jsonl",
+      "method": "act_200",
+      "model_sha256": "1bab1be1482b3e1576a01567cb4d9364531895eb3449527c68d8fa62305d9f8d",
+      "robot_training_steps": 200,
+      "successes": 5
+    },
+    {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/act-stove-on-1000/checkpoint-001000",
+      "episodes_file": "artifacts/reference/comparison/stove_on_development/act_1000/episodes.jsonl",
+      "method": "act_1000",
+      "model_sha256": "b9a481fa836db6caffcc0c99218355a8f6a68253d927ca9469bcc7d9c0c514e3",
+      "robot_training_steps": 1000,
+      "successes": 20
+    },
+    {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/diffusion-stove-on-2000/checkpoint-002000",
+      "episodes_file": "artifacts/reference/comparison/stove_on_development/diffusion_2000/episodes.jsonl",
+      "method": "diffusion_2000",
+      "model_sha256": "dc644ab98a98ec16232c71562c68e3b4efe536099fac0d28e4f3f1b84ddd2195",
+      "robot_training_steps": 2000,
+      "successes": 19
+    },
+    {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/smolvla-stove-on-c2-5000/checkpoint-005000",
+      "episodes_file": "artifacts/reference/comparison/stove_on_development/smolvla_5000/episodes.jsonl",
+      "method": "smolvla_5000",
+      "model_sha256": "8aa9a246db67f1c10c2c85e3b8acb87cd06bbbdb1227bc56f000fc7507f4d867",
+      "robot_training_steps": 5000,
+      "successes": 17
+    }
+  ],
+  "minimum_successes_per_selected_method": 10,
+  "partition": "development",
+  "schema_version": 1,
+  "selected_methods": [
+    "act_1000",
+    "smolvla_5000",
+    "diffusion_2000"
+  ],
+  "selection_note": "ACT at 200 steps failed the task gate. Its 1000-step continuation and the selected 5000-step SmolVLA and 2000-step Diffusion Policy passed on development states only. No stove-on final state was used for selection.",
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "task_alias": "stove_on"
+}
