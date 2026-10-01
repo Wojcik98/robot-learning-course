@@ -111,10 +111,15 @@ class GuidedRTCProcessor(RTCProcessor):
 
 
 def install_guided_rtc(
-    policy: Any, *, execution_horizon: int, mask_mode: str = "soft"
+    policy: Any, *, execution_horizon: int, mask_mode: str = "soft", beta: float = 5.0
 ) -> GuidedRTCProcessor:
     """Connect the checked guidance path to a SmolVLA policy and its model."""
-    config = RTCConfig(enabled=True, mode="guided", execution_horizon=execution_horizon)
+    config = RTCConfig(
+        enabled=True,
+        mode="guided",
+        execution_horizon=execution_horizon,
+        max_guidance_weight=beta,
+    )
     processor = GuidedRTCProcessor(config, mask_mode=mask_mode)
     policy.config.rtc_config = config
     policy.rtc_processor = processor

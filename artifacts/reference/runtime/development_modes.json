@@ -1,0 +1,361 @@
+{
+  "batch_size": 1,
+  "config_path": "configs/experiments/latency.yaml",
+  "config_sha256": "87cc4e421d8ded755d6e03cd9c8186a19d502483f2d4ed99d165f7c6fd64bae5",
+  "controller_period_ms": 50,
+  "experiment": "runtime_modes",
+  "limits": [
+    "Five development states and one model checkpoint do not establish a stable success ranking.",
+    "Virtual availability uses fixed two-tick delay; measured wall-clock requests on this host often exceed 100 ms.",
+    "CUDA allocated and reserved memory exclude renderer and other device allocations.",
+    "No final state was used for mode selection."
+  ],
+  "model_sha256": "5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1",
+  "modes": {
+    "naive_async": {
+      "cuda_peak_allocated_bytes": 1277225472,
+      "cuda_peak_reserved_bytes": 1390411776,
+      "deadline_ms": 100,
+      "discontinuity_l2_mean": 0.33865281076425746,
+      "episodes": 5,
+      "mean_steps": 147.4,
+      "per_state": [
+        {
+          "discontinuity_l2_mean": 0.30869525867974623,
+          "state_id": 0,
+          "steps": 88,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.42888497642200923,
+          "state_id": 1,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2828973163682294,
+          "state_id": 2,
+          "steps": 84,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.24964556349441408,
+          "state_id": 3,
+          "steps": 81,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.42314093885688836,
+          "state_id": 4,
+          "steps": 184,
+          "success": true,
+          "underflow": 2
+        }
+      ],
+      "request_count": 76,
+      "request_latency_ms": {
+        "p50": 177.08636650058907,
+        "p95": 184.40035499588703,
+        "p99": 187.31501050206134,
+        "warm_p50_ms": 177.0907360041747,
+        "warm_p95_ms": 184.0715389989782,
+        "warm_p99_ms": 187.33872100128792
+      },
+      "requests_missed_100ms": 76,
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "success_rate": 0.8,
+      "successes": 4,
+      "underflow_total": 10
+    },
+    "rtc_hard": {
+      "cuda_peak_allocated_bytes": 1310755840,
+      "cuda_peak_reserved_bytes": 1390411776,
+      "deadline_ms": 100,
+      "discontinuity_l2_mean": 0.3286179974579096,
+      "episodes": 5,
+      "mean_steps": 163.6,
+      "per_state": [
+        {
+          "discontinuity_l2_mean": 0.42989849935855756,
+          "state_id": 0,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.28851966834848836,
+          "state_id": 1,
+          "steps": 85,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.25537419731595684,
+          "state_id": 2,
+          "steps": 85,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2576516941189766,
+          "state_id": 3,
+          "steps": 79,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.4116459281475686,
+          "state_id": 4,
+          "steps": 269,
+          "success": true,
+          "underflow": 2
+        }
+      ],
+      "request_count": 83,
+      "request_latency_ms": {
+        "p50": 319.0930590062635,
+        "p95": 337.2007148034754,
+        "p99": 340.0500397122232,
+        "warm_p50_ms": 320.07056950533297,
+        "warm_p95_ms": 337.24519535462605,
+        "warm_p99_ms": 340.15470491256565
+      },
+      "requests_missed_100ms": 83,
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "success_rate": 0.8,
+      "successes": 4,
+      "underflow_total": 10
+    },
+    "rtc_soft": {
+      "cuda_peak_allocated_bytes": 1310755840,
+      "cuda_peak_reserved_bytes": 1390411776,
+      "deadline_ms": 100,
+      "discontinuity_l2_mean": 0.2463518808329889,
+      "episodes": 5,
+      "mean_steps": 209.4,
+      "per_state": [
+        {
+          "discontinuity_l2_mean": 0.24473173593647504,
+          "state_id": 0,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2536806194828107,
+          "state_id": 1,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.3041238446212233,
+          "state_id": 2,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2268623493815938,
+          "state_id": 3,
+          "steps": 74,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2023608547428416,
+          "state_id": 4,
+          "steps": 73,
+          "success": true,
+          "underflow": 2
+        }
+      ],
+      "request_count": 106,
+      "request_latency_ms": {
+        "p50": 314.9652919964865,
+        "p95": 334.5662169958814,
+        "p99": 339.1348254488548,
+        "warm_p50_ms": 315.7361089979531,
+        "warm_p95_ms": 334.6968099940568,
+        "warm_p99_ms": 339.1603589989245
+      },
+      "requests_missed_100ms": 106,
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "success_rate": 0.4,
+      "successes": 2,
+      "underflow_total": 10
+    },
+    "synchronous": {
+      "cuda_peak_allocated_bytes": 1277225472,
+      "cuda_peak_reserved_bytes": 1390411776,
+      "deadline_ms": 100,
+      "discontinuity_l2_mean": 0.3127016641616659,
+      "episodes": 5,
+      "mean_steps": 125.4,
+      "per_state": [
+        {
+          "discontinuity_l2_mean": 0.31551693979795875,
+          "state_id": 0,
+          "steps": 78,
+          "success": true,
+          "underflow": 0
+        },
+        {
+          "discontinuity_l2_mean": 0.4292329942003939,
+          "state_id": 1,
+          "steps": 300,
+          "success": false,
+          "underflow": 0
+        },
+        {
+          "discontinuity_l2_mean": 0.2735299014566857,
+          "state_id": 2,
+          "steps": 82,
+          "success": true,
+          "underflow": 0
+        },
+        {
+          "discontinuity_l2_mean": 0.2668054577211539,
+          "state_id": 3,
+          "steps": 76,
+          "success": true,
+          "underflow": 0
+        },
+        {
+          "discontinuity_l2_mean": 0.27842302763213717,
+          "state_id": 4,
+          "steps": 91,
+          "success": true,
+          "underflow": 0
+        }
+      ],
+      "request_count": 65,
+      "request_latency_ms": {
+        "p50": 178.6873969977023,
+        "p95": 184.6819477970712,
+        "p99": 360.19738667178876,
+        "warm_p50_ms": 178.67311199370306,
+        "warm_p95_ms": 184.45383829675848,
+        "warm_p99_ms": 198.9325337634363
+      },
+      "requests_missed_100ms": 65,
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "success_rate": 0.8,
+      "successes": 4,
+      "underflow_total": 0
+    },
+    "temporal_ensemble": {
+      "cuda_peak_allocated_bytes": 1277225472,
+      "cuda_peak_reserved_bytes": 1390411776,
+      "deadline_ms": 100,
+      "discontinuity_l2_mean": 0.30883637841852724,
+      "episodes": 5,
+      "mean_steps": 170.8,
+      "per_state": [
+        {
+          "discontinuity_l2_mean": 0.2736646951322096,
+          "state_id": 0,
+          "steps": 84,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.39731905756387426,
+          "state_id": 1,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.2461510069710626,
+          "state_id": 2,
+          "steps": 89,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.23659994206391274,
+          "state_id": 3,
+          "steps": 81,
+          "success": true,
+          "underflow": 2
+        },
+        {
+          "discontinuity_l2_mean": 0.39044719036157716,
+          "state_id": 4,
+          "steps": 300,
+          "success": false,
+          "underflow": 2
+        }
+      ],
+      "request_count": 87,
+      "request_latency_ms": {
+        "p50": 178.24994400143623,
+        "p95": 184.03194399434142,
+        "p99": 185.4655883758096,
+        "warm_p50_ms": 178.10286299936706,
+        "warm_p95_ms": 183.92724145160173,
+        "warm_p99_ms": 185.1844158730819
+      },
+      "requests_missed_100ms": 87,
+      "state_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "success_rate": 0.6,
+      "successes": 3,
+      "underflow_total": 10
+    }
+  },
+  "partition": "development",
+  "sampler_steps": 5,
+  "schema_version": 1,
+  "source_file_hashes": {
+    "src/vla_lab/rtc/guidance.py": "230bc19d09c70407623bb44f29b0324273eb223ec12c7a744243ee41f76d4b0a",
+    "src/vla_lab/runtime/experiment.py": "b79a2397d7cd2ba0855ee3f1b3f297036f02cb79b74b11e779ce3ab2a1247f1f",
+    "src/vla_lab/runtime/smolvla_chunks.py": "a4a65f7d57d6458a9a228d663887a7e4b00f7a84c2fb5bb90725c138779a295f",
+    "src/vla_lab/runtime/virtual_scheduler.py": "86c2083d78ede9b5cb598a1210380bab8d6a0b778ff1f05cbfb269a43e35eeb4"
+  },
+  "source_results": ".local-data/runs/runtime-modes-development",
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "task_alias": "bowl_plate",
+  "virtual_delay_ms": 100,
+  "virtual_delay_ticks": 2
+}
