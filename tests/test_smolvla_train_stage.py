@@ -1,10 +1,15 @@
 """Reject an invalid learner continuation before GPU work starts."""
 
+import hashlib
 from pathlib import Path
 
 import pytest
 
-from vla_lab.training.smolvla import _validate_resume_metadata, train_smolvla_stage
+from vla_lab.training.smolvla import (
+    _validate_resume_metadata,
+    _verify_optimizer_checkpoint,
+    train_smolvla_stage,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "configs" / "train" / "smolvla_bowl_plate.yaml"
@@ -91,3 +96,13 @@ def test_c2_can_extend_the_same_run_after_a_development_check() -> None:
             vlm_revision="revision",
             vlm_sha256="vlm",
         )
+
+
+def test_c2_rejects_a_changed_optimizer_before_model_load(tmp_path: Path) -> None:
+    optimizer = tmp_path / "optimizer.pt"
+    optimizer.write_bytes(b"saved optimizer")
+    manifest = {"optimizer_sha256": hashlib.sha256(optimizer.read_bytes()).hexdigest()}
+    _verify_optimizer_checkpoint(tmp_path, manifest)
+    optimizer.write_bytes(b"other optimizer")
+    with pytest.raises(ValueError, match="Optimizer hash"):
+        _verify_optimizer_checkpoint(tmp_path, manifest)

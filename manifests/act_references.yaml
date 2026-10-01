@@ -19,6 +19,8 @@ tasks:
     training_steps: 200
     development_successes: 19
     development_episodes: 20
+    seeded_development_result: artifacts/reference/act/bowl_plate_seeded_dev_all
+    simulator_reset_seed: 20260930 + state_id
   bowl_stove:
     checkpoint_path: .local-data/runs/act-bowl-stove-probe-200/checkpoint-000200
     checkpoint_files_sha256:
@@ -35,3 +37,4 @@ tasks:
     training_steps: 200
     development_successes: 20
     development_episodes: 20
+    development_reset_seed_status: unseeded_diagnostic

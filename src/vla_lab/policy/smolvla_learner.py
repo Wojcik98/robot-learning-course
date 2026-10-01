@@ -164,6 +164,7 @@ def save_learner_bundle(
     stage: str,
     step: int,
     parent_model_sha256: str | None = None,
+    optimizer_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Save learner weights and processors with their source identity."""
     if stage not in ("c1", "c2") or step < 1:
@@ -171,6 +172,8 @@ def save_learner_bundle(
     source = Path(vlm_dir).expanduser().resolve() / "model.safetensors"
     if _sha256(source) != vlm_sha256:
         raise ValueError("Pinned VLM weights differ from the declared source hash")
+    if isinstance(policy, SmolVLAPolicy):
+        audit_loaded_vlm(policy.model.vlm_with_expert.vlm, source)
     configs = Path(configs_root)
     split_manifest = yaml.safe_load((configs / "data" / "episodes.yaml").read_text())
     split = split_manifest["tasks"][task_alias]
@@ -191,6 +194,8 @@ def save_learner_bundle(
     policy.save_pretrained(target)
     preprocessor.save_pretrained(target)
     postprocessor.save_pretrained(target)
+    if optimizer_state is not None:
+        torch.save(optimizer_state, target / "optimizer.pt")
     processor_files = sorted(
         path
         for path in target.iterdir()
@@ -211,6 +216,10 @@ def save_learner_bundle(
         "chunk_size": policy.config.chunk_size,
         "n_action_steps": policy.config.n_action_steps,
         "model_sha256": _sha256(target / "model.safetensors"),
+        "config_sha256": _sha256(target / "config.json"),
+        "optimizer_sha256": _sha256(target / "optimizer.pt")
+        if optimizer_state is not None
+        else None,
         "preprocessor_sha256": _sha256(target / "policy_preprocessor.json"),
         "postprocessor_sha256": _sha256(target / "policy_postprocessor.json"),
         "processor_files_sha256": {path.name: _sha256(path) for path in processor_files},
@@ -232,6 +241,8 @@ def load_learner_bundle(
         raise ValueError("Unsupported learner checkpoint manifest")
     if _sha256(root / "model.safetensors") != manifest["model_sha256"]:
         raise ValueError("Learner model hash differs from the saved manifest")
+    if _sha256(root / "config.json") != manifest["config_sha256"]:
+        raise ValueError("Learner config hash differs from the saved manifest")
     for name, filename in (
         ("preprocessor_sha256", "policy_preprocessor.json"),
         ("postprocessor_sha256", "policy_postprocessor.json"),
@@ -252,6 +263,12 @@ def load_learner_bundle(
     policy = SmolVLAPolicy.from_pretrained(
         str(root), config=config, strict=True, local_files_only=True
     ).to(device)
+    if (
+        policy.config.chunk_size != manifest["chunk_size"]
+        or policy.config.n_action_steps != manifest["n_action_steps"]
+    ):
+        raise ValueError("Learner policy settings differ from the saved manifest")
+    audit_loaded_vlm(policy.model.vlm_with_expert.vlm, vlm / "model.safetensors")
     audit_learner_parameter_groups(policy)
     preprocessor, postprocessor = load_pretrained_policy_processors(
         str(root),

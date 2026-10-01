@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -44,6 +45,19 @@ def _source_identity(configs_root: Path) -> tuple[str, str]:
     )
     source = payload["learner_start"]
     return source["revision"], source["model_sha256"]
+
+
+def _verify_optimizer_checkpoint(checkpoint: Path, manifest: dict[str, object]) -> None:
+    """Reject a missing or changed optimizer before policy loading."""
+    optimizer = checkpoint / "optimizer.pt"
+    if not optimizer.is_file() or not isinstance(manifest.get("optimizer_sha256"), str):
+        raise ValueError("Saved learner optimizer and its hash are required for continuation")
+    digest = hashlib.sha256()
+    with optimizer.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    if digest.hexdigest() != manifest["optimizer_sha256"]:
+        raise ValueError("Optimizer hash differs from the saved learner model")
 
 
 def _validate_resume_metadata(
@@ -146,6 +160,7 @@ def train_smolvla_stage(
             vlm_revision=revision,
             vlm_sha256=vlm_sha256,
         )
+        _verify_optimizer_checkpoint(source, source_manifest)
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"Learner output directory is not empty: {output}")
 
@@ -155,6 +170,7 @@ def train_smolvla_stage(
     os.environ.setdefault("HF_DATASETS_CACHE", str(data / "hf" / "datasets"))
 
     from vla_lab.policy.smolvla_learner import (
+        _sha256,
         audit_learner_parameter_groups,
         build_learner_policy,
         load_learner_bundle,
@@ -162,6 +178,8 @@ def train_smolvla_stage(
         save_learner_bundle,
     )
 
+    if _sha256(vlm / "model.safetensors") != vlm_sha256:
+        raise ValueError("Pinned VLM weights differ from the declared source hash")
     _seed_all(config.seed, config.device)
     if source is None:
         policy, matched = build_learner_policy(vlm, device=config.device)
@@ -192,9 +210,6 @@ def train_smolvla_stage(
     )
     if state is not None:
         optimizer.load_state_dict(state["optimizer"])
-        torch.set_rng_state(state["torch_rng_state"])
-        if config.device.startswith("cuda"):
-            torch.cuda.set_rng_state_all(state["cuda_rng_states"])
     policy.train()
     policy.model.vlm_with_expert.vlm.eval()
     training_data = _frozen_training_dataset(
@@ -202,7 +217,11 @@ def train_smolvla_stage(
     )
     if len(training_data) < config.batch_size:
         raise ValueError("Training data has fewer frames than the batch size")
-    output.mkdir(parents=True)
+    if state is not None:
+        torch.set_rng_state(state["torch_rng_state"])
+        if config.device.startswith("cuda"):
+            torch.cuda.set_rng_state_all(state["cuda_rng_states"])
+    output.mkdir(parents=True, exist_ok=True)
     run = {
         "schema_version": 1,
         "policy": "smolvla_learner",
@@ -249,6 +268,14 @@ def train_smolvla_stage(
             )
             metrics.flush()
     checkpoint = output / f"checkpoint-{target_steps:06d}"
+    optimizer_state = {
+        "step": target_steps,
+        "optimizer": optimizer.state_dict(),
+        "torch_rng_state": torch.get_rng_state(),
+        "cuda_rng_states": torch.cuda.get_rng_state_all()
+        if config.device.startswith("cuda")
+        else [],
+    }
     manifest = save_learner_bundle(
         policy=policy,
         preprocessor=preprocessor,
@@ -262,17 +289,7 @@ def train_smolvla_stage(
         stage=stage,
         step=target_steps,
         parent_model_sha256=source_manifest["model_sha256"] if source_manifest else None,
-    )
-    torch.save(
-        {
-            "step": target_steps,
-            "optimizer": optimizer.state_dict(),
-            "torch_rng_state": torch.get_rng_state(),
-            "cuda_rng_states": torch.cuda.get_rng_state_all()
-            if config.device.startswith("cuda")
-            else [],
-        },
-        checkpoint / "optimizer.pt",
+        optimizer_state=optimizer_state,
     )
     (output / "result.json").write_text(
         json.dumps(

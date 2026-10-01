@@ -1,0 +1,115 @@
+{
+  "base_seed": 20260930,
+  "comparison_limit": "Methods differ in pretrained data, model architecture, and training compute. B training data are unknown.",
+  "final_states_used": false,
+  "local_training_elapsed_s": {
+    "act_approximately": 24,
+    "learner_c2_total": 828.829
+  },
+  "methods": {
+    "act": {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/act-bowl-plate-probe-200/checkpoint-000200",
+      "failed_state_ids": [
+        8
+      ],
+      "model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+      "pretrained_visual_weights": false,
+      "result_dir": "artifacts/reference/act/bowl_plate_seeded_dev_all",
+      "successes": 19,
+      "training_episodes": 39,
+      "training_steps": 200,
+      "wilson_95": [
+        0.763868806553258,
+        0.9911185511992047
+      ]
+    },
+    "learner_c2": {
+      "attempts": 20,
+      "checkpoint": ".local-data/runs/smolvla-c2-5000-development/checkpoint-005000",
+      "failed_state_ids": [
+        1,
+        5,
+        8,
+        9,
+        11,
+        13
+      ],
+      "model_sha256": "5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1",
+      "pretrained_vlm": "HuggingFaceTB/SmolVLM2-500M-Video-Instruct",
+      "result_dir": "artifacts/reference/smolvla/learner_c2_5000_dev_all",
+      "successes": 14,
+      "training_episodes": 39,
+      "training_steps": 5000,
+      "wilson_95": [
+        0.4810271816464765,
+        0.8545227551323956
+      ]
+    },
+    "published_smolvla": {
+      "attempts": 20,
+      "failed_state_ids": [
+        2,
+        13,
+        16,
+        17
+      ],
+      "model_sha256": "71d9563c8295284acba8fc2d5c19de000d6fe9ba58a406832af7ef3d221ed52f",
+      "n_action_steps": 10,
+      "result_dir": "artifacts/reference/smolvla/bowl_plate_n10_seeded_dev_all",
+      "successes": 16,
+      "training_data": "unknown",
+      "wilson_95": [
+        0.5839825677481064,
+        0.919342337420202
+      ]
+    }
+  },
+  "paid_cloud_cost_usd": 0,
+  "pairs": [
+    {
+      "a": "act",
+      "a_only": 4,
+      "b": "published_smolvla",
+      "b_only": 1,
+      "exact_mcnemar_p": 0.375,
+      "paired_difference": 0.15
+    },
+    {
+      "a": "act",
+      "a_only": 5,
+      "b": "learner_c2",
+      "b_only": 0,
+      "exact_mcnemar_p": 0.0625,
+      "paired_difference": 0.25
+    }
+  ],
+  "partition": "development",
+  "schema_version": 1,
+  "selection_limit": "Development data selected the learner checkpoint and action execution setting. The paired tests are descriptive, not held-out confirmatory tests.",
+  "simulator_reset_seed": "base_seed + state_id",
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "task": "bowl_plate",
+  "training_time_limit": "Measured local job time excludes download, setup, and evaluation. Published B training time is unknown."
+}

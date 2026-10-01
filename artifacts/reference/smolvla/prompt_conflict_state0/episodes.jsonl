@@ -1,0 +1,1 @@
+{"task_alias": "bowl_plate", "state_id": 0, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the plate on the bowl", "seed": 20260930, "success": false, "steps": 300, "clipped_values": 100, "elapsed_s": 22.285}

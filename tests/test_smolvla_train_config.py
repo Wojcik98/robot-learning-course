@@ -15,7 +15,7 @@ def test_learner_config_has_early_and_continued_stages() -> None:
         ROOT / "configs" / "train" / "smolvla_bowl_plate.yaml", ROOT / "configs"
     )
     assert config.c1_steps == 100
-    assert config.c2_steps == 2000
+    assert config.c2_steps == 5000
     assert config.state_ids == tuple(range(20))
     assert config.batch_size == 1
 

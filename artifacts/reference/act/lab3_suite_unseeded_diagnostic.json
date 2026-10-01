@@ -1,0 +1,176 @@
+{
+  "config_sha256": "62eb8bace26a2196e791dab8cf337debb3f0a0a258d9206c17d4b05f884ca1c7",
+  "date": "2026-10-01",
+  "device": "RTX 3070 8 GB",
+  "elapsed_s": 381.37,
+  "final_states_used": false,
+  "paid_cloud_cost_usd": 0,
+  "pairs": [
+    {
+      "a": "demos10_chunk20",
+      "a_only": 2,
+      "b": "demos39_chunk20",
+      "b_only": 8,
+      "exact_mcnemar_p": 0.109375,
+      "paired_difference": -0.3,
+      "valid_for_policy_comparison": true
+    },
+    {
+      "a": "demos39_chunk20",
+      "a_only": 6,
+      "b": "demos39_chunk10",
+      "b_only": 1,
+      "exact_mcnemar_p": 0.125,
+      "paired_difference": 0.25,
+      "valid_for_policy_comparison": true
+    }
+  ],
+  "partition": "development",
+  "profile": "local",
+  "run_dir": ".local-data/runs/act-lab3-reference-v1",
+  "schema_version": 1,
+  "source_demonstration_overlap_unresolved": true,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "task_alias": "bowl_plate",
+  "variants": [
+    {
+      "chunk_size": 20,
+      "clipped_action_values": 1478,
+      "development_attempts": 20,
+      "development_successes": 11,
+      "development_wilson_95": [
+        0.34208534245034233,
+        0.7418021417443759
+      ],
+      "evaluation_elapsed_s": 117.222,
+      "failed_state_ids": [
+        1,
+        2,
+        3,
+        4,
+        8,
+        13,
+        16,
+        17,
+        18
+      ],
+      "failure_reasons": {
+        "1": "timeout",
+        "13": "timeout",
+        "16": "timeout",
+        "17": "timeout",
+        "18": "timeout",
+        "2": "timeout",
+        "3": "timeout",
+        "4": "timeout",
+        "8": "timeout"
+      },
+      "infrastructure_errors": 0,
+      "last_training_loss": 1.205029010772705,
+      "model_sha256": "713c92007587145e9356e3b1709fd7bcf003724e6c2aab01228746e07ce95010",
+      "n_action_steps": 10,
+      "policy_errors": 0,
+      "split_sha256": "01bed50a57c9190d64d9d1197d4099aa3c79da0061177f7125bcc6adab42f826",
+      "training_elapsed_s": 16.963,
+      "training_episodes": 10,
+      "training_frames": 962,
+      "training_steps": 200,
+      "variant": "demos10_chunk20"
+    },
+    {
+      "chunk_size": 20,
+      "clipped_action_values": 1077,
+      "development_attempts": 20,
+      "development_successes": 17,
+      "development_wilson_95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "evaluation_elapsed_s": 96.54,
+      "failed_state_ids": [
+        1,
+        5,
+        11
+      ],
+      "failure_reasons": {
+        "1": "timeout",
+        "11": "timeout",
+        "5": "timeout"
+      },
+      "infrastructure_errors": 0,
+      "last_training_loss": 1.442415714263916,
+      "model_sha256": "5c5ae4155dd18e464ac41b4b79d4df8e024a7bb3ff463795208ba7b4c0902f6d",
+      "n_action_steps": 10,
+      "policy_errors": 0,
+      "split_sha256": "ef237195fc6ace8a78ff69fcf472362a89adb64a4ff079b5fb84724157bb82f4",
+      "training_elapsed_s": 16.346,
+      "training_episodes": 39,
+      "training_frames": 3661,
+      "training_steps": 200,
+      "variant": "demos39_chunk20"
+    },
+    {
+      "chunk_size": 10,
+      "clipped_action_values": 1571,
+      "development_attempts": 20,
+      "development_successes": 12,
+      "development_wilson_95": [
+        0.3865815007622531,
+        0.781193467627183
+      ],
+      "evaluation_elapsed_s": 114.988,
+      "failed_state_ids": [
+        0,
+        1,
+        5,
+        8,
+        13,
+        15,
+        16,
+        18
+      ],
+      "failure_reasons": {
+        "0": "timeout",
+        "1": "timeout",
+        "13": "timeout",
+        "15": "timeout",
+        "16": "timeout",
+        "18": "timeout",
+        "5": "timeout",
+        "8": "timeout"
+      },
+      "infrastructure_errors": 0,
+      "last_training_loss": 1.455138921737671,
+      "model_sha256": "ff7ae228303671ca714c546cba437a5177ab6e382eacee153071997b7d231497",
+      "n_action_steps": 10,
+      "policy_errors": 0,
+      "split_sha256": "ef237195fc6ace8a78ff69fcf472362a89adb64a4ff079b5fb84724157bb82f4",
+      "training_elapsed_s": 16.028,
+      "training_episodes": 39,
+      "training_frames": 3661,
+      "training_steps": 200,
+      "variant": "demos39_chunk10"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "base_seed": 20260930,
+  "episodes": 1,
+  "evaluation_task": "put the bowl on the plate",
+  "model_dir": "/home/michal/code/vlas_tutorial/.local-data/models/smolvla-libero",
+  "model_prompt": "place the bowl on the plate",
+  "model_revision": "6721902bc4d61e50a3bfdb11dfb4cb626f05d102",
+  "n_action_steps": 10,
+  "partition": "development",
+  "policy": "smolvla_published",
+  "schema_version": 1,
+  "state_ids": [
+    0
+  ],
+  "success_rate": 1.0,
+  "successes": 1,
+  "task_alias": "bowl_plate",
+  "task_prompt": "place the bowl on the plate",
+  "vlm_dir": "/home/michal/code/vlas_tutorial/.local-data/models/smolvlm2-500m-video-instruct",
+  "vlm_revision": "7b375e1b73b11138ff12fe22c8f2822d8fe03467"
+}

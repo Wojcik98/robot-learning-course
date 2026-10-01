@@ -14,6 +14,8 @@ Network access is needed for the first install and for public Hub assets. Later 
 
 Run `.venv/bin/robot-lab data fetch --scope demo` for the first lab. It downloads the pinned simulator assets and one real AV1 sample used by `doctor`. Run `.venv/bin/robot-lab data fetch --scope training` before a training lab. That scope adds the Parquet data, metadata, and the selected two-camera video pairs. Use `--offline` to check existing files without network access. The command uses the existing Hugging Face login store if one is present and keeps large files under `.local-data/`.
 
+Before Labs 4–5, run `.venv/bin/robot-lab data fetch-models`. It gets the exact published SmolVLA and SmolVLM2 Hub commits in [the VLA manifest](../manifests/smolvla_reference.yaml), then checks the model hashes and required processor files. Use `data fetch-models --offline` to verify local files without a download. The offline check passed for both pinned model directories on this host.
+
 A new demo data root was downloaded and checked on 2026-10-01. The asset download took about 85 seconds. The offline hash check, CUDA, AV1 decode, and EGL reset passed. A live ACT rollout with that data root succeeded in 74 steps. See the [fresh data record](../artifacts/reference/data/fresh_demo.json). The training scope passed an online cached check; a full new-root training download has not run yet.
 
 ## ACT reference commands
@@ -45,9 +47,9 @@ Use the activated project environment for `python`, or replace it with `.venv/bi
 | TorchCodec AV1 decode | Passed on two real 256 × 256 camera videos |
 | LIBERO-Goal reset and one action | Passed with EGL, 20 Hz relative control, two rendered cameras |
 | ACT with simulator and LeRobot processors | One live inference step and two 200-step training runs passed |
-| ACT development rollout | 19/20 bowl-on-plate and 20/20 bowl-on-stove states succeeded |
-| Published SmolVLA with simulator | Passed a live step; selected ten-action setting succeeded on 14/20 development states |
-| SmolVLA learner training probe | Finite loss and gradients; one optimizer step saved and strictly reloaded |
+| ACT development rollout | Bowl-on-plate 19/20 with explicit reset seeds; bowl-on-stove 20/20 from the older unseeded run |
+| Published SmolVLA with simulator | Passed a live step; selected ten-action setting succeeded on 16/20 seeded development states |
+| SmolVLA learner | C1 0/20 and selected C2 14/20 seeded development states; saved bundles reloaded |
 | Diffusion Policy with simulator | Finite action and one live step; saved CPU probe reloaded |
 
 The restricted shell cannot see the GPU. Use the approved host execution route for GPU and EGL checks. A CPU-only result does not pass the GPU gate. The simulator reports a 20 Hz controller. Dataset timestamps are 10 Hz labels; they do not set the simulator control period.

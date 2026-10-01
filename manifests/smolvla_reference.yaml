@@ -12,18 +12,28 @@ published_reference:
     partition: development
     state_ids: [0, 1, 2, 3, 4]
     base_seed: 20260930
-    published_n_action_steps_1_successes: 2
+    published_n_action_steps_1_successes: 3
     changed_n_action_steps_10_successes: 4
-    one_action_result: artifacts/reference/smolvla/bowl_plate_n1_dev_0_4
-    ten_action_result: artifacts/reference/smolvla/bowl_plate_n10_dev_0_4
+    one_action_result: artifacts/reference/smolvla/bowl_plate_n1_seeded_dev_0_4
+    ten_action_result: artifacts/reference/smolvla/bowl_plate_n10_seeded_dev_0_4
   selected_result:
     task: bowl_plate
     partition: development
     state_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     base_seed: 20260930
-    successes: 14
+    successes: 16
     episodes: 20
-    result_dir: artifacts/reference/smolvla/bowl_plate_n10_dev_all
+    result_dir: artifacts/reference/smolvla/bowl_plate_n10_seeded_dev_all
+  prompt_study:
+    task: bowl_plate
+    partition: development
+    state_id: 0
+    reset_seed: 20260930
+    n_action_steps: 10
+    evaluation_task: put the bowl on the plate
+    canonical_result: artifacts/reference/smolvla/prompt_canonical_state0
+    paraphrase_result: artifacts/reference/smolvla/prompt_paraphrase_state0
+    conflicting_result: artifacts/reference/smolvla/prompt_conflict_state0
 learner_start:
   repo: HuggingFaceTB/SmolVLM2-500M-Video-Instruct
   revision: 7b375e1b73b11138ff12fe22c8f2822d8fe03467
@@ -33,4 +43,25 @@ learner_start:
   loaded_vlm_tensors_missing: 0
   parameter_audit: artifacts/reference/smolvla/learner_init_audit.json
   one_step_probe: .local-data/runs/smolvla-learner-p0-one-step
-  trained_reference: pending
+  trained_reference:
+    task: bowl_plate
+    partition: development
+    base_seed: 20260930
+    state_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    c1_step: 100
+    c2_step: 5000
+    config_sha256: e3af360f30c20e58b1c8edd3d443e78b37328b258f0ccf937dc11b5976891b06
+    c1_checkpoint: .local-data/runs/smolvla-c1-reference-v1/checkpoint-000100
+    intermediate_checkpoints:
+      - .local-data/runs/smolvla-c2-reference-v1/checkpoint-000500
+      - .local-data/runs/smolvla-c2-2000-development/checkpoint-002000
+    c2_checkpoint: .local-data/runs/smolvla-c2-5000-development/checkpoint-005000
+    c1_model_sha256: d697544edc4adc5dc19b681ca151ae1c5fe31d2da124fa0f2e38c3ccfd974fa4
+    c2_model_sha256: 5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1
+    c1_development_result: artifacts/reference/smolvla/learner_c1_dev_all
+    c2_2000_development_result: artifacts/reference/smolvla/learner_c2_2000_dev_all
+    c2_development_result: artifacts/reference/smolvla/learner_c2_5000_dev_all
+    c1_successes: 0
+    c2_2000_successes: 5
+    c2_successes: 14
+    first_act_vla_development_comparison: artifacts/reference/smolvla/first_act_vla_development.json

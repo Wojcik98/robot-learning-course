@@ -1,0 +1,5 @@
+{"clipped_values": 24, "elapsed_s": 8.693, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the bowl on the plate", "seed": 20260930, "state_id": 0, "steps": 74, "success": true, "task_alias": "bowl_plate"}
+{"clipped_values": 35, "elapsed_s": 7.268, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the bowl on the plate", "seed": 20260931, "state_id": 1, "steps": 72, "success": true, "task_alias": "bowl_plate"}
+{"clipped_values": 77, "elapsed_s": 20.898, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the bowl on the plate", "seed": 20260932, "state_id": 2, "steps": 300, "success": false, "task_alias": "bowl_plate"}
+{"clipped_values": 40, "elapsed_s": 7.712, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the bowl on the plate", "seed": 20260933, "state_id": 3, "steps": 81, "success": true, "task_alias": "bowl_plate"}
+{"clipped_values": 37, "elapsed_s": 7.125, "evaluation_task": "put the bowl on the plate", "model_prompt": "put the bowl on the plate", "seed": 20260934, "state_id": 4, "steps": 76, "success": true, "task_alias": "bowl_plate"}

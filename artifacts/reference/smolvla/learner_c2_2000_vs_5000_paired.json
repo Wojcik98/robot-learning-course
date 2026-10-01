@@ -1,0 +1,48 @@
+{
+  "a_only": 0,
+  "a_policy_revision": "2e718213bfd2d4cdd5317b532ea8d2b687f9ccc6d79277b3c106760a5e5010c5",
+  "a_success_rate": 0.25,
+  "a_successes": 5,
+  "a_wilson_95": [
+    0.11186170140766569,
+    0.468700877618744
+  ],
+  "b_only": 9,
+  "b_policy_revision": "5d71344fbc12bd55ef26fae2114da5ca1ffd1424c5ebabfd87298fd5acaf96b1",
+  "b_success_rate": 0.7,
+  "b_successes": 14,
+  "b_wilson_95": [
+    0.4810271816464765,
+    0.8545227551323956
+  ],
+  "exact_mcnemar_p": 0.00390625,
+  "infrastructure_errors": 0,
+  "paired_difference": -0.45,
+  "paired_states": 20,
+  "partition": "development",
+  "schema_version": 1,
+  "state_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "task_id": "bowl_plate",
+  "valid_for_policy_comparison": true
+}

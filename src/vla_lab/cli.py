@@ -115,6 +115,23 @@ def data_fetch(
     typer.echo(json.dumps(report, sort_keys=True))
 
 
+@data_app.command("fetch-models")
+def data_fetch_models(
+    offline: Annotated[bool, typer.Option(help="Verify local files without a download.")] = False,
+    workspace: Annotated[
+        Path, typer.Option(help="Course workspace directory.")
+    ] = DEFAULT_WORKSPACE,
+    data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
+) -> None:
+    """Fetch the pinned public SmolVLA and VLM files for Labs 4–5."""
+    from vla_lab.data.models import fetch_pinned_models
+
+    root = workspace.expanduser().resolve()
+    data = (data_root or root / ".local-data").expanduser().resolve()
+    report = fetch_pinned_models(root, data, offline=offline)
+    typer.echo(json.dumps(report, sort_keys=True))
+
+
 @jobs_app.command(
     "submit", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
