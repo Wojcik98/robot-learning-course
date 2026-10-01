@@ -14,8 +14,10 @@ from lerobot.processor import PolicyProcessorPipeline
 from vla_lab.data.stats import TrainingStats
 
 
-def make_act_config(*, device: str = "cpu") -> ACTConfig:
+def make_act_config(*, device: str = "cpu", chunk_size: int = 20) -> ACTConfig:
     """Set the LIBERO camera, state, action, and small local model shapes."""
+    if chunk_size < 1:
+        raise ValueError("ACT chunk size must be positive")
     return ACTConfig(
         device=device,
         push_to_hub=False,
@@ -30,8 +32,8 @@ def make_act_config(*, device: str = "cpu") -> ACTConfig:
             "STATE": NormalizationMode.MEAN_STD,
             "ACTION": NormalizationMode.MEAN_STD,
         },
-        chunk_size=20,
-        n_action_steps=10,
+        chunk_size=chunk_size,
+        n_action_steps=min(10, chunk_size),
         dim_model=256,
         n_heads=4,
         dim_feedforward=1024,

@@ -1,5 +1,6 @@
 """Check one complete ACT update and checkpoint."""
 
+import json
 from pathlib import Path
 
 import torch
@@ -49,3 +50,26 @@ def test_one_act_training_step_changes_weights_and_saves_bundle(tmp_path: Path) 
     )
     assert (tmp_path / "run" / "checkpoint-000001" / "manifest.json").is_file()
     assert (tmp_path / "run" / "metrics.jsonl").is_file()
+
+
+def test_short_chunk_training_saves_its_horizon(tmp_path: Path) -> None:
+    class ShortFrames(SyntheticFrames):
+        def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+            sample = super().__getitem__(index)
+            sample["action"] = sample["action"][:10]
+            sample["action_is_pad"] = sample["action_is_pad"][:10]
+            return sample
+
+    train_act_reference(
+        task_alias="bowl_plate",
+        configs_root=CONFIGS,
+        data_root=tmp_path / "data",
+        output_dir=tmp_path / "run",
+        steps=1,
+        batch_size=1,
+        device="cpu",
+        chunk_size=10,
+        dataset=ShortFrames(),
+    )
+    manifest = json.loads((tmp_path / "run" / "checkpoint-000001" / "manifest.json").read_text())
+    assert manifest["chunk_size"] == 10
