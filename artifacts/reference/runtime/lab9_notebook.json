@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-10-01T11:15:33.360282+00:00",
+  "error_outputs": 0,
+  "executed_code_cells": 9,
+  "executed_notebook": ".local-data/runs/lab9-runtime-nbclient-executed.ipynb",
+  "executed_sha256": "b890948d5e7208f846950d5175f11cd3c49afed8feb5f857a3b5d815631d95ea",
+  "kernel": "python3",
+  "schema_version": 1,
+  "source_notebook": "tutorials/09-runtime/09-runtime.ipynb",
+  "source_sha256": "82429b63a7e8950b810d3d6c26a46d46764e7f669804fd9c684fabcd7113d256",
+  "uses_live_policy": false,
+  "uses_live_simulator": false
+}
