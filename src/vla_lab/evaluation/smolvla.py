@@ -30,6 +30,7 @@ def evaluate_published_reference(
     state_ids: Sequence[int] | None = None,
     n_action_steps: int = 1,
     seed: int = 20260930,
+    model_prompt: str | None = None,
     run_one: Callable[[int], EpisodeResult] | None = None,
 ) -> dict[str, object]:
     """Run the published policy on selected development states and save each result."""
@@ -40,7 +41,7 @@ def evaluate_published_reference(
     task_data = yaml.safe_load((root / "data" / "episodes.yaml").read_text())
     try:
         development_ids = split["tasks"][task_alias]["development_state_ids"]
-        task_prompt = task_data["tasks"][task_alias]["task_name"]
+        evaluation_task = task_data["tasks"][task_alias]["task_name"]
     except KeyError as error:
         raise ValueError(f"Unknown task alias: {task_alias}") from error
     selected = list(development_ids if state_ids is None else state_ids)
@@ -48,6 +49,9 @@ def evaluate_published_reference(
         raise ValueError("Development state IDs must be nonempty and unique")
     if any(state_id not in development_ids for state_id in selected):
         raise ValueError("Evaluation state ID is outside the development partition")
+    prompt = evaluation_task if model_prompt is None else model_prompt.strip()
+    if not prompt:
+        raise ValueError("Model prompt must not be empty")
     output = Path(output_dir)
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"Evaluation output directory is not empty: {output}")
@@ -72,7 +76,8 @@ def evaluate_published_reference(
                     task_alias,
                     state_id,
                     root,
-                    task_prompt=task_prompt,
+                    task_prompt=prompt,
+                    reset_seed=seed + state_id,
                 )
             finally:
                 environment.close()
@@ -96,6 +101,8 @@ def evaluate_published_reference(
                     {
                         "task_alias": result.task_alias,
                         "state_id": result.state_id,
+                        "evaluation_task": evaluation_task,
+                        "model_prompt": prompt,
                         "seed": episode_seed,
                         "success": result.success,
                         "steps": result.steps,
@@ -114,7 +121,9 @@ def evaluate_published_reference(
         "model_dir": str(Path(model_dir).resolve()),
         "vlm_dir": str(Path(vlm_dir).resolve()),
         "task_alias": task_alias,
-        "task_prompt": task_prompt,
+        "task_prompt": prompt,
+        "evaluation_task": evaluation_task,
+        "model_prompt": prompt,
         "partition": "development",
         "n_action_steps": n_action_steps,
         "base_seed": seed,
@@ -136,6 +145,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--state-ids", type=int, nargs="+")
     parser.add_argument("--n-action-steps", type=int, choices=(1, 10), default=1)
+    parser.add_argument("--model-prompt")
     parser.add_argument("--seed", type=int, default=20260930)
     parser.add_argument("--data-root", type=Path, default=Path(".local-data"))
     args = parser.parse_args(argv)
@@ -148,6 +158,7 @@ def main(argv: list[str] | None = None) -> None:
         args.output,
         state_ids=args.state_ids,
         n_action_steps=args.n_action_steps,
+        model_prompt=args.model_prompt,
         seed=args.seed,
     )
     print(json.dumps(summary, sort_keys=True))

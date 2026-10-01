@@ -60,6 +60,7 @@ def evaluate_act_reference(
                     task_alias,
                     state_id,
                     configs_root,
+                    reset_seed=20260930 + state_id,
                 )
             finally:
                 environment.close()
@@ -77,6 +78,7 @@ def evaluate_act_reference(
                     {
                         "task_alias": result.task_alias,
                         "state_id": result.state_id,
+                        "reset_seed": 20260930 + state_id,
                         "success": result.success,
                         "steps": result.steps,
                         "clipped_values": result.clipped_values,
@@ -91,6 +93,7 @@ def evaluate_act_reference(
         "checkpoint": str(checkpoint_path.resolve()),
         "task_alias": task_alias,
         "partition": "development",
+        "base_seed": 20260930,
         "state_ids": selected,
         "episodes": len(selected),
         "successes": successes,

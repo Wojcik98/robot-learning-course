@@ -1,0 +1,38 @@
+{
+  "conclusion": "The prior global NumPy seed did not control the simulator reset. An explicit reset seed reproduced one checked state twice.",
+  "development_state_id": 2,
+  "model_sha256": "2e718213bfd2d4cdd5317b532ea8d2b687f9ccc6d79277b3c106760a5e5010c5",
+  "records": {
+    "seeded_repeat_a": {
+      "clipped_values": 36,
+      "recorded_seed": 20260932,
+      "steps": 73,
+      "success": true,
+      "termination_reason": "success"
+    },
+    "seeded_repeat_b": {
+      "clipped_values": 36,
+      "recorded_seed": 20260932,
+      "steps": 73,
+      "success": true,
+      "termination_reason": "success"
+    },
+    "unseeded_five_state": {
+      "clipped_values": 29,
+      "recorded_seed": 20260932,
+      "steps": 83,
+      "success": true,
+      "termination_reason": "success"
+    },
+    "unseeded_twenty_state": {
+      "clipped_values": 70,
+      "recorded_seed": 20260932,
+      "steps": 300,
+      "success": false,
+      "termination_reason": "timeout"
+    }
+  },
+  "schema_version": 1,
+  "source_cause": "LeRobot LiberoEnv.reset(seed=None) passes None to LIBERO BDDLBaseDomain.seed, which calls numpy.random.seed(None).",
+  "task_alias": "bowl_plate"
+}

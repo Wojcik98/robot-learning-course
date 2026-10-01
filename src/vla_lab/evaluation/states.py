@@ -172,6 +172,7 @@ def evaluate_act_states(
             metrics={
                 "steps": int(record["steps"]),
                 "clipped_values": int(record["clipped_values"]),
+                "reset_seed": int(record["reset_seed"]),
             },
             artifact_paths={
                 "video": str(record["video"]),

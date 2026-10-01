@@ -111,6 +111,7 @@ def test_success_run_record_keeps_termination_reason(
             pass
 
     def succeed(*args: object, **kwargs: object) -> EpisodeResult:
+        assert kwargs["reset_seed"] == 20260930
         kwargs["on_frame"](np.zeros((32, 32, 3), dtype=np.uint8))
         return EpisodeResult("bowl_plate", 0, True, 1, 0, "success")
 

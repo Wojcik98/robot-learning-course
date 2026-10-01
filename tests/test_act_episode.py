@@ -28,6 +28,7 @@ class FixedPolicy:
 class OneStepEnv:
     def __init__(self) -> None:
         self.action = None
+        self.reset_seed = None
         image = np.zeros((256, 256, 3), dtype=np.uint8)
         image[0, 0] = [255, 0, 0]
         self.observation = {
@@ -43,7 +44,8 @@ class OneStepEnv:
             },
         }
 
-    def reset(self):
+    def reset(self, seed=None):
+        self.reset_seed = seed
         return self.observation, {"is_success": False}
 
     def step(self, action):
@@ -130,3 +132,22 @@ def test_language_policy_receives_prompt_for_each_action() -> None:
 
     assert result.success is True
     assert policy.observation["task"] == ["put the bowl on the plate"]
+
+
+def test_policy_episode_passes_seed_to_simulator_reset() -> None:
+    environment = OneStepEnv()
+    preprocessor, postprocessor = make_act_processors(
+        make_act_config(device="cpu"), "bowl_plate", CONFIGS
+    )
+    run_policy_episode(
+        environment,
+        FixedPolicy(),
+        preprocessor,
+        postprocessor,
+        "bowl_plate",
+        2,
+        CONFIGS,
+        max_steps=1,
+        reset_seed=20260932,
+    )
+    assert environment.reset_seed == 20260932

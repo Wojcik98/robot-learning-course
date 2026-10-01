@@ -97,6 +97,7 @@ def run_policy_episode(
     max_steps: int = 300,
     on_frame: Callable[[np.ndarray], None] | None = None,
     task_prompt: str | None = None,
+    reset_seed: int | None = None,
 ) -> EpisodeResult:
     """Run one policy on a declared state partition."""
     task = _task_split(task_alias, configs_root)
@@ -107,7 +108,9 @@ def run_policy_episode(
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
 
-    observation, _ = environment.reset()
+    observation, _ = (
+        environment.reset(seed=reset_seed) if reset_seed is not None else environment.reset()
+    )
     policy.reset()
     if on_frame is not None:
         on_frame(np.ascontiguousarray(observation["pixels"]["image"][::-1, ::-1]))
@@ -154,6 +157,7 @@ def run_act_episode(
     partition: str = "development",
     max_steps: int = 300,
     on_frame: Callable[[np.ndarray], None] | None = None,
+    reset_seed: int | None = None,
 ) -> EpisodeResult:
     """Run ACT with the shared LIBERO observation path."""
     return run_policy_episode(
@@ -167,4 +171,5 @@ def run_act_episode(
         partition=partition,
         max_steps=max_steps,
         on_frame=on_frame,
+        reset_seed=reset_seed,
     )

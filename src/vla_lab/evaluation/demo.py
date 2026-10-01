@@ -97,6 +97,7 @@ def run_act_demo(
             state_id,
             configs_root,
             on_frame=frames.append,
+            reset_seed=20260930 + state_id,
         )
     except Exception as error:  # noqa: BLE001
         failure = error
@@ -115,6 +116,7 @@ def run_act_demo(
         "policy": "act",
         "task_alias": task_alias,
         "state_id": state_id,
+        "reset_seed": 20260930 + state_id,
         "state_partition": "development",
         "success": result.success if result is not None and failure is None else False,
         "termination_reason": (

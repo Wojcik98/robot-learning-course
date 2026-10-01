@@ -50,3 +50,23 @@ def test_published_evaluation_rejects_final_state(tmp_path: Path) -> None:
             state_ids=[20],
             run_one=lambda state_id: EpisodeResult("bowl_plate", state_id, False, 1, 0),
         )
+
+
+def test_prompt_change_keeps_the_evaluation_goal(tmp_path: Path) -> None:
+    output = tmp_path / "result"
+    summary = evaluate_published_reference(
+        tmp_path / "model",
+        tmp_path / "vlm",
+        "bowl_plate",
+        CONFIGS,
+        tmp_path,
+        output,
+        state_ids=[0],
+        model_prompt="place the bowl on the plate",
+        run_one=lambda state_id: EpisodeResult("bowl_plate", state_id, True, 10, 0),
+    )
+    assert summary["evaluation_task"] == "put the bowl on the plate"
+    assert summary["model_prompt"] == "place the bowl on the plate"
+    row = json.loads((output / "episodes.jsonl").read_text())
+    assert row["evaluation_task"] == summary["evaluation_task"]
+    assert row["model_prompt"] == summary["model_prompt"]
