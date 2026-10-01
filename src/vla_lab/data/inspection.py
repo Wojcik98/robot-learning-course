@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import yaml
 
-from vla_lab.data.splits import split_episodes
+from vla_lab.data.splits import partition_sha256, split_episodes
 
 
 def audit_task_split(configs_root: str | Path, task_id: str) -> dict[str, Any]:
@@ -25,13 +25,28 @@ def audit_task_split(configs_root: str | Path, task_id: str) -> dict[str, Any]:
         raise ValueError("training and validation episodes are required")
     if len(set(all_ids)) != len(all_ids):
         raise ValueError("training and validation episode IDs overlap")
-    expected = split_episodes(all_ids)
-    split_hash = expected.sha256
-    if (
-        tuple(train_ids) != expected.train_ids
-        or tuple(validation_ids) != expected.validation_ids
-        or task["split_sha256"] != split_hash
-    ):
+    if task.get("selection_kind") == "nested_train_subset":
+        source_train = task["source_train_episode_ids"]
+        source_validation = task["source_validation_episode_ids"]
+        source = split_episodes(source_train + source_validation)
+        if (
+            source.sha256 != task["source_split_sha256"]
+            or tuple(source_train) != source.train_ids
+            or tuple(source_validation) != source.validation_ids
+            or train_ids != source_train[: len(train_ids)]
+            or validation_ids != source_validation
+        ):
+            raise ValueError("nested training subset differs from its frozen source split")
+        split_hash = partition_sha256(train_ids, validation_ids)
+    else:
+        expected = split_episodes(all_ids)
+        split_hash = expected.sha256
+        if (
+            tuple(train_ids) != expected.train_ids
+            or tuple(validation_ids) != expected.validation_ids
+        ):
+            raise ValueError("episode split does not match the frozen 80/20 rule")
+    if task["split_sha256"] != split_hash:
         raise ValueError("episode split hash does not match the episode IDs")
 
     stats = json.loads((data_root / "stats" / f"{task_id}.json").read_text())

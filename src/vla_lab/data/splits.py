@@ -8,6 +8,16 @@ from collections.abc import Hashable, Iterable
 from dataclasses import dataclass
 
 
+def partition_sha256(train_ids: Iterable[Hashable], validation_ids: Iterable[Hashable]) -> str:
+    """Hash two ordered lists of complete episode IDs."""
+    content = {"train_ids": list(train_ids), "validation_ids": list(validation_ids)}
+    try:
+        encoded = json.dumps(content, sort_keys=True, separators=(",", ":")).encode()
+    except (TypeError, ValueError) as error:
+        raise TypeError("episode IDs must be JSON serializable") from error
+    return hashlib.sha256(encoded).hexdigest()
+
+
 @dataclass(frozen=True)
 class EpisodeSplit:
     """A fixed split of complete episodes and its content hash."""
@@ -41,12 +51,4 @@ def split_episodes(episode_ids: Iterable[Hashable], train_fraction: float = 0.8)
     train_count = min(len(ids) - 1, int(len(ids) * train_fraction))
     train_ids = ids[:train_count]
     validation_ids = ids[train_count:]
-    content = {
-        "train_ids": list(train_ids),
-        "validation_ids": list(validation_ids),
-    }
-    try:
-        encoded = json.dumps(content, sort_keys=True, separators=(",", ":")).encode()
-    except (TypeError, ValueError) as error:
-        raise TypeError("episode IDs must be JSON serializable") from error
-    return EpisodeSplit(train_ids, validation_ids, hashlib.sha256(encoded).hexdigest())
+    return EpisodeSplit(train_ids, validation_ids, partition_sha256(train_ids, validation_ids))

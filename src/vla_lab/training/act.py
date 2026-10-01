@@ -46,7 +46,12 @@ def _batch_indices(length: int, batch_size: int, seed: int, step: int) -> list[i
 
 
 def _frozen_training_dataset(
-    task_alias: str, configs_root: Path, data_root: Path, *, chunk_size: int = 20
+    task_alias: str,
+    configs_root: Path,
+    data_root: Path,
+    *,
+    chunk_size: int = 20,
+    episode_ids: list[int] | None = None,
 ) -> Dataset:
     split = yaml.safe_load((configs_root / "data" / "episodes.yaml").read_text())
     try:
@@ -55,6 +60,10 @@ def _frozen_training_dataset(
         raise ValueError(f"Unknown task alias: {task_alias}") from error
     if not train_ids:
         raise ValueError(f"No training episodes for {task_alias}")
+    if episode_ids is not None:
+        if not episode_ids or any(episode_id not in train_ids for episode_id in episode_ids):
+            raise ValueError("Selected episodes must come from the frozen training split")
+        train_ids = episode_ids
     hub_cache = data_root / "hf" / "hub"
     datasets_cache = data_root / "hf" / "datasets"
     hub_cache.mkdir(parents=True, exist_ok=True)
