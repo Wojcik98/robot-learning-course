@@ -263,7 +263,7 @@ def train_act_reference(
 def main(argv: list[str] | None = None) -> None:
     """Run a bounded local reference job from the terminal."""
     parser = argparse.ArgumentParser(description="Train a local ACT reference on frozen episodes")
-    parser.add_argument("--task", choices=("bowl_plate", "bowl_stove"), required=True)
+    parser.add_argument("--task", choices=("bowl_plate", "bowl_stove", "stove_on"), required=True)
     parser.add_argument("--steps", type=int, required=True)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--seed", type=int, default=20260930)
