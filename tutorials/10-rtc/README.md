@@ -56,4 +56,4 @@ Use only `latency.yaml`. Do not use `latency_final.yaml`.
 - Peak memory is PyTorch allocation only. It excludes the renderer.
 - The lab does not run a simulator. It reads the saved final report; it does not select a recipe with final states.
 
-Read the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/10-rtc.md) after you save your answer.
+Read the [exercise](10-rtc.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/10-rtc.md) after you save your answer.

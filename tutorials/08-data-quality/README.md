@@ -47,4 +47,4 @@ The command checks file hashes, task IDs, reset seeds, and the development split
 
 The supplied [reference report](../../artifacts/reference/data_quality/recovery_reference.json) uses five separately labelled ACT-generated demonstrations. The valid tick-aligned continuation reached 14/15 on held-out development states, as did the unchanged base checkpoint; the failure state changed. The diagnostic continuation that discards odd controller ticks reached 0/15. It has invalid timing alignment and must not be used as a reference recipe. The course keeps every recorded 50 ms controller tick. The [teacher manifest](../../artifacts/reference/data_quality/teacher_manifest.json) gives hashes and local paths for the five full NPZ files. They are in ignored `.local-data/` on this prepared machine. Their source is a policy, not a human.
 
-Read the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/08-data-quality.md) after you save your answer.
+Read the [exercise](08-data-quality.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/08-data-quality.md) after you save your answer.

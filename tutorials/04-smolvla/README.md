@@ -25,6 +25,6 @@ To run a prompt check on one fixed state, use a new output directory for each pr
   --output .local-data/runs/my-smolvla-paraphrase
 ```
 
-The output records `evaluation_task` and `model_prompt` for each attempt. A prompt change does not change the bowl-plate success check. Use a scene that has the objects named in the prompt. The [exercise](exercise.md) and [solution guide](../../solutions/04-smolvla.md) use this rule.
+The output records `evaluation_task` and `model_prompt` for each attempt. A prompt change does not change the bowl-plate success check. Use a scene that has the objects named in the prompt. The [exercise](04-smolvla.ipynb#exercise) and [solution guide](../../solutions/04-smolvla.md) use this rule.
 
 The saved state-0 prompt check kept the model, ten-action setting, reset seed, and bowl-plate success check fixed. The canonical and paraphrased prompts succeeded in 74 and 85 steps. The conflicting prompt failed at the 300-step limit. One state cannot show whether the model followed the words; object motion needs a separate check.

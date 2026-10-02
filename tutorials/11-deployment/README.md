@@ -46,4 +46,4 @@ The notebook has no cloud step. No real Brev allocation has been tested. Read [t
 - One training seed was used. Source demonstrations may overlap the simulator initial states.
 - No final state is opened. A rollback here does not change a real checkpoint.
 
-Read the [operations guide](../../docs/operations.md) for the exact commands. Read the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/11-deployment.md) after you save your answer.
+Read the [operations guide](../../docs/operations.md) for the exact commands. Read the [exercise](11-deployment.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/11-deployment.md) after you save your answer.

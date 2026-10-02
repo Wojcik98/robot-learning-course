@@ -39,4 +39,4 @@ All 90 stove-on final attempts completed without policy or infrastructure errors
 
 The published SmolVLA prompt study is a separate one-state development exercise. Its source training data are unknown.
 
-Read the [exercise](exercise.md) after the notebook. Save your answer before you read the [solution guide](../../solutions/07-comparison.md).
+Read the [exercise](07-comparison.ipynb#exercise) in the notebook. Save your answer before you read the [solution guide](../../solutions/07-comparison.md).

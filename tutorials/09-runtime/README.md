@@ -35,4 +35,4 @@ The scheduler records camera and policy availability. Only policy outage changes
 
 The wall clock cell prints numbers that depend on your host. The notebook does not assert them. Do not compare them across hosts.
 
-Read the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/09-runtime.md) after you save your answer.
+Read the [exercise](09-runtime.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/09-runtime.md) after you save your answer.

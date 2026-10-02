@@ -20,7 +20,7 @@ Use `NN-name` for the lesson folder. `NN` is the next free lesson number.
 |---|---|
 | Notebook | `tutorials/NN-name/NN-name.ipynb` |
 | Guide | `tutorials/NN-name/README.md` |
-| Exercise | `tutorials/NN-name/exercise.md` |
+| Exercise | Markdown cells in `tutorials/NN-name/NN-name.ipynb` |
 | Solution | `solutions/NN-name.md` |
 | Config (if needed) | `configs/experiments/name.yaml` |
 | Index entry | one line in `tutorials/index.ipynb` |

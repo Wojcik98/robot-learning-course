@@ -37,4 +37,4 @@ The notebook includes a separate live rollout of development state 2, which succ
 
 One training seed and 20 development states do not establish a general success rate. The denoising-step comparison changes sampling compute. A behavior difference can result from the sampling setting. The course has not used final states to select the checkpoint or sampler setting.
 
-Use the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/06-diffusion.md) after you save your answer.
+Use the [exercise](06-diffusion.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/06-diffusion.md) after you save your answer.

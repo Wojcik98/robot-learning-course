@@ -54,4 +54,4 @@ The published model B from Lab 4 is a separate reference with unknown training d
 
 The notebook also reads the first seeded ACT/VLA development comparison. ACT succeeded on 19/20 states, published B on 16/20, and learner C2 on 14/20. These are practical recipes with different models, pretrained data, and robot training steps. The counts do not isolate an effect of pretraining or architecture. Final states stay closed until the course freezes all recipes.
 
-Use the [exercise](exercise.md) after the notebook. Read the [solution guide](../../solutions/05-adapt-smolvla.md) after you save your answer.
+Use the [exercise](05-adapt-smolvla.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/05-adapt-smolvla.md) after you save your answer.
