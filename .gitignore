@@ -1,3 +1,4 @@
+.vscode/
 .venv/
 .local-data/
 .pytest_cache/
