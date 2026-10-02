@@ -310,7 +310,7 @@ def run_sweep(
 
 def main(argv: list[str] | None = None) -> None:
     """Run the development stride and delay sweep; finished conditions are reused."""
-    parser = argparse.ArgumentParser(description="Sweep P5 stride and delay on state 0")
+    parser = argparse.ArgumentParser(description="Sweep runtime stride and delay on state 0")
     parser.add_argument(
         "--config", type=Path, default=Path("configs/experiments/latency_sweep.yaml")
     )

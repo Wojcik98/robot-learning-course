@@ -11,4 +11,4 @@ From the repository root, run:
 
 The audit and format cells use a CPU. The live evaluation cell needs the local GPU, AV1 decoder, and EGL runtime. The pinned training files and two camera views use several GiB of disk. This local reference run has no cloud cost. Plan for 3–4 learner hours, including the reading and exercise.
 
-The notebook saves two new development results under `.local-data/runs`. Its 20-state result is a saved P0 reference. The two-state run checks the evaluator path; it is too small for a useful success estimate. Keep final simulator states 20–49 closed until final evaluation.
+The notebook saves two new development results under `.local-data/runs`. Its 20-state result is a saved ACT reference. The two-state run checks the evaluator path; it is too small for a useful success estimate. Keep final simulator states 20–49 closed until final evaluation.

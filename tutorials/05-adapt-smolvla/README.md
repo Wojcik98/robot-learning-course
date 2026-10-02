@@ -36,7 +36,7 @@ Each result below uses the 20 development states 0–19. Each state uses an expl
 
 You can compare these three results with each other. They use the same states and the same seeds. The 5,000-step checkpoint is the selected C2. The course selected it with development states only.
 
-The earlier 500-step check used `reset(seed=None)`. It is diagnostic only. Do not compare its score with the seeded results. This lab has no seeded 500-step score.
+The unseeded 500-step check used `reset(seed=None)`. It is diagnostic only. Do not compare its score with the seeded results. This lab has no seeded 500-step score.
 
 ## Cost and limits
 

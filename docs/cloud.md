@@ -1,11 +1,30 @@
-# Brev use and cost boundary
+# Brev use and cost controls
 
-The course runs locally by default. Brev is a fallback for a job that the local GPU cannot finish within its measured memory or time limit. No paid Brev instance has run for this project.
+The course uses local compute by default. Use Brev only when local GPU memory or run time is insufficient. Real allocation, SSH, file transfer, and provider stop are not verified for this course. Use supervised sessions until these paths and an independent stop path are checked.
 
-The user reported US$29.94 prepaid credit, auto recharge off, and no other active charge path. The Brev CLI lists no instances in the active organization. A read-only quote on 2026-10-01 showed a stoppable 24 GB L4 type (`g2-standard-4:nvidia-l4:1`) at US$0.845421 per hour, plus quoted disk storage. A quote is a time-specific offer. Check it again before an allocation. The browser console in this work session was not signed in, so a live credit balance and billing screen could not be read. Do not start a paid instance from that report alone.
+## Account and job checks
 
-The [budget code](../src/vla_lab/cloud/budget.py) rejects a stale quote or billing check, auto recharge, postpaid overage, another running instance, a GPU that cannot stop or has too little memory, an hourly rate above US$3, and a job that cannot fit its deadline. It keeps US$5 of the project credit in reserve, caps each job at US$5 and two hours, and includes export and stop time in the cost bound. The [Brev adapter](../src/vla_lab/cloud/brev.py) uses the installed CLI for a fresh quote, exact instance state, and provider stop. The [monitor rules](../src/vla_lab/cloud/monitor.py) check saved work counts, heartbeat age, a stall, projected overrun, cost, and the hard deadline. The [local watchdog](../src/vla_lab/cloud/watchdog.py) can stop a named instance at a saved deadline in a separate process.
+Log in to the Brev CLI and select the intended organization. Before each allocation, check the live funded balance, currency, storage charges, automatic recharge, and any postpaid charge path. Get a fresh quote for a GPU with enough memory and a provider stop control.
 
-Fake-provider tests cover price, credit, stale quote, stop retry, failed export, stall, lost heartbeat, projected overrun, and deadline. A real short allocation, SSH, file copy, provider stop, and independent stop test remain open. Until those checks pass, use supervised cloud sessions only. A local watchdog depends on this workstation and its network; it is not a provider deadline or a VM watchdog. Do not run unattended remote training yet.
+The [budget code](../src/vla_lab/cloud/budget.py) uses these default limits:
 
-Never store a Brev token in a notebook, tracked file, run log, or remote shell command. The CLI login is already present on this workstation. Use an exact course instance name for stop commands. Do not run `brev stop --all` or delete unrelated instances.
+| Limit | Value |
+|---|---|
+| Project cap | US$30, bounded by available funded credit |
+| Reserve | US$5 |
+| GPU hourly rate | US$3/hour |
+| Job cost | US$5 |
+| Job duration | Two hours |
+| Quote and billing check age | Five minutes |
+
+The cost bound includes startup, export, stop time, and quoted disk charges. The code rejects automatic recharge, postpaid overage, another running instance, insufficient memory, stale checks, and a job that cannot fit the deadline. A local cost calculation does not enforce the provider bill. Set your own funded budget before you use paid compute.
+
+## Monitor, export, and stop
+
+The [Brev adapter](../src/vla_lab/cloud/brev.py) gets quotes, reads instance state, and stops a named instance. The [monitor](../src/vla_lab/cloud/monitor.py) checks saved work counts, heartbeat age, lack of progress, projected overrun, cost, and the deadline. The [local watchdog](../src/vla_lab/cloud/watchdog.py) can stop a named instance at a saved deadline in a separate process. It depends on the local host and network; it is not a provider deadline.
+
+Before unattended use, check allocation, SSH, file transfer, bounded export, provider stop, and an independent stop path in a short supervised session. Keep a fixed deadline and the exact instance name. Stop the instance if progress stops or the cost or time limit is near. Export required files before deletion.
+
+Killing Python or shutting down the guest OS does not confirm that billing has stopped. Check the provider state after `brev stop INSTANCE_NAME`. Stopped instances can still incur storage charges. See [the operations guide](operations.md#71-cloud-failure-supervised-use-only) for failure steps.
+
+Keep tokens out of notebooks, tracked files, run logs, and remote shell commands. Use the service credential store. Do not use `brev stop --all` or delete unrelated resources.

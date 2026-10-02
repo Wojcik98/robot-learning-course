@@ -14,9 +14,7 @@ Network access is needed for the first install and for public Hub assets. Later 
 
 Run `.venv/bin/robot-lab data fetch --scope demo` for the first lab. It downloads the pinned simulator assets and one real AV1 sample used by `doctor`. Run `.venv/bin/robot-lab data fetch --scope training` before a training lab. That scope adds the Parquet data, metadata, and the selected two-camera video pairs. Use `--offline` to check existing files without network access. The command uses the existing Hugging Face login store if one is present and keeps large files under `.local-data/`.
 
-Before Labs 4–5, run `.venv/bin/robot-lab data fetch-models`. It gets the exact published SmolVLA and SmolVLM2 Hub commits in [the VLA manifest](../manifests/smolvla_reference.yaml), then checks the model hashes and required processor files. Use `data fetch-models --offline` to verify local files without a download. The offline check passed for both pinned model directories on this host.
-
-A new demo data root was downloaded and checked on 2026-10-01. The asset download took about 85 seconds. The offline hash check, CUDA, AV1 decode, and EGL reset passed. A live ACT rollout with that data root succeeded in 74 steps. See the [fresh data record](../artifacts/reference/data/fresh_demo.json). The training scope passed an online cached check; a full new-root training download has not run yet.
+Before Labs 4–5, run `.venv/bin/robot-lab data fetch-models`. It gets the exact published SmolVLA and SmolVLM2 Hub commits in [the VLA manifest](../manifests/smolvla_reference.yaml), then checks the model hashes and required processor files. Use `data fetch-models --offline` to verify local files without a download.
 
 ## ACT reference commands
 
@@ -35,32 +33,17 @@ PYTHONPATH=src python -m vla_lab.evaluation.act \
 
 Use the activated project environment for `python`, or replace it with `.venv/bin/python`. Change `bowl_plate` to `bowl_stove` for the second task. Give each run a new output directory. The evaluator accepts development initial states only. Its JSONL file contains one result for each state. These commands use the demonstration training partition. The action timestamps use the dataset's 10 Hz labels; the simulator still executes one action at 20 Hz. The code does not resample actions.
 
-## Measured host checks on 2026-09-30
+## Disk and GPU use
 
-| Check | Result |
-|---|---|
-| Free workspace space before downloads | 166 GB |
-| Free workspace space after the first setup | 155 GB |
-| GPU through approved host execution | RTX 3070, 8192 MiB total, 5277 MiB free at check time |
-| CUDA tensor and matrix operation | Passed; finite output |
-| FFmpeg libraries | FFmpeg 6 libraries and AV1 decoder present |
-| TorchCodec AV1 decode | Passed on two real 256 × 256 camera videos |
-| LIBERO-Goal reset and one action | Passed with EGL, 20 Hz relative control, two rendered cameras |
-| ACT with simulator and LeRobot processors | One live inference step and two 200-step training runs passed |
-| ACT development rollout | Bowl-on-plate 19/20 with explicit reset seeds; bowl-on-stove 20/20 from the older unseeded run |
-| Published SmolVLA with simulator | Passed a live step; selected ten-action setting succeeded on 16/20 seeded development states |
-| SmolVLA learner | C1 0/20 and selected C2 14/20 seeded development states; saved bundles reloaded |
-| Diffusion Policy with simulator | Finite action and one live step; saved CPU probe reloaded |
+The selected source download uses about 20 MB of action/state Parquet files, 371 MB of task videos, and 409 MB of simulator assets. The reference `uv` cache uses about 9.5 GB. A 200-step ACT training run uses about 179 MB for its model, optimizer, and records. These figures are selected-run measurements, not the full course size. Keep additional space for other models, videos, and experiments.
 
-The restricted shell cannot see the GPU. Use the approved host execution route for GPU and EGL checks. A CPU-only result does not pass the GPU gate. The simulator reports a 20 Hz controller. Dataset timestamps are 10 Hz labels; they do not set the simulator control period.
-
-The initial selected download used 20 MB of action/state Parquet shards, 371 MB of selected task video shards, and 409 MB of pinned simulator assets. The `uv` cache used about 9.5 GB after installation. Each 200-step ACT run used about 179 MB, including a 62 MB model file and a 124 MB optimizer file. These are setup measurements, not a full course disk bound. The exact files and source revisions are in the core manifest.
+Use a terminal with GPU access for CUDA and EGL checks. A restricted command environment can hide the GPU. Dataset timestamps are 10 Hz labels; the simulator controller runs at 20 Hz.
 
 ## Lab 0 launch and checkpoint transfer
 
-Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lab 0](../tutorials/00-first-run/00-first-run.ipynb) from the repository root. The default notebook runs development state 0 twice and shows each live video. On 2026-10-01, a fresh nbclient kernel ran all four code cells without an error. Both runs succeeded in 74 steps. Their recorded policy times were 4.347 s and 3.368 s; these times exclude kernel startup and video display.
+Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lab 0](../tutorials/00-first-run/00-first-run.ipynb) from the repository root. The default notebook runs development state 0 twice and shows each live video.
 
-The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. A clean `/tmp` workspace restore passed. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.
+The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.
 
 ## Bash completion
 
@@ -71,4 +54,4 @@ source <(_ROBOT_LAB_COMPLETE=source_bash .venv/bin/robot-lab)
 source <(just --completions bash)
 ```
 
-`robot-lab demo` completes task aliases, development state IDs, the local profile, options, and file paths. The installed `just` completion supplies recipe names. The automated Bash check ran without network access. Use quotation marks around file paths with spaces when you enter a command.
+`robot-lab demo` completes task aliases, development state IDs, the local profile, options, and file paths. The installed `just` completion supplies recipe names. Use quotation marks around file paths with spaces when you enter a command.

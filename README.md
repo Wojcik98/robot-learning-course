@@ -1,13 +1,12 @@
 # End-to-end robot learning
 
-This project is a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Labs 0–11 are available on the prepared local machine. The revised keyboard controls passed a user retest. The paid cloud path remains open.
+This project is a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Follow Labs 0–11 to run, train, compare, and inspect robot policies. Use the setup guide to prepare your machine and Python environment.
 
 ## Setup
 
-- [Course and implementation plan](docs/plans/vla-tutorial-plan.md)
 - [Initial setup checklist and GPU access](docs/initial-setup.md)
 - [Selected local environment](docs/environment.md)
-- [Measured feasibility and open gates](docs/feasibility.md)
+- [Runtime requirements and limits](docs/feasibility.md)
 - [Operations and rollback](docs/operations.md)
 - [Checked evidence and limits](docs/evidence.md)
 - [Add a lesson](docs/extending.md)
@@ -32,19 +31,17 @@ The ACT reference checkpoints and simulator data are large files in ignored `.lo
 .venv/bin/robot-lab references install --archive /path/to/act-references.zip
 ```
 
-The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. The distribution location for a new learner machine is still open.
-
-A [clean local checkout test](artifacts/reference/release/clean_checkout.json) repeated the locked install, archive restore, public demo fetch, live doctor, and ACT demo from a fresh clone on this workstation. It passed. A different host has not run this setup.
+The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. There is no public download location for the archive. Obtain it from a machine with the reference bundles.
 
 Before a training lab, run `.venv/bin/robot-lab data fetch --scope training` to add the selected data shards and camera videos. The command uses the exact Hub revisions in [the core manifest](manifests/core.yaml).
 
 Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.
 
-[Brev cost and stop controls](docs/cloud.md) are under test. The local labs do not use cloud credit.
+[Brev cost and stop controls](docs/cloud.md) require a supervised provider check before unattended use. The local labs do not use cloud credit.
 
 The [course data flow](docs/architecture.md) has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. [Lab 2](tutorials/02-data-evaluation/02-data-evaluation.ipynb) audits a complete demonstration and runs two fixed development states.
 
-[Lab 3](tutorials/03-train-act/03-train-act.ipynb) trains ACT, resumes a checkpoint, and compares three saved local variants on the same 20 development states. The [reference record](artifacts/reference/act/lab3_suite.json) has every count and checkpoint hash. A long detached job was interrupted on this managed command host, so the full reference used a monitored local command. The [job guide](docs/jobs.md) records the remaining lifecycle check.
+[Lab 3](tutorials/03-train-act/03-train-act.ipynb) trains ACT, resumes a checkpoint, and compares three saved local variants on the same 20 development states. The [reference record](artifacts/reference/act/lab3_suite.json) has every count and checkpoint hash. Use the [job guide](docs/jobs.md) to monitor a long run and check worker survival on your host.
 
 [Labs 4 and 5](tutorials/04-smolvla/04-smolvla.ipynb) run a published SmolVLA checkpoint and adapt a separate learner. [Lab 6](tutorials/06-diffusion/06-diffusion.ipynb) trains and evaluates Diffusion Policy. [Lab 7](tutorials/07-comparison/07-comparison.ipynb) reads checked final results for bowl-plate and stove-on tasks. [Lab 8](tutorials/08-data-quality/08-data-quality.ipynb) checks action timing and a bounded recovery continuation.
 

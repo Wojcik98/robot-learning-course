@@ -12,6 +12,6 @@ Saved seeded references use development states 0–19, base seed 20260930, and n
 
 Compare your 1,000-step result with the 2,000-step and 5,000-step values for states 0–4. Use the same five state IDs and the same base seed. Count all five attempts. Report policy errors and infrastructure errors apart from task failures. Your result can differ if your local environment or stochastic execution differs.
 
-Do not compare any result with the earlier 500-step check. That check used `reset(seed=None)`, so it is diagnostic only. There is no seeded 500-step score.
+Do not compare any result with the unseeded 500-step check. That check used `reset(seed=None)`, so it is diagnostic only. There is no seeded 500-step score.
 
 A higher step count uses more training compute. A lower training loss does not prove better closed-loop control. Five states and one training seed show only a trend. They do not give a stable success rate. The published model B has unknown training data and a different robot architecture. It is not the parent of C1 or C2.

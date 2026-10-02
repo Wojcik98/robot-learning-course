@@ -232,7 +232,7 @@ def episode_metrics(
     peak_allocated_bytes: int | None,
     peak_reserved_bytes: int | None,
 ) -> dict[str, Any]:
-    """Reduce one episode to the P5 development metrics."""
+    """Reduce one episode to runtime metrics."""
     if not result.ticks:
         raise ValueError("Episode has no controller ticks")
     for tick in result.ticks:
@@ -476,7 +476,7 @@ def run_latency_experiment(
 
 def main(argv: list[str] | None = None) -> None:
     """Compare runtime modes on declared states; finished episodes are reused."""
-    parser = argparse.ArgumentParser(description="Compare P5 runtime modes on declared states")
+    parser = argparse.ArgumentParser(description="Compare runtime modes on declared states")
     parser.add_argument("--config", type=Path, default=Path("configs/experiments/latency.yaml"))
     parser.add_argument("--configs-root", type=Path, default=Path("configs"))
     parser.add_argument("--data-root", type=Path, default=Path(".local-data"))

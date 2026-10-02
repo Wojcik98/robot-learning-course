@@ -11,7 +11,7 @@ Read these limits before you use a result:
 - No paid cloud job has run for this project. Cloud cost is US$0.
 - No real Brev allocation, SSH session, file copy, or provider stop has been tested. Only fake-provider tests pass. See [the cloud record](cloud.md).
 - A local watchdog depends on this workstation and its network. It is not a provider deadline or a VM watchdog.
-- A long detached job from the managed command host stopped early on 2026-10-01. The cause is not confirmed. See [the job record](jobs.md). Test a long job from your own terminal before you leave it alone.
+- A managed command host can stop a detached worker when its launcher exits. See [job controls](jobs.md). Check that a long job survives launcher exit on your host before unattended use.
 - Hardware results come from one RTX 3070 with 8192 MiB. They do not predict another GPU, another driver, or a physical robot.
 - A hash proves that two files are the same bytes. It does not prove that a policy is good.
 - Simulator results come from LIBERO-Goal. They are not physical robot results. The source demonstrations may overlap the simulator initial states. This overlap is not resolved.
@@ -65,7 +65,7 @@ The transfer archive has 14 files and 115,596,447 bytes. Its SHA-256 value is `0
 - A distribution source for a new learner machine does not exist yet. The archive is local only.
 - The source demonstrations may overlap the simulator initial states. A result on final states is not a test on new object placements.
 - The recovery data in Lab 8 are policy generated. They are not human demonstrations.
-- The older P0 checkpoint has no saved random state. It cannot continue training in an exact way. Newer ACT runs save the model, optimizer, and PyTorch random state.
+- The supplied ACT reference bundles lack saved random state and cannot support exact continuation. ACT training saves model, optimizer, and PyTorch random state for resumable checkpoints.
 - A checkpoint file does not record the host or the user that made it. Only the job record and your release record can state this.
 
 ### 3.3 Verify provenance
@@ -90,8 +90,6 @@ Check both ACT checkpoints, the data, and the GPU:
 ```bash
 sha256sum .local-data/runs/act-bowl-plate-probe-200/checkpoint-000200/model.safetensors
 ```
-
-On 2026-10-01, `doctor` (without `--live`) returned `"ok": true` with `hash matches` for every listed ACT file. That result covers the files on this host on that day.
 
 ## 4. Restore
 
@@ -121,7 +119,7 @@ Install on the target machine:
 .venv/bin/robot-lab references install --archive /path/to/act-references.zip
 ```
 
-The installer checks all 14 hashes against the manifest before it writes checkpoint files. A restore into a clean `/tmp` workspace passed (see `transport.json`, checked 2026-10-01).
+The installer checks all 14 hashes against the manifest before it writes checkpoint files.
 
 Then fetch data and check the result:
 
@@ -129,8 +127,6 @@ Then fetch data and check the result:
 .venv/bin/robot-lab data fetch --scope demo
 .venv/bin/robot-lab doctor --live
 ```
-
-A [clean local checkout test](../artifacts/reference/release/clean_checkout.json) installed the locked environment online, restored the ACT archive, fetched demo data and simulator assets, passed the live doctor, and ran one ACT demo. It used the same workstation and GPU. A new training-data root was not downloaded in full. The training scope passed only an online cached check. Time a full training download before you promise a setup time.
 
 ### 4.2 Restore after an interrupted job
 
@@ -151,9 +147,9 @@ If the worker is alive, wait. If the status is `interrupted` or the worker is de
   --output .local-data/runs/RUN-resumed
 ```
 
-Replace the paths with your own. Use a new output directory. Resume needs a complete checkpoint that has model, optimizer, and random state. The older P0 checkpoint cannot be resumed in this way.
+Replace the paths with your own. Use a new output directory. Resume needs a complete checkpoint that has model, optimizer, and random state. The supplied ACT reference bundles lack random state and cannot be resumed in this way.
 
-Resume has unit tests (`tests/test_act_resume.py`). A [controlled interruption check](../artifacts/reference/jobs/act_interrupted_restore.json) sent `SIGTERM` after a complete checkpoint was saved. A new Python process on the same locked machine resumed from step 1 and reached step 3. The last loss differed from an uninterrupted run by 0.0000038, and the largest model tensor difference was 0.000203. Small differences were already present at step 1 in separate runs, so this does not prove bitwise replay. A fresh process loaded the restored bundle and completed one live LIBERO development step without an action error. A new machine and a long detached worker remain untested.
+Resumed training is not guaranteed to reproduce bitwise identical weights. Keep the parent checkpoint hash, seed, and evaluation records with the new run.
 
 Submitting the same `jobs submit` command again reconnects to the same run while it is active. Use `--repeat` only when you want a new run after the first one has finished.
 
@@ -216,7 +212,7 @@ To undo a rollback, write the pointer to the later release. The history file sho
 | Artifact copy refused | Destination is not empty, or files exceed 1 GiB | Use a new empty destination. Copy fewer files. |
 | Hash mismatch | Compare `sha256sum` with the manifest | Delete the bad copy. Install again from a verified archive. Do not use the file. |
 | `data fetch --offline` fails | File is missing or wrong | Run `data fetch` with network access. Check the Hugging Face login. |
-| GPU not visible | `nvidia-smi` in your terminal | Use a terminal that can see the GPU. A restricted shell cannot. A CPU result does not pass the GPU gate. |
+| GPU not visible | `nvidia-smi` in your terminal | Use a terminal that can see the GPU. A restricted shell cannot. A CPU result does not verify GPU operation. |
 | EGL or reset fails | `robot-lab doctor --live` | Check the EGL libraries in [initial-setup](initial-setup.md). Check the simulator asset hash. |
 | Out of GPU memory | `nvidia-smi` | Close other GPU programs. Reduce `--batch-size`. Record the setting you used. |
 | Disk space low | `df -h .local-data` | Keep at least 60 GB free before a large download. Remove only files you can recreate. |

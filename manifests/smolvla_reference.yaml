@@ -42,7 +42,6 @@ learner_start:
   loaded_vlm_tensors_matched: 345
   loaded_vlm_tensors_missing: 0
   parameter_audit: artifacts/reference/smolvla/learner_init_audit.json
-  one_step_probe: .local-data/runs/smolvla-learner-p0-one-step
   trained_reference:
     task: bowl_plate
     partition: development

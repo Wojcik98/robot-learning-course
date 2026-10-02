@@ -27,7 +27,7 @@ The report is [three_method_report.json](../../artifacts/reference/comparison/fi
 
 ## Third task: Turn on the stove
 
-The [development gate](../../artifacts/reference/comparison/third_task_gate.json) records ACT at 5/20 after 200 steps and 20/20 after 1,000 steps. Learner SmolVLA reached 17/20 after 5,000 steps, and Diffusion Policy reached 19/20 after 2,000 steps. Each selected method passed the 10/20 task gate. The [stove-on recipe](../../configs/experiments/comparison_stove_on.yaml) was committed as `cb634d8` before any stove-on final state was opened.
+The [development results](../../artifacts/reference/comparison/third_task_gate.json) records ACT at 5/20 after 200 steps and 20/20 after 1,000 steps. Learner SmolVLA reached 17/20 after 5,000 steps, and Diffusion Policy reached 19/20 after 2,000 steps. Checkpoint selection requires at least 10/20 development successes. The [stove-on recipe](../../configs/experiments/comparison_stove_on.yaml) fixes the checkpoints before final evaluation.
 
 | Recipe | Stove-on final successes | 95% Wilson interval | Robot optimizer steps | Recorded training loop |
 | --- | ---: | ---: | ---: | ---: |

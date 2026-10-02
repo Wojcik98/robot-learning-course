@@ -79,7 +79,7 @@ Expected output:
 [0, 1, 2, 3, 4] 5 of 5
 ```
 
-This output was checked on 2026-10-01 with the files in this repository.
+The output follows from the saved fixture.
 
 ### 4.2 Check that the evaluator rejects a final state
 
@@ -165,8 +165,8 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OMP_NUM_THREADS=4 .venv/bin/python -m pytest -q
 
 ## 7. Limits of this guide
 
-- Lab 11 is a completed example of reuse. Its [notebook](../tutorials/11-deployment/11-deployment.ipynb) reads the ACT checkpoint hash from `manifests/act_references.yaml`, uses `vla_lab.evaluation.paired`, reads `configs/experiments/comparison.yaml` and the saved ACT and recovery fixtures, and has an [exercise](../tutorials/11-deployment/exercise.md), a [solution](../solutions/11-deployment.md), and an entry in the course index. Its [fresh-kernel check](../artifacts/reference/deployment/lab11_notebook.json) records nine executed code cells and zero errors. No policy or evaluator code changed for that lesson.
-- The dry-run example in section 4 is a plan. It has no separate notebook in the course.
+- [Lab 11](../tutorials/11-deployment/11-deployment.ipynb) reuses ACT hashes, the paired evaluator, the comparison config, and saved recovery results. Its exercise, solution, and index entry show the lesson structure. It needs no separate policy or evaluator.
+- The dry-run example in section 4 is a command example. It has no separate notebook in the course.
 - The dry run checks states, fixture rows, and index links. It does not run a policy or a simulator.
 - The index link check reads only the first index cell.
 - A new method or a new task needs new code and new tests. This guide does not cover that work.

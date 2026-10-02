@@ -35,7 +35,7 @@ class BillingState:
 
 @dataclass(frozen=True)
 class CloudLimits:
-    """Fixed limits for the approved implementation credit."""
+    """Cost and time limits for funded cloud jobs."""
 
     project_cap_usd: float = 30.0
     reserve_usd: float = 5.0
@@ -56,7 +56,7 @@ def plan_cloud_job(
     now: float | None = None,
     limits: CloudLimits | None = None,
 ) -> dict[str, Any]:
-    """Calculate a deadline after each quote and billing gate passes."""
+    """Calculate a deadline after the quote and billing checks pass."""
     if limits is None:
         limits = CloudLimits()
     current = time.time() if now is None else now

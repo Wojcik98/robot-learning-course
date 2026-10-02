@@ -8,6 +8,6 @@
 6. Compare your result with the saved seeded results on the same five states. Use the 2,000-step and 5,000-step results in `artifacts/reference/smolvla/learner_c2_2000_dev_all` and `learner_c2_5000_dev_all`. Read their `episodes.jsonl` files and use states 0–4 only.
 7. Report every failed attempt and every infrastructure error. Explain why one training seed and five states do not give a stable success rate.
 
-Do not compare your result with the earlier 500-step check. That check used `reset(seed=None)`. It is diagnostic only. This lab has no seeded 500-step score.
+Do not compare your result with the unseeded 500-step check. That check used `reset(seed=None)`. It is diagnostic only. This lab has no seeded 500-step score.
 
 The 1,000-step run changes the training compute. Do not use final states 20–49 to select a continuation length.
