@@ -5,7 +5,7 @@ This lab compares ACT, learner SmolVLA C2, and Diffusion Policy on the same bowl
 Start Jupyter from the repository root:
 
 ```bash
-.venv/bin/jupyter lab tutorials/07-comparison/07-comparison.ipynb
+just jupyter tutorials/07-comparison/07-comparison.ipynb
 ```
 
 The notebook uses tracked result files. It does not run training or open simulator states. Run Labs 4–6 first if you want to inspect each policy and its processor.

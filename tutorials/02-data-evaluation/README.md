@@ -5,8 +5,8 @@ This lab checks a complete LIBERO demonstration, the fixed episode split, and th
 From the repository root, run:
 
 ```bash
-.venv/bin/robot-lab data fetch --scope training
-.venv/bin/jupyter lab tutorials/02-data-evaluation/02-data-evaluation.ipynb
+just data-training
+just jupyter tutorials/02-data-evaluation/02-data-evaluation.ipynb
 ```
 
 The audit and format cells use a CPU. The live evaluation cell needs the local GPU, AV1 decoder, and EGL runtime. The pinned training files and two camera views use several GiB of disk. This local reference run has no cloud cost. Plan for 3–4 learner hours, including the reading and exercise.

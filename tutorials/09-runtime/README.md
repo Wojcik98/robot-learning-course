@@ -5,7 +5,7 @@ This lab teaches how a delayed policy reply reaches the robot controller. It use
 Start from the repository root:
 
 ```bash
-.venv/bin/jupyter lab tutorials/09-runtime/09-runtime.ipynb
+just jupyter tutorials/09-runtime/09-runtime.ipynb
 ```
 
 The notebook runs on CPU. It reads the saved sweep and needs no GPU, LIBERO assets, or model checkpoint. Cloud cost for the notebook is US$0. The saved sweep uses the reference local GPU.

@@ -5,14 +5,14 @@ This lab trains a task policy from public demonstrations, restores a checkpoint,
 Run from the repository root after Labs 0–2 and the training data download:
 
 ```bash
-.venv/bin/robot-lab data fetch --scope training
-.venv/bin/jupyter lab tutorials/03-train-act/03-train-act.ipynb
+just data-training
+just jupyter tutorials/03-train-act/03-train-act.ipynb
 ```
 
 The full reference command is:
 
 ```bash
-.venv/bin/python -m vla_lab.experiments.act \
+just act-suite \
   --config configs/train/act_task.yaml \
   --output .local-data/runs/my-act-suite
 ```
@@ -24,12 +24,7 @@ The reference uses the local GPU, AV1 decoder, and EGL renderer. It does not use
 For a detached local run, use the job controls after the worker lifecycle passes on your host:
 
 ```bash
-.venv/bin/robot-lab jobs submit \
-  --config configs/train/act_task.yaml \
-  --purpose act-lab3-reference --seed 20260930 -- \
-  .venv/bin/python -m vla_lab.experiments.act \
-  --config configs/train/act_task.yaml \
-  --output '{run_dir}/experiment'
+just act-suite-job
 ```
 
-The job command prints a run ID. Use `robot-lab jobs status RUN_ID`, `logs RUN_ID`, and `artifacts RUN_ID` after a notebook or terminal restart. Use `cancel RUN_ID` to stop a local worker. The [job controls](../../docs/jobs.md) give the tested behavior and current host limit.
+The job command prints a run ID. Use `just jobs status RUN_ID`, `just jobs logs RUN_ID`, and `just jobs artifacts RUN_ID` after a notebook or terminal restart. Use `just jobs cancel RUN_ID` to stop a local worker. The [job controls](../../docs/jobs.md) give the tested behavior and current host limit.

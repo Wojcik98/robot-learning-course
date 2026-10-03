@@ -5,9 +5,9 @@ This lab runs a published SmolVLA robot policy. It shows two camera images, robo
 Run from the repository root after Labs 0–3:
 
 ```bash
-.venv/bin/robot-lab data fetch --scope training
-.venv/bin/robot-lab data fetch-models
-.venv/bin/jupyter lab tutorials/04-smolvla/04-smolvla.ipynb
+just data-training
+just data-models
+just jupyter tutorials/04-smolvla/04-smolvla.ipynb
 ```
 
 The published model is `HuggingFaceVLA/smolvla_libero`. Its training data are unknown. The local learner in Lab 5 starts from a different VLM source. Do not treat the published model as the learner's parent.
@@ -17,7 +17,7 @@ The prepared development result used ten actions per policy call and succeeded o
 To run a prompt check on one fixed state, use a new output directory for each prompt:
 
 ```bash
-.venv/bin/python -m vla_lab.evaluation.smolvla \
+just eval-smolvla \
   --model-dir .local-data/models/smolvla-libero \
   --vlm-dir .local-data/models/smolvlm2-500m-video-instruct \
   --task bowl_plate --state-ids 0 --n-action-steps 10 \

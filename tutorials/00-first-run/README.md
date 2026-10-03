@@ -4,14 +4,14 @@ In this lab, you load a supplied ACT checkpoint and run a robot task in LIBERO. 
 
 ## Before you start
 
-Run these commands from the repository root. Use the locked environment in [the environment guide](../../docs/environment.md). Make sure that the local data and ACT checkpoint files are present. Run `robot-lab doctor` to check them.
+Run these commands from the repository root. Use the locked environment in [the environment guide](../../docs/environment.md). Make sure that the local data and ACT checkpoint files are present. Run `just doctor` to check them.
 
 ```bash
-uv sync --locked
-.venv/bin/robot-lab data fetch --scope demo
-.venv/bin/robot-lab references install --archive .local-data/bundles/act-references.zip
-.venv/bin/robot-lab doctor
-.venv/bin/jupyter lab tutorials/00-first-run/00-first-run.ipynb
+just setup
+just data-demo
+just references-install .local-data/bundles/act-references.zip
+just doctor
+just jupyter tutorials/00-first-run/00-first-run.ipynb
 ```
 
 Select the `Python 3 (ipykernel)` kernel that uses this repository's `.venv`. Start Jupyter from the repository root. The notebook writes runs to `.local-data/runs/`; Git ignores that directory.
@@ -19,7 +19,7 @@ Select the `Python 3 (ipykernel)` kernel that uses this repository's `.venv`. St
 The equivalent terminal command is:
 
 ```bash
-.venv/bin/robot-lab demo --task bowl_plate --state-id 0 --output .local-data/runs/my-first-act-run
+just demo --task bowl_plate --state-id 0 --output .local-data/runs/my-first-act-run
 ```
 
 Each `--output` path must be new or empty. Use `bowl_stove` with its matching checkpoint for the second task. The task name selects the simulator task and its matching checkpoint. ACT does not read the task name as an instruction.
@@ -30,4 +30,4 @@ The notebook shows a video and a run record. The video is a live policy rollout 
 
 The notebook uses development states 0 to 19. Keep final states 20 to 49 for the final evaluation. Do not use them to select a checkpoint or change this lab.
 
-If the GPU, EGL renderer, video encoder, assets, or checkpoint is missing, run `robot-lab doctor` and use the reported failed check. Do not use a CPU fallback as a GPU result.
+If the GPU, EGL renderer, video encoder, assets, or checkpoint is missing, run `just doctor` and use the reported failed check. Do not use a CPU fallback as a GPU result.

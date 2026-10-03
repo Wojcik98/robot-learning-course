@@ -5,7 +5,7 @@ This lab teaches how real-time chunking (RTC) keeps a new action chunk close to 
 Start from the repository root:
 
 ```bash
-.venv/bin/jupyter lab tutorials/10-rtc/10-rtc.ipynb
+just jupyter tutorials/10-rtc/10-rtc.ipynb
 ```
 
 The notebook runs on CPU. It needs no GPU, no LIBERO assets, and no model checkpoint. Cloud cost is US$0.
@@ -40,7 +40,7 @@ Read [RTC v2](https://arxiv.org/html/2506.07339v2). Read only equations 2–5 an
 You do not need this step. It needs a local CUDA GPU, LIBERO assets, and the pinned checkpoint under `.local-data`:
 
 ```bash
-.venv/bin/python -m vla_lab.experiments.runtime_modes \
+just runtime-modes \
   --config configs/experiments/latency.yaml \
   --output .local-data/runs/runtime-modes-development
 ```

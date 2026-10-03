@@ -5,18 +5,18 @@ This lab follows one learner model from source A to the trained checkpoints C1 a
 Run from the repository root after Lab 4 and the training data download:
 
 ```bash
-.venv/bin/robot-lab data fetch --scope training
-.venv/bin/robot-lab data fetch-models
-.venv/bin/jupyter lab tutorials/05-adapt-smolvla/05-adapt-smolvla.ipynb
+just data-training
+just data-models
+just jupyter tutorials/05-adapt-smolvla/05-adapt-smolvla.ipynb
 ```
 
 To train both stages yourself, use two new output directories:
 
 ```bash
-.venv/bin/python -m vla_lab.training.smolvla \
+just train-smolvla \
   --stage c1 --output .local-data/runs/my-smolvla-c1
 
-.venv/bin/python -m vla_lab.training.smolvla \
+just train-smolvla \
   --stage c2 \
   --resume-from .local-data/runs/my-smolvla-c1/checkpoint-000100 \
   --output .local-data/runs/my-smolvla-c2

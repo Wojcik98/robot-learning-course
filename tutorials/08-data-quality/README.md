@@ -5,7 +5,7 @@ This lab uses the seven-value LIBERO relative action contract. It checks source 
 Start from the repository root:
 
 ```bash
-.venv/bin/jupyter lab tutorials/08-data-quality/08-data-quality.ipynb
+just jupyter tutorials/08-data-quality/08-data-quality.ipynb
 ```
 
 The saved analysis runs on CPU. The [source action audit](../../artifacts/reference/data_quality/source_action_audit.json) covers 39 bowl-plate training episodes and 3,661 actions. It found 0 arm actions at or below 0.001, 11 at or below 0.01, and 61 at or below 0.05, using the largest absolute value among six arm components. Gripper values are excluded. These counts do not prove why near-zero values are rare. Source filtering history is unknown, and dataset timestamps cannot restore removed physical time.
@@ -17,7 +17,7 @@ The [synthetic fixture manifest](../../artifacts/reference/data_quality/syntheti
 Use a desktop terminal with the pinned local LIBERO assets. Only development states are accepted:
 
 ```bash
-.venv/bin/python -m vla_lab.data.keyboard \
+just record-keyboard \
   --task bowl_plate --state 0 \
   --output .local-data/keyboard-recordings/my-first-demo.npz
 ```
@@ -30,7 +30,7 @@ The reset seed is `20260930 + state_id` and is saved in the NPZ file.
 Record 5–10 short accepted episodes. Put failed or rejected files in a different directory. Build a checked manifest from only the accepted files:
 
 ```bash
-.venv/bin/python -m vla_lab.experiments.build_recovery_manifest \
+just recovery-manifest \
   --task bowl_plate \
   --recordings .local-data/keyboard-recordings/accepted/*.npz \
   --output .local-data/keyboard-recordings/manifest.json
@@ -39,7 +39,7 @@ Record 5–10 short accepted episodes. Put failed or rejected files in a differe
 The command checks file hashes, task IDs, reset seeds, and the development split. It reserves every unused development state for assessment. It cannot judge task success or human control quality; you must select accepted files. The ACT continuation takes this manifest:
 
 ```bash
-.venv/bin/python -m vla_lab.experiments.recovery \
+just act-recovery \
   --manifest .local-data/keyboard-recordings/manifest.json \
   --base-checkpoint .local-data/runs/act-bowl-plate-probe-200/checkpoint-000200 \
   --output .local-data/runs/my-act-recovery-200 --steps 200

@@ -5,7 +5,7 @@ This lab teaches you to trace a checkpoint to its sources, check its hashes, wri
 Start from the repository root:
 
 ```bash
-.venv/bin/jupyter lab tutorials/11-deployment/11-deployment.ipynb
+just jupyter tutorials/11-deployment/11-deployment.ipynb
 ```
 
 The notebook runs on CPU. It needs no GPU, no LIBERO assets, and no checkpoint file. Cloud cost is US$0. No paid job ran for this lab.
@@ -34,7 +34,7 @@ The notebook runs on CPU. It needs no GPU, no LIBERO assets, and no checkpoint f
 
 ## Optional steps
 
-The GPU check is optional. Its flag `RUN_GPU_CHECK` is `False`. Set it to `True` only on the prepared local host. It runs `robot-lab doctor --live`.
+The GPU check is optional. Its flag `RUN_GPU_CHECK` is `False`. Set it to `True` only on the prepared local host. It runs `just doctor-live`.
 
 The notebook has no cloud step. No real Brev allocation has been tested. Read [the cloud record](../../docs/cloud.md) and pass its live cost and stop checks before paid work.
 

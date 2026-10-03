@@ -5,15 +5,15 @@ This lab checks one trained Diffusion Policy for the bowl-plate task. It covers 
 Run from the repository root after you fetch the training data and the pinned LIBERO assets:
 
 ```bash
-.venv/bin/robot-lab data fetch --scope training
-.venv/bin/jupyter lab tutorials/06-diffusion/06-diffusion.ipynb
+just data-training
+just jupyter tutorials/06-diffusion/06-diffusion.ipynb
 ```
 
 To train a new reference, first make sure the pinned ResNet-18 file is in the local Torch cache. The training code checks its hash and stops if the file is missing or has a different hash. Then use a new output directory:
 
 ```bash
-TORCH_HOME=.local-data/torch .venv/bin/python -c "from torchvision.models import ResNet18_Weights; ResNet18_Weights.IMAGENET1K_V1.get_state_dict(progress=True, check_hash=True)"
-TORCH_HOME=.local-data/torch .venv/bin/python -m vla_lab.training.diffusion \
+just diffusion-weights
+just train-diffusion \
   --output .local-data/runs/my-diffusion-reference
 ```
 
