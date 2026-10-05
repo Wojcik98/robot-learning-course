@@ -19,6 +19,11 @@ outputs. Executed copies live only in memory (``--execute-*``).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vla_lab.types import JSONValue
+
 import argparse
 import ast
 import inspect
@@ -80,7 +85,7 @@ class Lesson:
     folder: str
     slug: str
     title: str
-    items: list = field(default_factory=list)
+    items: list[Md | Code | Pair | Exercise] = field(default_factory=list)
 
 
 def tidy(text: str) -> str:
@@ -92,13 +97,79 @@ def source_of(module_name: str, names: list[str]) -> str:
     return "\n\n\n".join(inspect.getsource(getattr(module, name)).rstrip() for name in names)
 
 
+def typed_stub(stub: str, solution: str) -> str:
+    """Use the reference signature and keep the exercise body."""
+    tree = ast.parse(tidy(stub))
+    references = {
+        node.name: node for node in ast.parse(solution).body if isinstance(node, ast.FunctionDef)
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in references:
+            reference = references[node.name]
+            node.args = reference.args
+            node.returns = reference.returns
+            node.type_params = reference.type_params
+    return ast.unparse(tree)
+
+
 SETUP = """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from transformers import DynamicCache
+    from vla_lab.teaching.blocks import (
+        ACTPosteriorParts, ACTLatentParts, ACTEncoderParts, ACTDecoderParts,
+        ProjectedAttention, EncoderParts, DecoderParts, FilmParts, UNetParts,
+    )
+    from vla_lab.teaching.interfaces import (
+        ACTPredictionModel, ActionChunkPolicy, ActionPolicy, ActionT, ActionValue,
+        TensorBatch, LiberoObservation, ModelT, PolicyT, BatchT, ObservationT,
+        ResettablePolicy, ResettableEnvironment, EpisodeEnvironment,
+        DiffusionTrainingModel, NoiseScheduler, PromptTokenizer, VLAInputConfig, VLAInputs,
+    )
+    from vla_lab.teaching.records import (
+        ACTBatchData, CaseResult, PairedSummary, EpisodeRow, EpisodeArrays,
+        TrainingEpisode, TrialConfig, TrialResult, AlignedTransition,
+        TransitionAlignment, InterventionCase, InterventionSummary,
+    )
+    from numpy.typing import ArrayLike, NDArray
+    from vla_lab.teaching.interfaces import RobotState
+    from vla_lab.teaching.blocks import ScaledAttention, AttentionOperation
+    from vla_lab.teaching.diffusion import UNetChannelPlan
+    from collections.abc import Callable
+    from collections.abc import Iterable
+    from collections.abc import Mapping
+    from collections.abc import Sequence
+    from lerobot.policies.act.modeling_act import ACT
+    from lerobot.policies.diffusion import DiffusionPolicy
+    from lerobot.policies.diffusion.modeling_diffusion import DiffusionConditionalUnet1d
+    from lerobot.policies.smolvla import SmolVLAPolicy
+    from pathlib import Path
+    from torch import Tensor
+    from typing import Self
+    from vla_lab.data.stats import TrainingStats
+    from vla_lab.teaching.act_model import ACTHooks
+    from vla_lab.teaching.attention import DecoderLayer
+    from vla_lab.teaching.attention import EncoderLayer
+    from vla_lab.teaching.attention import MultiHeadAttention
+    from vla_lab.teaching.cvae import ConditionalVAE
+    from vla_lab.teaching.diffusion import ConditionalUnet1D
+    from vla_lab.teaching.diffusion import DDPMSchedule
+    from vla_lab.teaching.runtime import RolloutResult
+    from vla_lab.teaching.smolvla import SmolVLAAdapter
+    from vla_lab.teaching.training import LossCallback
+    import numpy as np
+    import pandas as pd
+    import torch
+
 from pathlib import Path
 import os
 import sys
 
 
-def find_root():
+def find_root() -> Path:
     for path in (Path.cwd().resolve(), *Path.cwd().resolve().parents):
         if (path / "manifests" / "act_references.yaml").is_file():
             return path
@@ -131,14 +202,14 @@ def setup_cell(imports: str) -> Code:
 # --- Rendering ------------------------------------------------------------------------------------
 
 
-def _cell(kind: str, source: str) -> dict:
+def _cell(kind: str, source: str) -> dict[str, JSONValue]:
     base = {"cell_type": kind, "metadata": {}, "source": source.splitlines(keepends=True)}
     if kind == "code":
         base.update({"execution_count": None, "outputs": []})
     return base
 
 
-def _exercise_cells(ex: Exercise, reference: bool) -> list[dict]:
+def _exercise_cells(ex: Exercise, reference: bool) -> list[dict[str, JSONValue]]:
     header = (
         f"## Exercise {ex.key} — {ex.title} (about {ex.minutes} min)\n\n"
         f"**Purpose.** {ex.purpose}\n\n"
@@ -147,8 +218,8 @@ def _exercise_cells(ex: Exercise, reference: bool) -> list[dict]:
         f"**Pointers.** {tidy(ex.pointers)}\n\n"
         f"<details><summary>Detailed hint</summary>\n\n{tidy(ex.hint)}\n\n</details>"
     )
+    solution = source_of(ex.module, ex.names) if ex.names else ""
     if reference:
-        solution = source_of(ex.module, ex.names) if ex.names else ""
         if ex.extra_solution:
             solution += "\n\n\n" + tidy(ex.extra_solution)
         code = (
@@ -157,7 +228,7 @@ def _exercise_cells(ex: Exercise, reference: bool) -> list[dict]:
         )
         header += "\n\n*This is the reference notebook: the next cell is a complete solution.*"
     else:
-        code = "# Implement: Exercise " + ex.key + "\n" + tidy(ex.stub)
+        code = "# Implement: Exercise " + ex.key + "\n" + typed_stub(ex.stub, solution)
     cells = [
         _cell("markdown", header),
         _cell("code", code),
@@ -168,7 +239,7 @@ def _exercise_cells(ex: Exercise, reference: bool) -> list[dict]:
     return cells
 
 
-def render(lesson: Lesson, reference: bool) -> dict:
+def render(lesson: Lesson, reference: bool) -> dict[str, JSONValue]:
     cells: list[dict] = []
     in_experiment = False
     for item in lesson.items:
@@ -300,9 +371,11 @@ def validate(lesson: Lesson) -> list[str]:
                 callee = ast.unparse(body[0].value.func)
                 if callee.startswith(("vla_lab.", "teaching.")):
                     problems.append(f"{ex.key}: reference {name} only calls the package")
-            if ex.names and f"def {name}(" not in ex.stub:
+            if ex.names and name not in {
+                n.name for n in ast.parse(tidy(ex.stub)).body if isinstance(n, ast.FunctionDef)
+            }:
                 problems.append(f"{ex.key}: stub does not define {name}")
-            elif _params(tidy(ex.stub), name) != _params(solution, name):
+            elif _params(typed_stub(ex.stub, solution), name) != _params(solution, name):
                 problems.append(f"{ex.key}: stub and solution parameters differ for {name}")
         if any(
             line.strip().startswith(("from vla_lab", "import vla_lab"))
@@ -445,13 +518,13 @@ def main(argv: list[str] | None = None) -> int:
 # Shared pieces
 # =====================================================================================================
 
-CLOSE_HELPER = r'''
-def close(actual, expected, message, atol=1e-5):
-    """Compare two tensors and say what failed."""
-    assert actual.shape == expected.shape, f"{message}: shape {tuple(actual.shape)}, expected {tuple(expected.shape)}"
-    worst = (actual.detach() - expected.detach()).abs().max().item()
-    assert worst <= atol, f"{message}: largest difference {worst:.2e} is above {atol:.0e}"
-'''
+CLOSE_HELPER = """
+            def close(actual: torch.Tensor, expected: torch.Tensor, message: str, atol: float=1e-5) -> None:
+                \"\"\"Compare two tensors and say what failed.\"\"\"
+                assert actual.shape == expected.shape, f"{message}: shape {tuple(actual.shape)}, expected {tuple(expected.shape)}"
+                worst = (actual.detach() - expected.detach()).abs().max().item()
+                assert worst <= atol, f"{message}: largest difference {worst:.2e} is above {atol:.0e}"
+        """
 
 PYTORCH_NOTES_ATTENTION = """
 ## PyTorch notes
@@ -475,16 +548,16 @@ nothing is resampled to the simulator's 20 Hz controller. If the files are missi
 def lesson_07() -> Lesson:
     L = Lesson("07-attention", "07-attention", "Attention by hand")
     L.items += [
-        Md(r"""
-        # Unit 7 — Attention by hand
+        Md("""
+            # Unit 7 — Attention by hand
 
-        **Your result:** a Transformer encoder layer written with plain tensor operations. It will match the encoder blocks inside the installed ACT model, for both outputs and gradients.
+            **Your result:** a Transformer encoder layer written with plain tensor operations. It will match the encoder blocks inside the installed ACT model, for both outputs and gradients.
 
-        Five short exercises (about 10–20 minutes each) build it from the inside out: scaled attention with a padding mask, heads, multi-head attention, positions, then the layer. A larger experiment (30–60 minutes) uses your layer to learn from real, padded action chunks. These times are estimates, not measurements.
+            Five short exercises (about 10–20 minutes each) build it from the inside out: scaled attention with a padding mask, heads, multi-head attention, positions, then the layer. A larger experiment (30–60 minutes) uses your layer to learn from real, padded action chunks. These times are estimates, not measurements.
 
-        **Sources.** The equations follow [Attention Is All You Need](https://arxiv.org/abs/1706.03762), sections 3.1–3.5: encoder layer (3.1), scaled dot-product and multi-head attention (3.2), feed-forward (3.3), positional encoding (3.5). ACT uses this block in its [paper](https://arxiv.org/abs/2304.13705); its code is in `lerobot/policies/act/modeling_act.py` at the pinned revision `e0d50211ef236143ae867228662b7dfaba554f02`.
+            **Sources.** The equations follow [Attention Is All You Need](https://arxiv.org/abs/1706.03762), sections 3.1–3.5: encoder layer (3.1), scaled dot-product and multi-head attention (3.2), feed-forward (3.3), positional encoding (3.5). ACT uses this block in its [paper](https://arxiv.org/abs/2304.13705); its code is in `lerobot/policies/act/modeling_act.py` at the pinned revision `e0d50211ef236143ae867228662b7dfaba554f02`.
 
-        **You need** Python and NumPy. PyTorch is explained as it appears. Run from any folder inside this repository. Full answers are in [the reference notebook](07-attention-reference.ipynb). Three things stay separate: *your code* (cells you write), the *package reference* (`vla_lab.teaching.attention`, used here only as an oracle in checks), and the *installed LeRobot ACT blocks* (the pinned upstream code).
+            **You need** Python and NumPy. PyTorch is explained as it appears. Run from any folder inside this repository. Full answers are in [the reference notebook](07-attention-reference.ipynb). Three things stay separate: *your code* (cells you write), the *package reference* (`vla_lab.teaching.attention`, used here only as an oracle in checks), and the *installed LeRobot ACT blocks* (the pinned upstream code).
         """),
         setup_cell("""
             import math
@@ -504,9 +577,9 @@ def lesson_07() -> Lesson:
         Code("# Supplied: a helper that the checks use\n" + tidy(CLOSE_HELPER)),
         Md(PYTORCH_NOTES_ATTENTION),
         Md(REAL_WINDOW_NOTE),
-        Code(r"""
+        Code("""
             # Supplied: real padded action windows (train and validation episodes are kept apart)
-            def read_windows(split):
+            def read_windows(split: str) -> dict[str, torch.Tensor]:
                 return load_state_action_windows(
                     CONFIGS, DATA, "bowl_plate", split,
                     horizon=16, n_obs_steps=1, action_start=0, drop_n_last_frames=0,
@@ -547,7 +620,7 @@ def lesson_07() -> Lesson:
             names=["scaled_dot_product_attention"],
             module="vla_lab.teaching.attention",
             stub="""
-        def scaled_dot_product_attention(query, key, value, key_padding_mask=None, dropout_p=0.0):
+        def scaled_dot_product_attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, key_padding_mask: torch.Tensor | None=None, dropout_p: float=0.0) -> tuple[torch.Tensor, torch.Tensor]:
             # query (B,H,Tq,Dh); key,value (B,H,Tk,Dh); key_padding_mask (B,Tk) with True = padding.
             # Return (output (B,H,Tq,Dh), weights (B,H,Tq,Tk)).
             raise NotImplementedError("Complete Exercise 7.1: scaled_dot_product_attention")
@@ -621,12 +694,12 @@ def lesson_07() -> Lesson:
             names=["split_heads", "merge_heads"],
             module="vla_lab.teaching.attention",
             stub="""
-        def split_heads(x, n_heads):
+        def split_heads(x: torch.Tensor, n_heads: int) -> torch.Tensor:
             # (B, T, D) -> (B, H, T, D // H). Raise ValueError when D % H != 0.
             raise NotImplementedError("Complete Exercise 7.2: split_heads")
 
 
-        def merge_heads(x):
+        def merge_heads(x: torch.Tensor) -> torch.Tensor:
             # (B, H, T, Dh) -> (B, T, H * Dh).
             raise NotImplementedError("Complete Exercise 7.2: merge_heads")
         """,
@@ -688,17 +761,20 @@ def lesson_07() -> Lesson:
             names=["multi_head_forward"],
             module="vla_lab.teaching.attention",
             stub="""
-        def multi_head_forward(attention, query, key, value, key_padding_mask=None, attend=scaled_dot_product_attention):
+        def multi_head_forward(attention: ProjectedAttention, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, key_padding_mask: torch.Tensor | None=None, attend: ScaledAttention=scaled_dot_product_attention) -> tuple[torch.Tensor, torch.Tensor]:
             # Use split_heads, attend (Exercise 7.1) and merge_heads. Return (output, weights).
             raise NotImplementedError("Complete Exercise 7.3: multi_head_forward")
-        """,
+""",
             check="""
         D_, H_ = 16, 4
         calls = []
 
-        def counting_attend(*args, **kwargs):
-            calls.append(tuple(args[0].shape))
-            return scaled_dot_product_attention(*args, **kwargs)
+        def counting_attend(
+            query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
+            key_padding_mask: torch.Tensor | None = None, dropout_p: float = 0.0,
+        ) -> tuple[torch.Tensor, torch.Tensor]:
+            calls.append(tuple(query.shape))
+            return scaled_dot_product_attention(query, key, value, key_padding_mask, dropout_p)
 
         torch.manual_seed(2)
         oracle = nn.MultiheadAttention(D_, H_, dropout=0.0, batch_first=True)
@@ -723,7 +799,7 @@ def lesson_07() -> Lesson:
         self_out = mine(x, x, x)
         close(self_out, oracle(x, x, x)[0], "self-attention output differs from torch")
         print("Exercise 7.3 passed")
-        """,
+""",
             use_intro="Run your module on the real window with and without the padding mask, and see which positions change.",
             use="""
         torch.manual_seed(4)
@@ -769,7 +845,7 @@ def lesson_07() -> Lesson:
             names=["sinusoidal_positions"],
             module="vla_lab.teaching.attention",
             stub="""
-        def sinusoidal_positions(num_positions, dimension):
+        def sinusoidal_positions(num_positions: int, dimension: int) -> torch.Tensor:
             # Return a float32 tensor (num_positions, dimension): sin on even columns, cos on odd columns.
             raise NotImplementedError("Complete Exercise 7.4: sinusoidal_positions")
         """,
@@ -827,10 +903,10 @@ def lesson_07() -> Lesson:
             names=["encoder_layer_forward"],
             module="vla_lab.teaching.attention",
             stub="""
-        def encoder_layer_forward(layer, x, pos_embed=None, key_padding_mask=None):
+        def encoder_layer_forward(layer: EncoderParts, x: torch.Tensor, pos_embed: torch.Tensor | None=None, key_padding_mask: torch.Tensor | None=None) -> torch.Tensor:
             # Attention then feed-forward, each with a residual connection and a norm. Position on q and k only.
             raise NotImplementedError("Complete Exercise 7.5: encoder_layer_forward")
-        """,
+""",
             check="""
         D_, H_, FF_ = 16, 4, 32
         config = lambda pre: ACTConfig(dim_model=D_, n_heads=H_, dim_feedforward=FF_, dropout=0.0, pre_norm=pre,
@@ -887,36 +963,36 @@ def lesson_07() -> Lesson:
     return L
 
 
-EXPERIMENT_TABLE_HELPER = r'''
-import time
-import pandas as pd
+EXPERIMENT_TABLE_HELPER = """
+            import time
+            import pandas as pd
 
-def show_trials(trials, columns):
-    """Print every trial that was run, including failed ones, and return a table."""
-    table = pd.DataFrame([{**t["config"], **{c: t.get(c) for c in columns}, "status": t["status"]} for t in trials])
-    print(table.to_string(index=False, float_format=lambda v: f"{v:.4g}"))
-    return table
-'''
+            def show_trials(trials: Sequence[TrialResult], columns: Sequence[str]) -> pd.DataFrame:
+                \"\"\"Print every trial that was run, including failed ones, and return a table.\"\"\"
+                table = pd.DataFrame([{**t["config"], **{c: t.get(c) for c in columns}, "status": t["status"]} for t in trials])
+                print(table.to_string(index=False, float_format=lambda v: f"{v:.4g}"))
+                return table
+        """
 
 
 def lesson_07_tail(L: Lesson) -> Lesson:
     L.items += [
-        Md(r"""
-        ## Experiment — where does the padding mask matter? (30–60 min)
+        Md("""
+            ## Experiment — where does the padding mask matter? (30–60 min)
 
-        **Question.** Does the key padding mask change what an encoder learns from real padded action chunks, and does it change how the model reacts to padded values?
+            **Question.** Does the key padding mask change what an encoder learns from real padded action chunks, and does it change how the model reacts to padded values?
 
-        **Task (real data).** Input: a 16-step action window from a real demonstration; padded steps repeat the last real action. Target: the mean of the *real* (not padded) actions, 7 values. The pooled output uses only real positions in every run, so any difference comes from attention, not from pooling.
+            **Task (real data).** Input: a 16-step action window from a real demonstration; padded steps repeat the last real action. Target: the mean of the *real* (not padded) actions, 7 values. The pooled output uses only real positions in every run, so any difference comes from attention, not from pooling.
 
-        **Fixed for every trial (do not change).** Windows: `TRAIN` and `VALID` above (validation episodes are never used for updates). Seed `0` for weights, seed `1` for batch draws. **150 updates**, batch 64, AdamW with learning rate `2e-3`. Model width 32. Your own functions from Exercises 7.1–7.5 are used inside every encoder layer.
+            **Fixed for every trial (do not change).** Windows: `TRAIN` and `VALID` above (validation episodes are never used for updates). Seed `0` for weights, seed `1` for batch draws. **150 updates**, batch 64, AdamW with learning rate `2e-3`. Model width 32. Your own functions from Exercises 7.1–7.5 are used inside every encoder layer.
 
-        **Allowed changes (per trial).** `mask` (pass the padding mask to attention or not), `pos` (add sinusoidal positions or not), `layers` (1–3), `heads` (1, 2 or 4).
+            **Allowed changes (per trial).** `mask` (pass the padding mask to attention or not), `pos` (add sinusoidal positions or not), `layers` (1–3), `heads` (1, 2 or 4).
 
-        **Measures.** `val_mse_padded`: mean squared error on validation windows that contain padding. `val_mse_all`: all validation windows. `pad_sensitivity`: mean absolute change of the output when the padded steps are replaced by random values (a robust model gives about 0).
+            **Measures.** `val_mse_padded`: mean squared error on validation windows that contain padding. `val_mse_all`: all validation windows. `pad_sensitivity`: mean absolute change of the output when the padded steps are replaced by random values (a robust model gives about 0).
 
-        **Prediction first.** Before running anything, write two sentences: which arm do you expect to be worst on `pad_sensitivity`, and will `val_mse_all` change much? Edit the next cell.
+            **Prediction first.** Before running anything, write two sentences: which arm do you expect to be worst on `pad_sensitivity`, and will `val_mse_all` change much? Edit the next cell.
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. Do not delete or overwrite rows; a result that does not improve is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. Do not delete or overwrite rows; a result that does not improve is a valid result.
         """),
         Code(r"""
             # Write your prediction here (one cell, before you run the trials).
@@ -924,20 +1000,21 @@ def lesson_07_tail(L: Lesson) -> Lesson:
             print(PREDICTION)
         """),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r'''
+        Code(
+            """
             # Supplied: the experiment harness. It calls YOUR functions through the encoder hooks.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, WIDTH = 150, 64, 2e-3, 0, 1, 32
 
 
-            def masked_mean(values, is_pad):
+            def masked_mean(values: torch.Tensor, is_pad: torch.Tensor) -> torch.Tensor:
                 keep = (~is_pad).unsqueeze(-1).float()
                 return (values * keep).sum(1) / keep.sum(1).clamp_min(1)
 
 
             class ChunkEncoder(nn.Module):
-                """Linear input layer -> your encoder layers -> mean over real positions -> linear output."""
+                \"\"\"Linear input layer -> your encoder layers -> mean over real positions -> linear output.\"\"\"
 
-                def __init__(self, layers=2, heads=4, pos=True):
+                def __init__(self, layers: int=2, heads: int=4, pos: bool=True) -> None:
                     super().__init__()
                     self.inp = nn.Linear(7, WIDTH)
                     self.encoder = ref.TransformerEncoder(
@@ -949,7 +1026,7 @@ def lesson_07_tail(L: Lesson) -> Lesson:
                     self.out = nn.Linear(WIDTH, 7)
                     self.register_buffer("positions", sinusoidal_positions(16, WIDTH)[None] if pos else torch.zeros(1, 16, WIDTH))
 
-                def forward(self, actions, is_pad, use_mask=True):
+                def forward(self, actions: torch.Tensor, is_pad: torch.Tensor | None, use_mask: bool=True) -> torch.Tensor:
                     hidden = self.encoder(self.inp(actions), self.positions, is_pad if use_mask else None)
                     return self.out(masked_mean(hidden, is_pad))
 
@@ -958,7 +1035,7 @@ def lesson_07_tail(L: Lesson) -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 torch.manual_seed(SEED_WEIGHTS)
                 model = ChunkEncoder(config["layers"], config["heads"], config["pos"])
@@ -985,8 +1062,8 @@ def lesson_07_tail(L: Lesson) -> Lesson:
                     }
 
 
-            def record(config):
-                """Run one trial and append it to TRIALS. Errors are kept as failed trials."""
+            def record(config: TrialConfig) -> None:
+                \"\"\"Run one trial and append it to TRIALS. Errors are kept as failed trials.\"\"\"
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -997,7 +1074,8 @@ def lesson_07_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["val_mse_padded", "val_mse_all", "pad_sensitivity", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        '''),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials that change one setting each. List them in `MY_TRIALS`, then run the next cell. You may run more than once; every run adds rows."
         ),
@@ -1019,7 +1097,7 @@ def lesson_07_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -1029,7 +1107,7 @@ def lesson_07_tail(L: Lesson) -> Lesson:
             assert all(torch.isfinite(torch.tensor([t[c] for c in COLUMNS])).all() for t in ok), "Every measure must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: plot every trial (nothing is hidden or averaged away)
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in TRIALS if t["status"] == "ok"]
             fig, axes = plt.subplots(1, 2, figsize=(10, 3.5))
@@ -1048,7 +1126,7 @@ def lesson_07_tail(L: Lesson) -> Lesson:
 
         This section loads the **prepared** ACT checkpoint `act-bowl-plate-probe-200` from local files and copies its posterior-encoder weights into *your* layers. It then feeds real, padded action chunks to both encoders. This shows that your code reproduces a real trained block. It is not a training run and it says nothing about robot success. The workload is 8 video frames. No download starts. Set `RUN_REAL_ACT_ENCODER = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_ACT_ENCODER = False
 
             if RUN_REAL_ACT_ENCODER:
@@ -1100,16 +1178,16 @@ def lesson_07_tail(L: Lesson) -> Lesson:
 def lesson_08a() -> Lesson:
     L = Lesson("08a-decoder", "08a-decoder", "The decoder")
     L.items += [
-        Md(r"""
-        # Unit 8A — The decoder: self-attention, cross-attention, feed-forward
+        Md("""
+            # Unit 8A — The decoder: self-attention, cross-attention, feed-forward
 
-        **Your result:** a Transformer decoder layer that reads an encoder's memory. It will match the decoder inside the installed ACT model, output and gradient. Then you use it to predict a chunk of 16 future robot actions from a short history of real robot states.
+            **Your result:** a Transformer decoder layer that reads an encoder's memory. It will match the decoder inside the installed ACT model, output and gradient. Then you use it to predict a chunk of 16 future robot actions from a short history of real robot states.
 
-        Two short exercises (about 15–20 minutes each) and one larger experiment (30–60 minutes). These times are estimates, not measurements.
+            Two short exercises (about 15–20 minutes each) and one larger experiment (30–60 minutes). These times are estimates, not measurements.
 
-        **Sources.** [Attention Is All You Need](https://arxiv.org/abs/1706.03762), sections 3.1 (decoder stack), 3.2.3 (where queries, keys and values come from), 3.3 (feed-forward) and 3.5 (positions). ACT's decoder uses *learned action queries* and reads the encoder's tokens by cross-attention — see the [ACT paper](https://arxiv.org/abs/2304.13705), appendix on architecture, and `ACTDecoderLayer` in the pinned `lerobot/policies/act/modeling_act.py`. ACT's decoder has no causal mask: all 20 actions are predicted at once.
+            **Sources.** [Attention Is All You Need](https://arxiv.org/abs/1706.03762), sections 3.1 (decoder stack), 3.2.3 (where queries, keys and values come from), 3.3 (feed-forward) and 3.5 (positions). ACT's decoder uses *learned action queries* and reads the encoder's tokens by cross-attention — see the [ACT paper](https://arxiv.org/abs/2304.13705), appendix on architecture, and `ACTDecoderLayer` in the pinned `lerobot/policies/act/modeling_act.py`. ACT's decoder has no causal mask: all 20 actions are predicted at once.
 
-        **Where this unit sits.** In Unit 7 you wrote attention, heads, positions and the encoder layer. **Here we use the package versions of those five functions** (`vla_lab.teaching.attention`), so you can start without your Unit 7 notebook. Your new Unit 8A functions are wired into the real decoder through its hooks.
+            **Where this unit sits.** In Unit 7 you wrote attention, heads, positions and the encoder layer. **Here we use the package versions of those five functions** (`vla_lab.teaching.attention`), so you can start without your Unit 7 notebook. Your new Unit 8A functions are wired into the real decoder through its hooks.
         """),
         setup_cell("""
             import math
@@ -1153,9 +1231,9 @@ def lesson_08a() -> Lesson:
                 "A history that starts before the episode repeats the first state and sets `state_is_pad=True`; a window that runs past the end repeats the last action and sets `action_is_pad=True`.",
             )
         ),
-        Code(r"""
+        Code("""
             # Supplied: real windows. 8 states of history; actions start at the current frame.
-            def read_windows(split):
+            def read_windows(split: str) -> dict[str, torch.Tensor]:
                 return load_state_action_windows(
                     CONFIGS, DATA, "bowl_plate", split,
                     horizon=16, n_obs_steps=8, action_start=0, drop_n_last_frames=0,
@@ -1193,14 +1271,14 @@ def lesson_08a() -> Lesson:
             names=["attend_with_positions"],
             module="vla_lab.teaching.attention",
             stub="""
-        def attend_with_positions(attention, query_input, key_value_input, query_pos=None, key_pos=None, key_padding_mask=None):
+        def attend_with_positions(attention: AttentionOperation, query_input: torch.Tensor, key_value_input: torch.Tensor, query_pos: torch.Tensor | None=None, key_pos: torch.Tensor | None=None, key_padding_mask: torch.Tensor | None=None) -> torch.Tensor:
             # query = query_input + query_pos; key = key_value_input + key_pos; value = key_value_input.
             raise NotImplementedError("Complete Exercise 8A.1: attend_with_positions")
-        """,
+""",
             check='''
         class Recorder:
             """A stand-in attention module that records what it was called with."""
-            def __call__(self, query, key, value, key_padding_mask=None):
+            def __call__(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, key_padding_mask: torch.Tensor | None=None) -> torch.Tensor:
                 self.args = (query, key, value, key_padding_mask)
                 return query
 
@@ -1279,10 +1357,10 @@ def lesson_08a() -> Lesson:
             names=["decoder_layer_forward"],
             module="vla_lab.teaching.attention",
             stub="""
-        def decoder_layer_forward(layer, x, memory, query_pos=None, memory_pos=None, memory_key_padding_mask=None):
+        def decoder_layer_forward(layer: DecoderParts, x: torch.Tensor, memory: torch.Tensor, query_pos: torch.Tensor | None=None, memory_pos: torch.Tensor | None=None, memory_key_padding_mask: torch.Tensor | None=None) -> torch.Tensor:
             # Self-attention, cross-attention, feed-forward: each with a residual connection and a norm.
             raise NotImplementedError("Complete Exercise 8A.2: decoder_layer_forward")
-        """,
+""",
             check="""
         D_, H_, FF_ = 16, 4, 32
         config = lambda pre: ACTConfig(dim_model=D_, n_heads=H_, dim_feedforward=FF_, dropout=0.0, pre_norm=pre,
@@ -1337,32 +1415,33 @@ def lesson_08a() -> Lesson:
         )
     )
     L.items += [
-        Md(r"""
-        ## Experiment — what does the decoder read? (30–60 min)
+        Md("""
+            ## Experiment — what does the decoder read? (30–60 min)
 
-        **Question.** A decoder predicts 16 future actions from a history of real robot states. Which parts of its input matter: the length of the history, the positions on the memory, or the memory padding mask?
+            **Question.** A decoder predicts 16 future actions from a history of real robot states. Which parts of its input matter: the length of the history, the positions on the memory, or the memory padding mask?
 
-        **Task (real data).** Memory: up to 8 robot states (oldest first), each projected to 32 features. Queries: 16 zero vectors plus learned query positions (one row per future step, as in ACT). Output: 16 actions of 7 values in `[-1, 1]` (min–max scaled with training extrema). Loss: masked L1 over real (non-padded) actions — the function from the training unit. States before the episode start are padded copies of the first state.
+            **Task (real data).** Memory: up to 8 robot states (oldest first), each projected to 32 features. Queries: 16 zero vectors plus learned query positions (one row per future step, as in ACT). Output: 16 actions of 7 values in `[-1, 1]` (min–max scaled with training extrema). Loss: masked L1 over real (non-padded) actions — the function from the training unit. States before the episode start are padded copies of the first state.
 
-        **Fixed for every trial.** The windows above (validation episodes are never used for updates); seed `0` for weights, seed `1` for batch draws; **200 updates**, batch 64, AdamW `1e-3`; width 32, 4 heads. Your Exercise 8A.1 and 8A.2 functions run inside every decoder layer.
+            **Fixed for every trial.** The windows above (validation episodes are never used for updates); seed `0` for weights, seed `1` for batch draws; **200 updates**, batch 64, AdamW `1e-3`; width 32, 4 heads. Your Exercise 8A.1 and 8A.2 functions run inside every decoder layer.
 
-        **Allowed changes (per trial).** `k` (use only the newest `k` states, 1–8), `mem_pos` (learned memory positions on or off), `mask` (pass the history padding mask to cross-attention or not), `layers` (1 or 2).
+            **Allowed changes (per trial).** `k` (use only the newest `k` states, 1–8), `mem_pos` (learned memory positions on or off), `mask` (pass the history padding mask to cross-attention or not), `layers` (1 or 2).
 
-        **Measures.** `val_l1`: masked L1 on all validation windows. `val_l1_padhist`: the same on windows whose history contains padding. `pad_sensitivity`: mean change of the output when the padded history states are replaced by random values.
+            **Measures.** `val_l1`: masked L1 on all validation windows. `val_l1_padhist`: the same on windows whose history contains padding. `pad_sensitivity`: mean change of the output when the padded history states are replaced by random values.
 
-        **Prediction first.** Write two sentences in the next cell before you run anything: which setting will hurt `val_l1` most, and which will change `pad_sensitivity`?
+            **Prediction first.** Write two sentences in the next cell before you run anything: which setting will hurt `val_l1` most, and which will change `pad_sensitivity`?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`; never delete rows. No improvement is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`; never delete rows. No improvement is a valid result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your decoder_layer_forward and attend_with_positions are in the real path.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, WIDTH = 200, 64, 1e-3, 0, 1, 32
 
 
             class HistoryDecoder(nn.Module):
-                def __init__(self, layers=1, mem_pos=True):
+                def __init__(self, layers: int=1, mem_pos: bool=True) -> None:
                     super().__init__()
                     self.inp = nn.Linear(8, WIDTH)
                     self.mem_pos = nn.Embedding(8, WIDTH) if mem_pos else None
@@ -1370,7 +1449,7 @@ def lesson_08a() -> Lesson:
                     self.decoder = TransformerDecoder(layers, WIDTH, 4, 2 * WIDTH, forward_fn=decoder_layer_forward)
                     self.out = nn.Linear(WIDTH, 7)
 
-                def forward(self, states, state_pad, k=8, use_mask=True):
+                def forward(self, states: torch.Tensor, state_pad: torch.Tensor, k: int=8, use_mask: bool=True) -> torch.Tensor:
                     states, state_pad = states[:, -k:], state_pad[:, -k:]
                     memory_pos = self.mem_pos.weight[None, -k:] if self.mem_pos is not None else None
                     queries = torch.zeros(states.shape[0], 16, WIDTH)
@@ -1383,7 +1462,7 @@ def lesson_08a() -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 torch.manual_seed(SEED_WEIGHTS)
                 model = HistoryDecoder(config["layers"], config["mem_pos"])
@@ -1408,7 +1487,7 @@ def lesson_08a() -> Lesson:
                     }
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -1419,7 +1498,8 @@ def lesson_08a() -> Lesson:
             record(BASELINE)
             COLUMNS = ["val_l1", "val_l1_padhist", "pad_sensitivity", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials that each change one setting. `k=1` has no padded history, so its `pad_sensitivity` is 0 by construction: read it with that in mind."
         ),
@@ -1441,7 +1521,7 @@ def lesson_08a() -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -1451,7 +1531,7 @@ def lesson_08a() -> Lesson:
             assert all(torch.isfinite(torch.tensor([t["val_l1"], t["pad_sensitivity"]])).all() for t in ok), "Measures must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: plot every trial
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in ok]
@@ -1471,7 +1551,7 @@ def lesson_08a() -> Lesson:
 
         This copies the **prepared** ACT checkpoint's decoder weights (`act-bowl-plate-probe-200`) into a decoder built from *your* `decoder_layer_forward`, then compares it with the installed ACT decoder on a real state memory. The memory has only the latent and state tokens (no camera tokens), so the outputs are not the policy's actions; the check shows that your layer reproduces a real trained decoder. The workload is a few validation frames. Set `RUN_REAL_ACT_DECODER = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_ACT_DECODER = False
 
             if RUN_REAL_ACT_DECODER:
@@ -1515,68 +1595,68 @@ def lesson_08a() -> Lesson:
     return L
 
 
-ACT_FIXTURE = r'''
-IMAGES = ("observation.images.image", "observation.images.image2")
+ACT_FIXTURE = """
+            IMAGES = ("observation.images.image", "observation.images.image2")
 
 
-def small_lerobot_act(seed=11):
-    """A small *real* pinned ACT module with random weights (64x64 images, 20-step chunk)."""
-    torch.manual_seed(seed)
-    config = ACTConfig(
-        input_features={
-            IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
-        },
-        output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
-        chunk_size=20, n_action_steps=20, dim_model=32, n_heads=4, dim_feedforward=64,
-        n_encoder_layers=2, n_decoder_layers=1, n_vae_encoder_layers=2, latent_dim=6,
-        dropout=0.0, pretrained_backbone_weights=None, push_to_hub=False, device="cpu",
-    )
-    model = ACT(config)
-    for parameter in model.parameters():       # distinct vectors make wrong wiring visible
-        if parameter.dim() == 1:
-            nn.init.normal_(parameter, std=0.1)
-    return model
+            def small_lerobot_act(seed: int=11) -> ACT:
+                \"\"\"A small *real* pinned ACT module with random weights (64x64 images, 20-step chunk).\"\"\"
+                torch.manual_seed(seed)
+                config = ACTConfig(
+                    input_features={
+                        IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
+                    },
+                    output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
+                    chunk_size=20, n_action_steps=20, dim_model=32, n_heads=4, dim_feedforward=64,
+                    n_encoder_layers=2, n_decoder_layers=1, n_vae_encoder_layers=2, latent_dim=6,
+                    dropout=0.0, pretrained_backbone_weights=None, push_to_hub=False, device="cpu",
+                )
+                model = ACT(config)
+                for parameter in model.parameters():       # distinct vectors make wrong wiring visible
+                    if parameter.dim() == 1:
+                        nn.init.normal_(parameter, std=0.1)
+                return model
 
 
-def algorithm_check_batch(batch=3, chunk=20, seed=0):
-    """Random numbers in the right shapes. Clearly labelled: an algorithm check, not data."""
-    g = torch.Generator().manual_seed(seed)
-    pad = torch.zeros(batch, chunk, dtype=torch.bool)
-    pad[1, 14:] = True
-    pad[2, 3:] = True
-    return {
-        "observation.state": torch.randn(batch, 8, generator=g),
-        IMAGES[0]: torch.rand(batch, 3, 64, 64, generator=g),
-        IMAGES[1]: torch.rand(batch, 3, 64, 64, generator=g),
-        "action": torch.randn(batch, chunk, 7, generator=g),
-        "action_is_pad": pad,
-    }
+            def algorithm_check_batch(batch: int=3, chunk: int=20, seed: int=0) -> dict[str, torch.Tensor]:
+                \"\"\"Random numbers in the right shapes. Clearly labelled: an algorithm check, not data.\"\"\"
+                g = torch.Generator().manual_seed(seed)
+                pad = torch.zeros(batch, chunk, dtype=torch.bool)
+                pad[1, 14:] = True
+                pad[2, 3:] = True
+                return {
+                    "observation.state": torch.randn(batch, 8, generator=g),
+                    IMAGES[0]: torch.rand(batch, 3, 64, 64, generator=g),
+                    IMAGES[1]: torch.rand(batch, 3, 64, 64, generator=g),
+                    "action": torch.randn(batch, chunk, 7, generator=g),
+                    "action_is_pad": pad,
+                }
 
 
-REFERENCE = small_lerobot_act()                      # the installed LeRobot ACT (reference weights)
-LEARNER = act_from_lerobot(REFERENCE)                # the learner module holding *reference weights*
-CHECK_BATCH = algorithm_check_batch()
-print("learner parameters:", sum(p.numel() for p in LEARNER.parameters()))
-'''
+            REFERENCE = small_lerobot_act()                      # the installed LeRobot ACT (reference weights)
+            LEARNER = act_from_lerobot(REFERENCE)                # the learner module holding *reference weights*
+            CHECK_BATCH = algorithm_check_batch()
+            print("learner parameters:", sum(p.numel() for p in LEARNER.parameters()))
+        """
 
 
 def lesson_08b() -> Lesson:
     L = Lesson("08b-act", "08b-act", "Assemble ACT")
     L.items += [
-        Md(r"""
-        # Unit 8B — Assemble ACT from its parts
+        Md("""
+            # Unit 8B — Assemble ACT from its parts
 
-        **Your result:** an Action Chunking Transformer built from your functions. It reproduces the installed LeRobot ACT *exactly* when it holds the same weights, and it trains with the loss callback from the training unit.
+            **Your result:** an Action Chunking Transformer built from your functions. It reproduces the installed LeRobot ACT *exactly* when it holds the same weights, and it trains with the loss callback from the training unit.
 
-        Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These are estimates, not measurements.
+            Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These are estimates, not measurements.
 
-        **Sources.** [ACT paper](https://arxiv.org/abs/2304.13705) (action chunks, the CVAE posterior encoder, the Transformer encoder-decoder with learned action queries) and the code in the pinned `lerobot/policies/act/modeling_act.py` (revision `e0d50211ef236143ae867228662b7dfaba554f02`), read as `ACT.forward`. The blocks come from [Attention Is All You Need](https://arxiv.org/abs/1706.03762). **The raw model returns `(actions, (mu, logvar))` and does not compute a loss.** The installed `ACTPolicy.forward` computes its own loss inside; this unit bypasses it on purpose and uses the loss callback from the training unit.
+            **Sources.** [ACT paper](https://arxiv.org/abs/2304.13705) (action chunks, the CVAE posterior encoder, the Transformer encoder-decoder with learned action queries) and the code in the pinned `lerobot/policies/act/modeling_act.py` (revision `e0d50211ef236143ae867228662b7dfaba554f02`), read as `ACT.forward`. The blocks come from [Attention Is All You Need](https://arxiv.org/abs/1706.03762). **The raw model returns `(actions, (mu, logvar))` and does not compute a loss.** The installed `ACTPolicy.forward` computes its own loss inside; this unit bypasses it on purpose and uses the loss callback from the training unit.
 
-        **Supplied here:** the CNN backbone (a ResNet-18 that turns each camera image into a feature map), the Transformer encoder and decoder blocks (package versions of your Unit 7 and 8A answers), the data reader, and the weight converter. **You write** the five functions that make ACT *ACT*: 2D camera positions, the posterior encoder, the latent choice (including zero-latent inference), the encoder tokens, and the action decoder.
+            **Supplied here:** the CNN backbone (a ResNet-18 that turns each camera image into a feature map), the Transformer encoder and decoder blocks (package versions of your Unit 7 and 8A answers), the data reader, and the weight converter. **You write** the five functions that make ACT *ACT*: 2D camera positions, the posterior encoder, the latent choice (including zero-latent inference), the encoder tokens, and the action decoder.
 
-        Full answers are in [the reference notebook](08b-act-reference.ipynb).
+            Full answers are in [the reference notebook](08b-act-reference.ipynb).
         """),
         setup_cell("""
             import copy
@@ -1675,7 +1755,7 @@ def lesson_08b() -> Lesson:
             names=["camera_position_embedding_2d"],
             module="vla_lab.teaching.act_model",
             stub="""
-        def camera_position_embedding_2d(height, width, dim):
+        def camera_position_embedding_2d(height: int, width: int, dim: int) -> torch.Tensor:
             # Return (1, dim, height, width): row code in the first half of channels, column code in the second.
             raise NotImplementedError("Complete Exercise 8B.1: camera_position_embedding_2d")
         """,
@@ -1733,10 +1813,10 @@ def lesson_08b() -> Lesson:
             names=["encode_posterior"],
             module="vla_lab.teaching.act_model",
             stub="""
-        def encode_posterior(model, state, actions, action_is_pad):
+        def encode_posterior(model: ACTPosteriorParts, state: torch.Tensor, actions: torch.Tensor, action_is_pad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
             # Tokens [cls, state, actions]; mask [False, False, *action_is_pad]; read the CLS output; split into mu, logvar.
             raise NotImplementedError("Complete Exercise 8B.2: encode_posterior")
-        """,
+""",
             check="""
         # The module passed in is the learner twin of a real pinned ACT, so a correct function reproduces the pinned posterior.
         model = copy.deepcopy(LEARNER).train()
@@ -1798,10 +1878,10 @@ def lesson_08b() -> Lesson:
             names=["select_latent"],
             module="vla_lab.teaching.act_model",
             stub="""
-        def select_latent(model, batch, noise=None):
+        def select_latent(model: ACTLatentParts, batch: Mapping[str, torch.Tensor], noise: torch.Tensor | None=None) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
             # Return (latent, mu, logvar): sampled in training, zeros (and None, None) otherwise.
             raise NotImplementedError("Complete Exercise 8B.3: select_latent")
-        """,
+""",
             check="""
         model = copy.deepcopy(LEARNER)
         model.hooks = ACTHooks(posterior=ref.encode_posterior)     # the posterior hook is the package answer here
@@ -1870,10 +1950,10 @@ def lesson_08b() -> Lesson:
             names=["build_encoder_tokens"],
             module="vla_lab.teaching.act_model",
             stub="""
-        def build_encoder_tokens(model, latent, state, feature_maps):
+        def build_encoder_tokens(model: ACTEncoderParts, latent: torch.Tensor, state: torch.Tensor, feature_maps: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
             # Return (tokens (B, N, D), pos (1, N, D)): latent, state, then each camera's cells in row-major order.
             raise NotImplementedError("Complete Exercise 8B.4: build_encoder_tokens")
-        """,
+""",
             check="""
         model = copy.deepcopy(LEARNER).eval()
         batch = CHECK_BATCH
@@ -1881,7 +1961,7 @@ def lesson_08b() -> Lesson:
         latent = torch.randn(3, 6)
         seen = []
 
-        def counting_positions(height, width, dim):
+        def counting_positions(height: int, width: int, dim: int) -> torch.Tensor:
             seen.append((height, width, dim))
             return camera_position_embedding_2d(height, width, dim)
 
@@ -1940,14 +2020,14 @@ def lesson_08b() -> Lesson:
             names=["decode_actions"],
             module="vla_lab.teaching.act_model",
             stub="""
-        def decode_actions(model, encoder_out, pos):
+        def decode_actions(model: ACTDecoderParts, encoder_out: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
             # Zero queries + learned query positions, cross-attend to the encoder output, then the action head.
             raise NotImplementedError("Complete Exercise 8B.5: decode_actions")
-        """,
+""",
             check='''
         class RecordingDecoder(nn.Module):
             """Stands in for the decoder module and records its arguments."""
-            def forward(self, x, memory, query_pos=None, memory_pos=None, memory_key_padding_mask=None):
+            def forward(self, x: torch.Tensor, memory: torch.Tensor, query_pos: torch.Tensor | None=None, memory_pos: torch.Tensor | None=None, memory_key_padding_mask: torch.Tensor | None=None) -> torch.Tensor:
                 self.args = (x, memory, query_pos, memory_pos)
                 return x + 1.0
 
@@ -1982,14 +2062,14 @@ def lesson_08b() -> Lesson:
 
 def lesson_08b_tail(L: Lesson) -> Lesson:
     L.items += [
-        Md(r"""
-        ## Assemble: your five functions inside the real model
+        Md("""
+            ## Assemble: your five functions inside the real model
 
-        The next cells build an `ACTModel` whose five hooks are **your** functions. The model has the pinned structure (posterior encoder, encoder, decoder, head). We then copy the weights of the small real LeRobot ACT into it. Before that copy, the learner has random weights; after it, it holds *reference weights in the learner* and must give the same numbers as the reference. Only then is it safe to use.
+            The next cells build an `ACTModel` whose five hooks are **your** functions. The model has the pinned structure (posterior encoder, encoder, decoder, head). We then copy the weights of the small real LeRobot ACT into it. Before that copy, the learner has random weights; after it, it holds *reference weights in the learner* and must give the same numbers as the reference. Only then is it safe to use.
         """),
         Code(
             "# Supplied: assemble the model from YOUR functions (random weights at first)\n"
-            + tidy(r"""
+            + tidy("""
             YOUR_HOOKS = ACTHooks(
                 camera_positions=camera_position_embedding_2d, posterior=encode_posterior, latent=select_latent,
                 encoder_tokens=build_encoder_tokens, decode=decode_actions,
@@ -2003,7 +2083,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
         ),
         Code(
             "# Supplied: copy the reference weights into your module (explicit converter, strict loading)\n"
-            + tidy(r"""
+            + tidy("""
             converted = convert_lerobot_act_state_dict(REFERENCE.state_dict())
             print("tensors after conversion:", len(converted), "| LeRobot tensors:", len(REFERENCE.state_dict()),
                   "(each packed attention tensor becomes query, key and value tensors)")
@@ -2012,7 +2092,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
         ),
         Code(
             "# Check: identical weights and inputs must give identical outputs\n"
-            + tidy(r"""
+            + tidy("""
             after = verify_act_parity(YOURS, REFERENCE, CHECK_BATCH)
             print({k: f"{v:.1e}" for k, v in after.items()})
             assert after["inference_actions"] < 1e-4, "Zero-latent inference path differs from the pinned ACT."
@@ -2022,7 +2102,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
         ),
         Code(
             "# Check: your model plus the training unit's loss callback equals the pinned policy loss\n"
-            + tidy(r"""
+            + tidy("""
             from lerobot.policies.act import ACTPolicy
 
             pinned_policy = ACTPolicy(REFERENCE.config)
@@ -2041,7 +2121,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
 
         The same check at real size: the local **prepared** ACT checkpoint `act-bowl-plate-probe-200` (a 200-step LeRobot training run) is copied into your module and compared on real camera frames at 256×256. This reads local files only; no download starts. If the files are missing, the cell says how to install them. Parity must hold before you run your module in the simulator.
         """),
-        Code(r"""
+        Code("""
             RUN_CHECKPOINT_PARITY = True
 
             if RUN_CHECKPOINT_PARITY:
@@ -2065,26 +2145,26 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             else:
                 print("Prepared-checkpoint parity is off. Set RUN_CHECKPOINT_PARITY=True to run it.")
         """),
-        Md(r"""
-        ## Experiment — which inputs does your ACT need? (30–60 min)
+        Md("""
+            ## Experiment — which inputs does your ACT need? (30–60 min)
 
-        **Question.** ACT reads state, two cameras and 2D camera positions. Which of these does a *small, briefly trained* ACT use, measured on held-out real demonstrations at inference (zero latent)?
+            **Question.** ACT reads state, two cameras and 2D camera positions. Which of these does a *small, briefly trained* ACT use, measured on held-out real demonstrations at inference (zero latent)?
 
-        **Setup (real data).** 256 training windows and 64 validation windows, spread evenly over the frozen `bowl_plate` train and validation episodes; each has both camera images (box-filtered to 32×32 so that CPU training is fast), the 8-value state and 20 actions (standardized with training statistics; windows near the end of an episode have padded actions). The model is a small ACT (width 64, 4 heads, latent 8) with a ResNet-18 backbone and **your five functions**. The loss is the training unit's `act_loss_fn` with `kl_weight` below, run by `train_loop`.
+            **Setup (real data).** 256 training windows and 64 validation windows, spread evenly over the frozen `bowl_plate` train and validation episodes; each has both camera images (box-filtered to 32×32 so that CPU training is fast), the 8-value state and 20 actions (standardized with training statistics; windows near the end of an episode have padded actions). The model is a small ACT (width 64, 4 heads, latent 8) with a ResNet-18 backbone and **your five functions**. The loss is the training unit's `act_loss_fn` with `kl_weight` below, run by `train_loop`.
 
-        **Fixed for every trial.** The data above; weight seed `0`; batch seed `1`; **150 updates**, batch 8, AdamW with weight decay `1e-4`. These are *learner trained weights*: they start from random numbers, not from the prepared checkpoint.
+            **Fixed for every trial.** The data above; weight seed `0`; batch seed `1`; **150 updates**, batch 8, AdamW with weight decay `1e-4`. These are *learner trained weights*: they start from random numbers, not from the prepared checkpoint.
 
-        **Allowed changes (per trial).** `arm` (one of `full`, `no_cam_pos`, `one_camera`, `state_only`, `cameras_only` — each swaps one hook function), `lr` (`3e-4` or `1e-3`), `kl_weight` (`0.1` or `10`).
+            **Allowed changes (per trial).** `arm` (one of `full`, `no_cam_pos`, `one_camera`, `state_only`, `cameras_only` — each swaps one hook function), `lr` (`3e-4` or `1e-3`), `kl_weight` (`0.1` or `10`).
 
-        **Measures.** `val_l1_zero`: masked L1 on validation windows with the zero latent (the inference path). `val_l1_posterior`: the same with the latent set to the posterior mean (an optimistic bound that uses the true future actions). `val_kl`: posterior KL. Also report a *do-nothing baseline*: the L1 of always predicting the training mean action.
+            **Measures.** `val_l1_zero`: masked L1 on validation windows with the zero latent (the inference path). `val_l1_posterior`: the same with the latent set to the posterior mean (an optimistic bound that uses the true future actions). `val_kl`: posterior KL. Also report a *do-nothing baseline*: the L1 of always predicting the training mean action.
 
-        **Prediction first.** In the next cell write which arm you expect to be best and which worst, and whether `val_l1_posterior` will be far below `val_l1_zero`.
+            **Prediction first.** In the next cell write which arm you expect to be best and which worst, and whether `val_l1_posterior` will be far below `val_l1_zero`.
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. A run that is no better than the baseline is a valid result. One hundred fifty updates are too few to get a good policy; this experiment compares *inputs*, not final quality.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. A run that is no better than the baseline is a valid result. One hundred fifty updates are too few to get a good policy; this experiment compares *inputs*, not final quality.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code("""
             # Supplied: data for the experiment (real windows, 32x32 images)
             SIZE, CHUNK = 32, 20
             TRAIN = load_act_samples(CONFIGS, DATA, "bowl_plate", "train", count=256, chunk_size=CHUNK, image_size=SIZE)
@@ -2094,7 +2174,8 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             print("train windows:", len(TRAIN["action"]), "validation windows:", len(VALID["action"]), "| image size:", SIZE)
             print("do-nothing baseline (always the mean training action), L1:", round(do_nothing, 4))
         """),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Every arm changes ONE of your hook functions; the rest stay yours.
             STEPS, BATCH, SEED_WEIGHTS, SEED_BATCH, WEIGHT_DECAY = 150, 8, 0, 1, 1e-4
             SMALL = ACTSettings(state_dim=8, action_dim=7, image_keys=IMAGES, chunk_size=CHUNK, dim_model=64, n_heads=4,
@@ -2102,7 +2183,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
                                 latent_dim=8, dropout=0.0)
 
 
-            def hooks_for(arm):
+            def hooks_for(arm: str) -> ACTHooks:
                 if arm == "full":
                     return YOUR_HOOKS
                 if arm == "no_cam_pos":      # camera cells get no position: the encoder cannot tell where a cell is
@@ -2121,7 +2202,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 torch.manual_seed(SEED_WEIGHTS)
                 model = ACTModel.build(SMALL, hooks=hooks_for(config["arm"]))       # random weights: learner trained weights
@@ -2148,7 +2229,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
                 }
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -2159,7 +2240,8 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["val_l1_zero", "val_l1_posterior", "val_kl", "last_train_loss", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials, each changing one setting. Budget: 150 updates per trial."
         ),
@@ -2181,7 +2263,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -2191,7 +2273,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
             assert all(torch.isfinite(torch.tensor([t["val_l1_zero"], t["val_l1_posterior"]])).all() for t in ok), "Measures must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: every trial against the do-nothing baseline
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in ok]
@@ -2212,7 +2294,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
 
         This is an actual, bounded full-size training run. It starts from reference weights in the learner and runs 10 updates with your model, the training loss callback, and `train_loop`. It reports held-out L1 before and after training. It writes no checkpoint and does not measure simulator success. The code selects CUDA when available and otherwise uses CPU. Set `RUN_FULL_SIZE_FINETUNE = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_FULL_SIZE_FINETUNE = False
             DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
             FINETUNE_STEPS, FINETUNE_BATCH, FINETUNE_LR = 10, 4, 1e-5   # the pinned recipe's learning rate
@@ -2232,7 +2314,7 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
                 train = {key: value.to(DEVICE) if isinstance(value, torch.Tensor) else value for key, value in train.items()}
                 valid = {key: value.to(DEVICE) if isinstance(value, torch.Tensor) else value for key, value in valid.items()}
 
-                def held_out(model):
+                def held_out(model: torch.nn.Module) -> float:
                     model.eval()
                     with torch.no_grad():
                         return masked_action_l1(model(valid)[0], valid["action"], valid["action_is_pad"]).item()
@@ -2263,50 +2345,50 @@ def lesson_08b_tail(L: Lesson) -> Lesson:
     return L
 
 
-DIFFUSION_FIXTURE = r'''
-IMAGES = ("observation.images.image", "observation.images.image2")
+DIFFUSION_FIXTURE = """
+            IMAGES = ("observation.images.image", "observation.images.image2")
 
 
-def tiny_policy(seed=5):
-    """A small *real* pinned DiffusionPolicy with random weights (64x64 images, horizon 16)."""
-    torch.manual_seed(seed)
-    config = DiffusionConfig(
-        input_features={
-            IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
-        },
-        output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
-        n_obs_steps=2, horizon=16, n_action_steps=8, drop_n_last_frames=7,
-        down_dims=(16, 32, 64), spatial_softmax_num_keypoints=8, diffusion_step_embed_dim=32,
-        pretrained_backbone_weights=None, crop_is_random=False, num_train_timesteps=100,
-        num_inference_steps=20, do_mask_loss_for_padding=True, push_to_hub=False, device="cpu",
-    )
-    policy = DiffusionPolicy(config)
-    for parameter in policy.parameters():
-        if parameter.dim() == 1:
-            nn.init.normal_(parameter, std=0.05)
-    return policy.eval()
+            def tiny_policy(seed: int=5) -> DiffusionPolicy:
+                \"\"\"A small *real* pinned DiffusionPolicy with random weights (64x64 images, horizon 16).\"\"\"
+                torch.manual_seed(seed)
+                config = DiffusionConfig(
+                    input_features={
+                        IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
+                    },
+                    output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
+                    n_obs_steps=2, horizon=16, n_action_steps=8, drop_n_last_frames=7,
+                    down_dims=(16, 32, 64), spatial_softmax_num_keypoints=8, diffusion_step_embed_dim=32,
+                    pretrained_backbone_weights=None, crop_is_random=False, num_train_timesteps=100,
+                    num_inference_steps=20, do_mask_loss_for_padding=True, push_to_hub=False, device="cpu",
+                )
+                policy = DiffusionPolicy(config)
+                for parameter in policy.parameters():
+                    if parameter.dim() == 1:
+                        nn.init.normal_(parameter, std=0.05)
+                return policy.eval()
 
 
-def algorithm_check_batch(batch=3, seed=1):
-    """Random numbers in the right shapes. Clearly labelled: an algorithm check, not data."""
-    g = torch.Generator().manual_seed(seed)
-    pad = torch.zeros(batch, 16, dtype=torch.bool)
-    pad[1, 12:] = True
-    pad[2, 3:] = True
-    return {
-        "observation.state": torch.randn(batch, 2, 8, generator=g),
-        IMAGES[0]: torch.rand(batch, 2, 3, 64, 64, generator=g),
-        IMAGES[1]: torch.rand(batch, 2, 3, 64, 64, generator=g),
-        "action": torch.rand(batch, 16, 7, generator=g) * 2 - 1,
-        "action_is_pad": pad,
-    }
+            def algorithm_check_batch(batch: int=3, seed: int=1) -> dict[str, torch.Tensor]:
+                \"\"\"Random numbers in the right shapes. Clearly labelled: an algorithm check, not data.\"\"\"
+                g = torch.Generator().manual_seed(seed)
+                pad = torch.zeros(batch, 16, dtype=torch.bool)
+                pad[1, 12:] = True
+                pad[2, 3:] = True
+                return {
+                    "observation.state": torch.randn(batch, 2, 8, generator=g),
+                    IMAGES[0]: torch.rand(batch, 2, 3, 64, 64, generator=g),
+                    IMAGES[1]: torch.rand(batch, 2, 3, 64, 64, generator=g),
+                    "action": torch.rand(batch, 16, 7, generator=g) * 2 - 1,
+                    "action_is_pad": pad,
+                }
 
 
-POLICY = tiny_policy()
-CHECK_BATCH = algorithm_check_batch()
-'''
+            POLICY = tiny_policy()
+            CHECK_BATCH = algorithm_check_batch()
+        """
 
 DIFFUSION_BACKGROUND = """
 ## Background: the forward process and what the network learns
@@ -2326,12 +2408,12 @@ The pinned recipe, from `lerobot/policies/diffusion` at revision `e0d50211ef2361
 def lesson_09() -> Lesson:
     L = Lesson("09-diffusion-training", "09-diffusion-training", "Diffusion training")
     L.items += [
-        Md(r"""
-        # Unit 9 — Diffusion policy training: noise, objective, update
+        Md("""
+            # Unit 9 — Diffusion policy training: noise, objective, update
 
-        **Your result:** the functions that train a diffusion policy: cumulative alphas, forward noising, timestep selection, a masked noise loss, and a loss callback that the training loop uses to update a real denoiser. For the same random numbers your loss equals the pinned LeRobot loss.
+            **Your result:** the functions that train a diffusion policy: cumulative alphas, forward noising, timestep selection, a masked noise loss, and a loss callback that the training loop uses to update a real denoiser. For the same random numbers your loss equals the pinned LeRobot loss.
 
-        Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](09-diffusion-training-reference.ipynb).
+            Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](09-diffusion-training-reference.ipynb).
         """),
         setup_cell("""
             import math
@@ -2358,7 +2440,7 @@ def lesson_09() -> Lesson:
         Md("""
         **Real data used in this unit.** Real LIBERO `bowl_plate` demonstrations are read from local files (no download starts here). A *window* has the robot state at the last 2 frames and 16 actions that start one frame before the current one. The first window slot is an action *already taken*; this is the pinned alignment, and Unit 11 uses it to pick the executed actions. Windows near an episode edge repeat the nearest frame and set `action_is_pad=True`. The recording rate is 10 Hz; nothing is resampled to the simulator's 20 Hz controller. Values are scaled to `[-1, 1]` with training-set extrema. If the files are missing, the cell tells you the setup command.
         """),
-        Code(r"""
+        Code("""
             # Supplied: real windows (train and validation episodes are kept apart)
             TRAIN = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "train")
             VALID = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "validation")
@@ -2390,7 +2472,7 @@ def lesson_09() -> Lesson:
             names=["cumulative_alphas"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def cumulative_alphas(betas):
+        def cumulative_alphas(betas: torch.Tensor) -> torch.Tensor:
             # betas (T,) -> alpha_bar (T,): alpha_bar[t] = product of (1 - beta[s]) for s <= t.
             raise NotImplementedError("Complete Exercise 9.1: cumulative_alphas")
         """,
@@ -2441,7 +2523,7 @@ def lesson_09() -> Lesson:
             names=["forward_noise"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def forward_noise(x0, noise, timesteps, alpha_bar):
+        def forward_noise(x0: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor, alpha_bar: torch.Tensor) -> torch.Tensor:
             # x_t = sqrt(alpha_bar[t]) * x0 + sqrt(1 - alpha_bar[t]) * noise, with a separate t for each batch row.
             raise NotImplementedError("Complete Exercise 9.2: forward_noise")
         """,
@@ -2500,7 +2582,7 @@ def lesson_09() -> Lesson:
             names=["sample_noise_and_timesteps"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def sample_noise_and_timesteps(actions, num_train_timesteps, generator=None):
+        def sample_noise_and_timesteps(actions: torch.Tensor, num_train_timesteps: int, generator: torch.Generator | None=None) -> tuple[torch.Tensor, torch.Tensor]:
             # Draw noise first, then one integer timestep in [0, T) per row, from the same generator.
             raise NotImplementedError("Complete Exercise 9.3: sample_noise_and_timesteps")
         """,
@@ -2550,7 +2632,7 @@ def lesson_09() -> Lesson:
             names=["masked_epsilon_loss"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def masked_epsilon_loss(prediction, target, is_pad):
+        def masked_epsilon_loss(prediction: torch.Tensor, target: torch.Tensor, is_pad: torch.Tensor) -> torch.Tensor:
             # Mean squared error over valid (row, step) pairs and all A action values.
             raise NotImplementedError("Complete Exercise 9.4: masked_epsilon_loss")
         """,
@@ -2613,10 +2695,10 @@ def lesson_09() -> Lesson:
             names=["epsilon_loss_fn"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def epsilon_loss_fn(model, batch, *, noise=None, time=None):
+        def epsilon_loss_fn(model: DiffusionTrainingModel, batch: Mapping[str, torch.Tensor], *, noise: torch.Tensor | None=None, time: torch.Tensor | None=None) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
             # Return (loss, {"epsilon_mse": loss}). Use forward_noise and masked_epsilon_loss; keep the graph.
             raise NotImplementedError("Complete Exercise 9.5: epsilon_loss_fn")
-        """,
+""",
             check="""
         denoiser = LeRobotDenoiser(POLICY)            # the pinned network, wrapped so that it predicts noise
         batch = CHECK_BATCH
@@ -2663,40 +2745,41 @@ def lesson_09() -> Lesson:
 
 def lesson_09_tail(L: Lesson) -> Lesson:
     L.items += [
-        Md(r"""
-        ## Experiment — which noise schedule is easier to learn? (30–60 min)
+        Md("""
+            ## Experiment — which noise schedule is easier to learn? (30–60 min)
 
-        **Question.** Under the same update budget, how do the cosine schedule and two linear schedules compare at *matched noise levels*, and does masking the padded steps matter?
+            **Question.** Under the same update budget, how do the cosine schedule and two linear schedules compare at *matched noise levels*, and does masking the padded steps matter?
 
-        **Why "matched noise levels".** Timestep `t = 50` means different amounts of noise under different schedules, so comparing the loss at the same `t` is unfair. Compare at the same `ᾱ` (signal kept): for each schedule pick the step whose `ᾱ` is closest to `0.9` and to `0.5`. Also read `final_alpha_bar`: a schedule whose last step still keeps much signal ends before pure noise, which matters for sampling in Unit 11.
+            **Why "matched noise levels".** Timestep `t = 50` means different amounts of noise under different schedules, so comparing the loss at the same `t` is unfair. Compare at the same `ᾱ` (signal kept): for each schedule pick the step whose `ᾱ` is closest to `0.9` and to `0.5`. Also read `final_alpha_bar`: a schedule whose last step still keeps much signal ends before pure noise, which matters for sampling in Unit 11.
 
-        **Setup (real data).** The windows above, a small U-Net conditioned on the flattened 2×8 state history (`ConditionalUnet1D`, supplied), your functions `cumulative_alphas`, `forward_noise`, `sample_noise_and_timesteps`, `masked_epsilon_loss` and `epsilon_loss_fn` inside the real update (`train_loop`).
+            **Setup (real data).** The windows above, a small U-Net conditioned on the flattened 2×8 state history (`ConditionalUnet1D`, supplied), your functions `cumulative_alphas`, `forward_noise`, `sample_noise_and_timesteps`, `masked_epsilon_loss` and `epsilon_loss_fn` inside the real update (`train_loop`).
 
-        **Fixed for every trial.** Weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); `T = 100`; validation noise seed `7` and the same validation windows for every trial.
+            **Fixed for every trial.** Weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); `T = 100`; validation noise seed `7` and the same validation windows for every trial.
 
-        **Allowed changes (per trial).** `schedule`: `cosine`, `linear` (β from `1e-4` to `0.02`) or `linear_strong` (β from `1e-4` to `0.1`). `mask`: `True` uses the real padding mask; `False` pretends no step is padded (the padded copies then train the network).
+            **Allowed changes (per trial).** `schedule`: `cosine`, `linear` (β from `1e-4` to `0.02`) or `linear_strong` (β from `1e-4` to `0.1`). `mask`: `True` uses the real padding mask; `False` pretends no step is padded (the padded copies then train the network).
 
-        **Measures** (validation windows, real steps only, fixed noise): `eps@0.9`, `eps@0.5` — noise-prediction MSE; `x0@0.9`, `x0@0.5` — MSE of the clean-window estimate `(x_t − √(1−ᾱ) ε̂) / √ᾱ`; `final_alpha_bar`.
+            **Measures** (validation windows, real steps only, fixed noise): `eps@0.9`, `eps@0.5` — noise-prediction MSE; `x0@0.9`, `x0@0.5` — MSE of the clean-window estimate `(x_t − √(1−ᾱ) ε̂) / √ᾱ`; `final_alpha_bar`.
 
-        **Prediction first.** Edit the next cell: which schedule will have the lowest `eps@0.5`, and will `mask=False` change the measures much?
+            **Prediction first.** Edit the next cell: which schedule will have the lowest `eps@0.5`, and will `mask=False` change the measures much?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your functions run inside every update.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, SEED_NOISE = 200, 64, 1e-3, 0, 1, 7
 
 
-            def make_schedule(name):
+            def make_schedule(name: str) -> DDPMSchedule:
                 if name == "cosine":
                     return DDPMSchedule.from_betas(cosine_betas(100), cumulative_fn=cumulative_alphas)
                 end = {"linear": 0.02, "linear_strong": 0.1}[name]
                 return DDPMSchedule.from_betas(torch.linspace(1e-4, end, 100), cumulative_fn=cumulative_alphas)
 
 
-            def matched_step(schedule, level):
+            def matched_step(schedule: DDPMSchedule, level: float) -> int:
                 return int((schedule.alpha_bar - level).abs().argmin())
 
 
@@ -2704,7 +2787,7 @@ def lesson_09_tail(L: Lesson) -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 torch.manual_seed(SEED_WEIGHTS)
                 schedule = make_schedule(config["schedule"])
@@ -2737,7 +2820,7 @@ def lesson_09_tail(L: Lesson) -> Lesson:
                 return result
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -2748,7 +2831,8 @@ def lesson_09_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["eps@0.9", "eps@0.5", "x0@0.9", "x0@0.5", "final_alpha_bar", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials that each change one setting. Budget: 200 updates per trial."
         ),
@@ -2770,7 +2854,7 @@ def lesson_09_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -2780,7 +2864,7 @@ def lesson_09_tail(L: Lesson) -> Lesson:
             assert all(torch.isfinite(torch.tensor([t[c] for c in COLUMNS])).all() for t in ok), "Measures must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}/{SEED_NOISE}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: plot every trial
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in ok]
@@ -2800,7 +2884,7 @@ def lesson_09_tail(L: Lesson) -> Lesson:
 
         This loads the **prepared** diffusion checkpoint `diffusion-bowl-plate-reference-2000` on CPU, reads two real training windows with their camera frames, and runs your `epsilon_loss_fn` through the pinned network (image encoders + U-Net) for the same random numbers as the pinned loss. It then makes **two Adam updates** with your loss through the training loop, so you see that your callback updates the real weights. Two updates are an integration check, not training evidence; nothing is saved. The run uses local files and two training windows. Set `RUN_REAL_DIFFUSION_UPDATE = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_DIFFUSION_UPDATE = False
 
             if RUN_REAL_DIFFUSION_UPDATE:
@@ -2846,16 +2930,16 @@ def lesson_09_tail(L: Lesson) -> Lesson:
 def lesson_10a() -> Lesson:
     L = Lesson("10a-denoiser-blocks", "10a-denoiser-blocks", "Denoiser blocks")
     L.items += [
-        Md(r"""
-        # Unit 10A — Denoiser blocks: timestep embedding and FiLM residual block
+        Md("""
+            # Unit 10A — Denoiser blocks: timestep embedding and FiLM residual block
 
-        **Your result:** the two blocks that tell a denoiser *how noisy its input is* and *what the robot sees*. Your versions will match the pinned LeRobot diffusion-policy blocks, for outputs and gradients, including the weights of the prepared checkpoint.
+            **Your result:** the two blocks that tell a denoiser *how noisy its input is* and *what the robot sees*. Your versions will match the pinned LeRobot diffusion-policy blocks, for outputs and gradients, including the weights of the prepared checkpoint.
 
-        Two short exercises (about 15 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](10a-denoiser-blocks-reference.ipynb).
+            Two short exercises (about 15 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](10a-denoiser-blocks-reference.ipynb).
 
-        **Sources.** [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) (1D temporal U-Net with FiLM conditioning), FiLM: [Perez et al. 2018](https://arxiv.org/abs/1709.07871), and the timestep embedding from [DDPM](https://arxiv.org/abs/2006.11239) (appendix B, after Vaswani et al.). Pinned code: `DiffusionSinusoidalPosEmb`, `DiffusionConv1dBlock` and `DiffusionConditionalResidualBlock1d` in `lerobot/policies/diffusion/modeling_diffusion.py` (revision `e0d50211ef236143ae867228662b7dfaba554f02`).
+            **Sources.** [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) (1D temporal U-Net with FiLM conditioning), FiLM: [Perez et al. 2018](https://arxiv.org/abs/1709.07871), and the timestep embedding from [DDPM](https://arxiv.org/abs/2006.11239) (appendix B, after Vaswani et al.). Pinned code: `DiffusionSinusoidalPosEmb`, `DiffusionConv1dBlock` and `DiffusionConditionalResidualBlock1d` in `lerobot/policies/diffusion/modeling_diffusion.py` (revision `e0d50211ef236143ae867228662b7dfaba554f02`).
 
-        **Where this unit sits.** In Unit 9 the denoiser was supplied. Here you open it. Unit 10B assembles these blocks into the full U-Net. Your Unit 9 functions are available as package versions; this unit's functions are wired into the real network through hooks.
+            **Where this unit sits.** In Unit 9 the denoiser was supplied. Here you open it. Unit 10B assembles these blocks into the full U-Net. Your Unit 9 functions are available as package versions; this unit's functions are wired into the real network through hooks.
         """),
         setup_cell("""
             import math
@@ -2892,7 +2976,7 @@ def lesson_10a() -> Lesson:
         Md("""
         **Real data used in this unit.** Real LIBERO `bowl_plate` windows (state history of 2 frames and 16 actions with padding mask), read from local files; no download starts here. The recording rate is 10 Hz and is not resampled to the 20 Hz controller. If files are missing, the cell tells you the setup command.
         """),
-        Code(r"""
+        Code("""
             # Supplied: real windows
             TRAIN = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "train")
             VALID = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "validation")
@@ -2925,7 +3009,7 @@ def lesson_10a() -> Lesson:
             names=["sinusoidal_timestep_embedding"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def sinusoidal_timestep_embedding(timesteps, dim):
+        def sinusoidal_timestep_embedding(timesteps: torch.Tensor, dim: int) -> torch.Tensor:
             # (B,) -> (B, dim): [sin(t f_0) ... sin(t f_{h-1}), cos(t f_0) ... cos(t f_{h-1})], f_k = exp(-k log(10000)/(h-1)).
             raise NotImplementedError("Complete Exercise 10A.1: sinusoidal_timestep_embedding")
         """,
@@ -2984,10 +3068,10 @@ def lesson_10a() -> Lesson:
             names=["film_residual_forward"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def film_residual_forward(block, x, cond):
+        def film_residual_forward(block: FilmParts, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
             # conv1 -> FiLM modulation from cond -> conv2 -> add residual_conv(x).
             raise NotImplementedError("Complete Exercise 10A.2: film_residual_forward")
-        """,
+""",
             check="""
         for scale in (True, False):
             torch.manual_seed(2)
@@ -3015,7 +3099,7 @@ def lesson_10a() -> Lesson:
         block = ConditionalResidualBlock1d(7, 16, 32 + 16, 5, 8, True, forward_fn=film_residual_forward).eval()
         window = VALID["action"][:4].transpose(1, 2)                             # (4, 7 channels, 16 steps): real action windows
         state = VALID["observation.state"][:4].flatten(1)                        # (4, 16): real robot states
-        def condition(t):
+        def condition(t: int) -> torch.Tensor:
             return torch.cat([sinusoidal_timestep_embedding(torch.full((4,), t), 32), state], dim=-1)
         with torch.no_grad():
             base = block(window, condition(10))
@@ -3032,7 +3116,7 @@ def lesson_10a() -> Lesson:
 
         The prepared diffusion checkpoint's first U-Net block is copied into a block that runs **your** `film_residual_forward`. The layer names match, so the copy is a plain strict `load_state_dict`. Both blocks receive the same real-sized random input. The check reads the local checkpoint only (no download). If the file is missing, the cell says so.
         """),
-        Code(r"""
+        Code("""
             RUN_PREPARED_BLOCK_PARITY = True
 
             if RUN_PREPARED_BLOCK_PARITY:
@@ -3057,26 +3141,27 @@ def lesson_10a() -> Lesson:
             else:
                 print("Prepared-block parity is off.")
         """),
-        Md(r"""
-        ## Experiment — how should the denoiser use the observation? (30–60 min)
+        Md("""
+            ## Experiment — how should the denoiser use the observation? (30–60 min)
 
-        **Question.** Does a small denoiser trained briefly on real windows (a) benefit from FiLM *scale* in addition to *bias*, and (b) use the robot state at all?
+            **Question.** Does a small denoiser trained briefly on real windows (a) benefit from FiLM *scale* in addition to *bias*, and (b) use the robot state at all?
 
-        **Setup (real data).** A 1D U-Net (`down_dims = (32, 64, 128)`) built from **your** `sinusoidal_timestep_embedding` and `film_residual_forward`, trained with the Unit 9 loss callback on real windows. The condition is the flattened 2×8 state history, or nothing.
+            **Setup (real data).** A 1D U-Net (`down_dims = (32, 64, 128)`) built from **your** `sinusoidal_timestep_embedding` and `film_residual_forward`, trained with the Unit 9 loss callback on real windows. The condition is the flattened 2×8 state history, or nothing.
 
-        **Fixed for every trial.** Cosine schedule, `T = 100`; weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); the same validation windows and noise (seed `7`) for every trial.
+            **Fixed for every trial.** Cosine schedule, `T = 100`; weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); the same validation windows and noise (seed `7`) for every trial.
 
-        **Allowed changes (per trial).** `film_scale` (`True` = scale and bias, `False` = bias only) and `cond` (`"state"` or `"none"`).
+            **Allowed changes (per trial).** `film_scale` (`True` = scale and bias, `False` = bias only) and `cond` (`"state"` or `"none"`).
 
-        **Measures.** `eps_grid`: noise-prediction MSE on validation windows (real steps only), averaged over timesteps `10, 30, 50, 70, 90` with fixed noise. `eps_shuffled`: the same with the states of *other* windows (for `cond="state"` only). `condition_gain = eps_shuffled − eps_grid`: how much the model relies on its own observation. Also the parameter count.
+            **Measures.** `eps_grid`: noise-prediction MSE on validation windows (real steps only), averaged over timesteps `10, 30, 50, 70, 90` with fixed noise. `eps_shuffled`: the same with the states of *other* windows (for `cond="state"` only). `condition_gain = eps_shuffled − eps_grid`: how much the model relies on its own observation. Also the parameter count.
 
-        **Prediction first.** In the next cell: will `cond="state"` beat `cond="none"`? Will scale modulation help?
+            **Prediction first.** In the next cell: will `cond="state"` beat `cond="none"`? Will scale modulation help?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your embedding and your FiLM block are in the real U-Net.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, SEED_NOISE = 200, 64, 1e-3, 0, 1, 7
             SCHEDULE = DDPMSchedule.cosine(100)
@@ -3085,7 +3170,7 @@ def lesson_10a() -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 torch.manual_seed(SEED_WEIGHTS)
                 use_state = config["cond"] == "state"
@@ -3118,7 +3203,7 @@ def lesson_10a() -> Lesson:
                 return result
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -3129,7 +3214,8 @@ def lesson_10a() -> Lesson:
             record(BASELINE)
             COLUMNS = ["eps_grid", "eps_shuffled", "condition_gain", "parameters", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials that each change one setting. Budget: 200 updates per trial. `condition_gain` is `nan` when there is no condition."
         ),
@@ -3151,7 +3237,7 @@ def lesson_10a() -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -3161,7 +3247,7 @@ def lesson_10a() -> Lesson:
             assert all(torch.isfinite(torch.tensor(t["eps_grid"])) for t in ok), "eps_grid must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}/{SEED_NOISE}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: plot every trial
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in ok]
@@ -3188,49 +3274,49 @@ def lesson_10a() -> Lesson:
     return L
 
 
-UNET_FIXTURE = r'''
-IMAGES = ("observation.images.image", "observation.images.image2")
+UNET_FIXTURE = """
+            IMAGES = ("observation.images.image", "observation.images.image2")
 
 
-def pinned_unet(down_dims=(16, 32, 64), cond_dim=6, seed=4):
-    """A *real* pinned DiffusionConditionalUnet1d with random weights (7 actions, horizon 16)."""
-    torch.manual_seed(seed)
-    config = DiffusionConfig(
-        input_features={
-            IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
-        },
-        output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
-        n_obs_steps=2, horizon=16, n_action_steps=8, drop_n_last_frames=7, down_dims=tuple(down_dims),
-        diffusion_step_embed_dim=32, pretrained_backbone_weights=None, push_to_hub=False, device="cpu",
-    )
-    unet = DiffusionConditionalUnet1d(config, global_cond_dim=cond_dim)
-    for parameter in unet.parameters():          # distinct biases and scales make wrong wiring visible
-        if parameter.dim() == 1:
-            nn.init.normal_(parameter, std=0.1)
-    return unet.eval()
+            def pinned_unet(down_dims: Sequence[int]=(16, 32, 64), cond_dim: int=6, seed: int=4) -> DiffusionConditionalUnet1d:
+                \"\"\"A *real* pinned DiffusionConditionalUnet1d with random weights (7 actions, horizon 16).\"\"\"
+                torch.manual_seed(seed)
+                config = DiffusionConfig(
+                    input_features={
+                        IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
+                    },
+                    output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
+                    n_obs_steps=2, horizon=16, n_action_steps=8, drop_n_last_frames=7, down_dims=tuple(down_dims),
+                    diffusion_step_embed_dim=32, pretrained_backbone_weights=None, push_to_hub=False, device="cpu",
+                )
+                unet = DiffusionConditionalUnet1d(config, global_cond_dim=cond_dim)
+                for parameter in unet.parameters():          # distinct biases and scales make wrong wiring visible
+                    if parameter.dim() == 1:
+                        nn.init.normal_(parameter, std=0.1)
+                return unet.eval()
 
 
-PINNED = pinned_unet()
-X, T_STEPS, COND = torch.randn(3, 16, 7), torch.tensor([0, 10, 99]), torch.randn(3, 6)    # algorithm-check inputs (random numbers)
-print("pinned U-Net parameters:", sum(p.numel() for p in PINNED.parameters()))
-'''
+            PINNED = pinned_unet()
+            X, T_STEPS, COND = torch.randn(3, 16, 7), torch.tensor([0, 10, 99]), torch.randn(3, 6)    # algorithm-check inputs (random numbers)
+            print("pinned U-Net parameters:", sum(p.numel() for p in PINNED.parameters()))
+        """
 
 
 def lesson_10b() -> Lesson:
     L = Lesson("10b-unet", "10b-unet", "The conditional U-Net")
     L.items += [
-        Md(r"""
-        # Unit 10B — The conditional 1D U-Net
+        Md("""
+            # Unit 10B — The conditional 1D U-Net
 
-        **Your result:** the full denoiser network used by Diffusion Policy, assembled from the Unit 10A blocks. Fed the weights of the pinned LeRobot network it gives the same outputs, for the small test network and for the prepared checkpoint. You then change its architecture under a fixed budget and compare.
+            **Your result:** the full denoiser network used by Diffusion Policy, assembled from the Unit 10A blocks. Fed the weights of the pinned LeRobot network it gives the same outputs, for the small test network and for the prepared checkpoint. You then change its architecture under a fixed budget and compare.
 
-        Three short exercises (about 10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](10b-unet-reference.ipynb).
+            Three short exercises (about 10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](10b-unet-reference.ipynb).
 
-        **Sources.** [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) (temporal U-Net for actions), the U-Net idea in [DDPM](https://arxiv.org/abs/2006.11239) (appendix B), and the pinned `DiffusionConditionalUnet1d` in `lerobot/policies/diffusion/modeling_diffusion.py` (around line 654; revision `e0d50211ef236143ae867228662b7dfaba554f02`). The pinned model has **no EMA** in the current trainer; the weights you load are the raw trained weights.
+            **Sources.** [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) (temporal U-Net for actions), the U-Net idea in [DDPM](https://arxiv.org/abs/2006.11239) (appendix B), and the pinned `DiffusionConditionalUnet1d` in `lerobot/policies/diffusion/modeling_diffusion.py` (around line 654; revision `e0d50211ef236143ae867228662b7dfaba554f02`). The pinned model has **no EMA** in the current trainer; the weights you load are the raw trained weights.
 
-        **Where this unit sits.** Units 9 and 10A are available as package versions. Your functions here (`unet_channel_plan`, `unet_forward`, the weight converter) run inside the real network through its hooks.
+            **Where this unit sits.** Units 9 and 10A are available as package versions. Your functions here (`unet_channel_plan`, `unet_forward`, the weight converter) run inside the real network through its hooks.
         """),
         setup_cell("""
             import time
@@ -3305,10 +3391,10 @@ def lesson_10b() -> Lesson:
             names=["unet_channel_plan"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def unet_channel_plan(action_dim, down_dims):
+        def unet_channel_plan(action_dim: int, down_dims: Sequence[int]) -> UNetChannelPlan:
             # Return {"down": [(in, out, downsample)...], "mid": [(c, c), (c, c)], "up": [(in, out, upsample)...]}.
             raise NotImplementedError("Complete Exercise 10B.1: unet_channel_plan")
-        """,
+""",
             check="""
         for dims in ((16, 32), (16, 32, 64), (8, 16, 24, 32)):
             pinned = pinned_unet(dims)
@@ -3379,10 +3465,10 @@ def lesson_10b() -> Lesson:
             names=["unet_forward"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def unet_forward(unet, x, timestep, global_cond=None):
+        def unet_forward(unet: UNetParts, x: torch.Tensor, timestep: torch.Tensor, global_cond: torch.Tensor | None=None) -> torch.Tensor:
             # Encoder with skip features, middle blocks, decoder with concatenated skips, head.
             raise NotImplementedError("Complete Exercise 10B.2: unet_forward")
-        """,
+""",
             check="""
         # The learner network has your forward function and the package plan; weights come from the pinned network.
         learner = unet_from_lerobot(PINNED, forward_fn=unet_forward, plan_fn=ref.unet_channel_plan)
@@ -3436,7 +3522,7 @@ def lesson_10b() -> Lesson:
             names=["convert_lerobot_unet_state_dict"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def convert_lerobot_unet_state_dict(source):
+        def convert_lerobot_unet_state_dict(source: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
             # Rename the first part of every key; raise KeyError for an unknown first part.
             raise NotImplementedError("Complete Exercise 10B.3: convert_lerobot_unet_state_dict")
         """,
@@ -3497,7 +3583,7 @@ def lesson_10b() -> Lesson:
 
         This opt-in check loads the prepared diffusion policy and copies its U-Net weights into your U-Net. It checks real-condition parity, then runs two updates with the Unit 9 `epsilon_loss_fn` through the Unit 9 training loop. The image encoder stays frozen. Only local files are used. The update budget is two; this is an integration check, not a training result. Set `RUN_REAL_UNET_UPDATE = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_UNET_UPDATE = False
             DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
             REAL_UPDATES = 2
@@ -3522,7 +3608,7 @@ def lesson_10b() -> Lesson:
                 dataset = open_libero_dataset(CONFIGS, DATA, "bowl_plate", "train", diffusion_delta_timestamps(policy.config, FPS), episodes=[379, 422])
                 batch = preprocessor(default_collate([dataset[i] for i in (3, 40)]))
                 class FrozenPolicyDenoiser(LeRobotDenoiser):
-                    def train(self, mode=True):
+                    def train(self, mode: bool=True) -> Self:
                         super().train(mode)
                         self.policy.eval()
                         self.unet.train(mode)
@@ -3550,28 +3636,28 @@ def lesson_10b() -> Lesson:
         """),
     ]
     L.items += [
-        Md(r"""
-        ## Experiment — change the architecture under a fixed budget (30–60 min)
+        Md("""
+            ## Experiment — change the architecture under a fixed budget (30–60 min)
 
-        **Question.** With the same number of updates, how do depth and kernel size of the U-Net change the held-out noise-prediction error and the cost?
+            **Question.** With the same number of updates, how do depth and kernel size of the U-Net change the held-out noise-prediction error and the cost?
 
-        **Gate first.** The harness refuses to run any trial unless your U-Net (your plan, forward pass and converter) reproduces the pinned network to `1e-4` on the algorithm-check inputs. An experiment on a network you have not checked is not an experiment.
+            **Gate first.** The harness refuses to run any trial unless your U-Net (your plan, forward pass and converter) reproduces the pinned network to `1e-4` on the algorithm-check inputs. An experiment on a network you have not checked is not an experiment.
 
-        **Setup (real data).** Real windows as in Unit 9 (state-conditioned, no images), cosine schedule, your Unit 10 functions in the real network, the Unit 9 loss callback in `train_loop`.
+            **Setup (real data).** Real windows as in Unit 9 (state-conditioned, no images), cosine schedule, your Unit 10 functions in the real network, the Unit 9 loss callback in `train_loop`.
 
-        **Fixed for every trial.** Weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); the same validation windows and noise (seed `7`).
+            **Fixed for every trial.** Weight seed `0`; batch seed `1`; **200 updates**, batch 64, Adam(`lr=1e-3`, betas `(0.95, 0.999)`); the same validation windows and noise (seed `7`).
 
-        **Allowed changes (per trial).** `dims`: `shallow` = `(32, 64)`, `base` = `(32, 64, 128)`, `deep` = `(16, 32, 64, 128)`. `kernel`: `3` or `5`. (The horizon 16 is divisible by `2^4`, so four stages are valid.)
+            **Allowed changes (per trial).** `dims`: `shallow` = `(32, 64)`, `base` = `(32, 64, 128)`, `deep` = `(16, 32, 64, 128)`. `kernel`: `3` or `5`. (The horizon 16 is divisible by `2^4`, so four stages are valid.)
 
-        **Measures.** `eps_grid`: noise-prediction MSE on validation windows (real steps), averaged over timesteps `10, 30, 50, 70, 90`, fixed noise. `parameters`. `ms_per_update`: wall-clock milliseconds per training update on this CPU (noisy; compare only within one session).
+            **Measures.** `eps_grid`: noise-prediction MSE on validation windows (real steps), averaged over timesteps `10, 30, 50, 70, 90`, fixed noise. `parameters`. `ms_per_update`: wall-clock milliseconds per training update on this CPU (noisy; compare only within one session).
 
-        **Prediction first.** In the next cell: which architecture will have the lowest `eps_grid`, and will it be the biggest one?
+            **Prediction first.** In the next cell: which architecture will have the lowest `eps_grid`, and will it be the biggest one?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`; an architecture that is too deep for the horizon is a failed trial worth keeping.
+            **Keep failed trials.** Every trial is appended to `TRIALS`; an architecture that is too deep for the horizon is a failed trial worth keeping.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code("""
             # Supplied: the parity gate and the real windows
             gate = unet_from_lerobot(PINNED, converter=convert_lerobot_unet_state_dict, plan_fn=unet_channel_plan,
                                      forward_fn=unet_forward, block_forward_fn=film_residual_forward, embedding_fn=sinusoidal_timestep_embedding)
@@ -3582,7 +3668,8 @@ def lesson_10b() -> Lesson:
             TRAIN = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "train")
             VALID = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "validation")
         """),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your plan, forward pass and Unit 10A blocks build and run the network.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, SEED_NOISE = 200, 64, 1e-3, 0, 1, 7
             SCHEDULE, GRID = DDPMSchedule.cosine(100), (10, 30, 50, 70, 90)
@@ -3591,7 +3678,7 @@ def lesson_10b() -> Lesson:
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 torch.manual_seed(SEED_WEIGHTS)
                 unet = ConditionalUnet1D(
                     7, 16, DIMS[config["dims"]], kernel_size=config["kernel"], step_embed_dim=32,
@@ -3618,7 +3705,7 @@ def lesson_10b() -> Lesson:
                         "ms_per_update": 1000 * seconds / STEPS}
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -3629,7 +3716,8 @@ def lesson_10b() -> Lesson:
             record(BASELINE)
             COLUMNS = ["eps_grid", "parameters", "ms_per_update"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least two trials that each change one setting. Budget: 200 updates per trial."
         ),
@@ -3651,7 +3739,7 @@ def lesson_10b() -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -3661,7 +3749,7 @@ def lesson_10b() -> Lesson:
             assert all(torch.isfinite(torch.tensor(t["eps_grid"])) for t in ok), "eps_grid must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}/{SEED_NOISE}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: quality against cost, every trial shown
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [", ".join(f"{k}={v}" for k, v in t["config"].items() if v != BASELINE[k]) or "baseline" for t in ok]
@@ -3691,16 +3779,16 @@ def lesson_10b() -> Lesson:
 def lesson_11() -> Lesson:
     L = Lesson("11-diffusion-sampling", "11-diffusion-sampling", "Diffusion sampling")
     L.items += [
-        Md(r"""
-        # Unit 11 — Diffusion sampling: reverse steps, skipped timesteps, executed actions
+        Md("""
+            # Unit 11 — Diffusion sampling: reverse steps, skipped timesteps, executed actions
 
-        **Your result:** the code that turns noise into robot actions. Your reverse step equals the `diffusers` DDPM step at every timestep (including the final step with no noise and the jumps of a shortened schedule). Your sampler then produces the actions of a *real* policy object that you can run in the simulator.
+            **Your result:** the code that turns noise into robot actions. Your reverse step equals the `diffusers` DDPM step at every timestep (including the final step with no noise and the jumps of a shortened schedule). Your sampler then produces the actions of a *real* policy object that you can run in the simulator.
 
-        Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](11-diffusion-sampling-reference.ipynb).
+            Five short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](11-diffusion-sampling-reference.ipynb).
 
-        **Sources.** [DDPM](https://arxiv.org/abs/2006.11239): equation 7 (posterior mean and variance), Algorithm 2 (sampling), equation 15 (the clean-sample estimate). [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) for which actions are executed. Pinned code (revision `e0d50211ef236143ae867228662b7dfaba554f02`): `DiffusionModel.conditional_sample`, `DiffusionModel.generate_actions` and `DiffusionPolicy.select_action`; the numerical step lives in `diffusers.DDPMScheduler.step`, which this unit uses **only as an oracle in checks**, never in your answers.
+            **Sources.** [DDPM](https://arxiv.org/abs/2006.11239): equation 7 (posterior mean and variance), Algorithm 2 (sampling), equation 15 (the clean-sample estimate). [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) for which actions are executed. Pinned code (revision `e0d50211ef236143ae867228662b7dfaba554f02`): `DiffusionModel.conditional_sample`, `DiffusionModel.generate_actions` and `DiffusionPolicy.select_action`; the numerical step lives in `diffusers.DDPMScheduler.step`, which this unit uses **only as an oracle in checks**, never in your answers.
 
-        **Where this unit sits.** Units 9–10 are available as package versions (the forward process, the trained denoiser classes). The five functions of this unit are wired into a real policy wrapper through hooks; the wrapper never calls `scheduler.step`.
+            **Where this unit sits.** Units 9–10 are available as package versions (the forward process, the trained denoiser classes). The five functions of this unit are wired into a real policy wrapper through hooks; the wrapper never calls `scheduler.step`.
         """),
         setup_cell("""
             import math
@@ -3768,7 +3856,7 @@ def lesson_11() -> Lesson:
             names=["posterior_coefficients"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def posterior_coefficients(abar_t, abar_prev):
+        def posterior_coefficients(abar_t: torch.Tensor | float, abar_prev: torch.Tensor | float) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             # Return (coef_x0, coef_xt, variance) for a jump from step t to an earlier step with cumulative alpha abar_prev.
             raise NotImplementedError("Complete Exercise 11.1: posterior_coefficients")
         """,
@@ -3841,7 +3929,7 @@ def lesson_11() -> Lesson:
             names=["ddpm_reverse_step"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def ddpm_reverse_step(x_t, epsilon, t, prev_t, alpha_bar, noise=None, clip_range=1.0):
+        def ddpm_reverse_step(x_t: torch.Tensor, epsilon: torch.Tensor, t: int, prev_t: int, alpha_bar: torch.Tensor, noise: torch.Tensor | None=None, clip_range: float | None=1.0) -> torch.Tensor:
             # x0_hat (clipped) -> posterior mean -> add sqrt(variance) * noise unless this is the final step.
             raise NotImplementedError("Complete Exercise 11.2: ddpm_reverse_step")
         """,
@@ -3912,7 +4000,7 @@ def lesson_11() -> Lesson:
             names=["inference_timesteps"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def inference_timesteps(num_train_timesteps, num_inference_steps):
+        def inference_timesteps(num_train_timesteps: int, num_inference_steps: int) -> list[int]:
             # Descending evenly spaced training timesteps ending at 0.
             raise NotImplementedError("Complete Exercise 11.3: inference_timesteps")
         """,
@@ -3975,7 +4063,7 @@ def lesson_11() -> Lesson:
             names=["sample_actions"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def sample_actions(denoise, initial_noise, schedule, num_inference_steps, step_noises, clip_range=1.0):
+        def sample_actions(denoise: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], initial_noise: torch.Tensor, schedule: DDPMSchedule, num_inference_steps: int, step_noises: Sequence[torch.Tensor], clip_range: float | None=1.0) -> torch.Tensor:
             # For each timestep: predict epsilon with denoise, take a reverse step, carry x to the next step.
             raise NotImplementedError("Complete Exercise 11.4: sample_actions")
         """,
@@ -4001,11 +4089,11 @@ def lesson_11() -> Lesson:
 
         # (2) Behaviour: a perfect denoiser recovers the clean window exactly, whatever the noise.
         clean = torch.rand(2, 16, 7) * 1.6 - 0.8
-        def oracle(x, t):
+        def oracle(x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             ab = schedule.alpha_bar[t].reshape(-1, 1, 1)
             return (x - ab.sqrt() * clean) / (1 - ab).sqrt()
         seen = []
-        def spy(x, t):
+        def spy(x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             seen.append((x.clone(), t.clone()))
             return oracle(x, t)
         start = torch.randn(2, 16, 7, generator=torch.Generator().manual_seed(2))
@@ -4030,7 +4118,7 @@ def lesson_11() -> Lesson:
         VALID_REAL = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "validation")
         truth = VALID_REAL["action"][100:104]
         schedule = DDPMSchedule.cosine(100)
-        def perfect(x, t):
+        def perfect(x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             ab = schedule.alpha_bar[t].reshape(-1, 1, 1)
             return (x - ab.sqrt() * truth) / (1 - ab).sqrt()
         for steps in (1, 5, 20, 100):
@@ -4066,7 +4154,7 @@ def lesson_11() -> Lesson:
             names=["executed_action_slice"],
             module="vla_lab.teaching.diffusion",
             stub="""
-        def executed_action_slice(chunk, n_obs_steps, n_action_steps):
+        def executed_action_slice(chunk: torch.Tensor, n_obs_steps: int, n_action_steps: int) -> torch.Tensor:
             # Return chunk[:, n_obs_steps - 1 : n_obs_steps - 1 + n_action_steps].
             raise NotImplementedError("Complete Exercise 11.5: executed_action_slice")
         """,
@@ -4104,26 +4192,26 @@ def lesson_11() -> Lesson:
 
 def lesson_11_tail(L: Lesson) -> Lesson:
     L.items += [
-        Md(r"""
-        ## Experiment — how many sampling steps are enough? (30–60 min)
+        Md("""
+            ## Experiment — how many sampling steps are enough? (30–60 min)
 
-        **Question.** The pinned policy trains with 100 steps and samples with 20. How does the number of sampling steps change the accuracy of the executed actions and the time per chunk, with the noise held fixed?
+            **Question.** The pinned policy trains with 100 steps and samples with 20. How does the number of sampling steps change the accuracy of the executed actions and the time per chunk, with the noise held fixed?
 
-        **Setup (real data, quick CPU version).** A small state-conditioned denoiser is trained once, here, with the Unit 9 loss (300 updates on real windows; this is *learner trained weights*, not the prepared policy). Then **your** `sample_actions`, `ddpm_reverse_step` and `executed_action_slice` turn fixed noise into action chunks for 256 validation windows. The opt-in sections below run the *same functions* inside the real prepared policy.
+            **Setup (real data, quick CPU version).** A small state-conditioned denoiser is trained once, here, with the Unit 9 loss (300 updates on real windows; this is *learner trained weights*, not the prepared policy). Then **your** `sample_actions`, `ddpm_reverse_step` and `executed_action_slice` turn fixed noise into action chunks for 256 validation windows. The opt-in sections below run the *same functions* inside the real prepared policy.
 
-        **Fixed for every trial.** The trained denoiser; the 256 validation windows; initial noise from seed `11` and the step noises from the same generator; `clip_range` as listed. The 100-step chunk with the same initial noise is the reference for `l1_to_100`.
+            **Fixed for every trial.** The trained denoiser; the 256 validation windows; initial noise from seed `11` and the step noises from the same generator; `clip_range` as listed. The 100-step chunk with the same initial noise is the reference for `l1_to_100`.
 
-        **Allowed changes (per trial).** `steps` (any of `1, 2, 5, 10, 20, 50, 100`) and `clip` (`True`: clip the clean estimate to `[-1, 1]`; `False`: no clipping).
+            **Allowed changes (per trial).** `steps` (any of `1, 2, 5, 10, 20, 50, 100`) and `clip` (`True`: clip the clean estimate to `[-1, 1]`; `False`: no clipping).
 
-        **Measures.** `l1_to_demo`: masked L1 between the executed actions (indices `1…8`) and the demonstrated actions at those steps. `l1_to_100`: L1 between the executed actions and those of the 100-step sample. `ms_batch1`: milliseconds for one chunk at batch size 1 (the simulator case; noisy, compare within one session). Padded demonstration steps are excluded.
+            **Measures.** `l1_to_demo`: masked L1 between the executed actions (indices `1…8`) and the demonstrated actions at those steps. `l1_to_100`: L1 between the executed actions and those of the 100-step sample. `ms_batch1`: milliseconds for one chunk at batch size 1 (the simulator case; noisy, compare within one session). Padded demonstration steps are excluded.
 
-        **Prediction first.** In the next cell: at what step budget will `l1_to_demo` stop improving, and what happens with one step?
+            **Prediction first.** In the next cell: at what step budget will `l1_to_demo` stop improving, and what happens with one step?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. A budget that is much worse is still a result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. A budget that is much worse is still a result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code("""
             # Supplied: real windows and a briefly trained small denoiser (learner trained weights)
             TRAIN = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "train")
             VALID = load_state_action_windows(CONFIGS, DATA, "bowl_plate", "validation")
@@ -4144,7 +4232,8 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             denoise = lambda x, t: SMALL.unet(x, t, global_cond=CONDITION)
             DEMO, DEMO_PAD = EVAL["action"][:, 1:9], EVAL["action_is_pad"][:, 1:9]    # the executed indices of the demonstration window
         """),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your sampler, reverse step and slice are in the real path.
             SEED_NOISE, N_OBS, N_ACT = 11, 2, 8
             SHAPE = EVAL["action"].shape
@@ -4152,7 +4241,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             TRIALS = []
 
 
-            def sample_chunk(steps, clip, batch_size=None):
+            def sample_chunk(steps: int, clip: bool, batch_size: int | None=None) -> tuple[torch.Tensor, float]:
                 rows = SHAPE[0] if batch_size is None else batch_size
                 g = torch.Generator().manual_seed(SEED_NOISE)
                 initial = torch.randn(SHAPE, generator=g)[:rows]
@@ -4168,7 +4257,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             REFERENCE_EXECUTED = executed_action_slice(REFERENCE_WINDOW, N_OBS, N_ACT)
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 window, _ = sample_chunk(config["steps"], config["clip"])
                 executed = executed_action_slice(window, N_OBS, N_ACT)
                 timings = [sample_chunk(config["steps"], config["clip"], batch_size=1)[1] for _ in range(5)]
@@ -4179,7 +4268,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
                 }
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -4190,7 +4279,8 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["l1_to_demo", "l1_to_100", "ms_batch1"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md(
             "**Your trials.** Add at least three trials. Changing `steps` is the main question; try `clip=False` once. Budget: 300 updates per trial."
         ),
@@ -4212,7 +4302,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 4, "Run the baseline and at least three trials of your own."
@@ -4222,7 +4312,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
             assert all(torch.isfinite(torch.tensor([t["l1_to_demo"], t["l1_to_100"], t["ms_batch1"]])).all() for t in ok), "Measures must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Fixed noise seed {SEED_NOISE}; {SHAPE[0]} validation windows; denoiser trained once for 300 updates.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: accuracy against time for every trial
             ok = [t for t in TRIALS if t["status"] == "ok"]
             fig, axes = plt.subplots(1, 2, figsize=(10, 3.6))
@@ -4244,7 +4334,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
 
         `CallbackDiffusionPolicy` runs the **prepared** diffusion policy's image encoders and U-Net, but its sampling loop is **your** `sample_actions` (with your `ddpm_reverse_step`) and its action choice is **your** `executed_action_slice`; it never calls `scheduler.step`. This section samples chunks for 12 real validation frames with the same fixed noise for every budget, and compares them with the demonstrated actions and with the 100-step sample. It reads local files only. The workload is 12 validation windows and up to 100 sampling steps per window. Set `RUN_REAL_POLICY_OFFLINE = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_POLICY_OFFLINE = False
             REAL_SEED_NOISE = 11
             DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -4299,7 +4389,7 @@ def lesson_11_tail(L: Lesson) -> Lesson:
 
         This runs the prepared policy with **your sampler** in the LIBERO simulator through the project's `run_policy_episode`, on the *methods* development states `10–14` only (states `0–9` are for exploration, `15–19` for the intervention unit, and the final states `20–49` are never used in these units). Reset seed `20260930 + state` and the policy noise seed are fixed; every attempt, including failures and errors, is kept in `ATTEMPTS`. Each episode has at most 300 simulator steps (the controller runs at 20 Hz; the demonstrations were recorded at 10 Hz and the policy is **not** resampled). The episode budget is 300 simulator steps per attempt. The code selects CUDA when available and otherwise uses CPU; it loads one model only. Set `RUN_DEV_STATE_ROLLOUTS = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_DEV_STATE_ROLLOUTS = False
             DEV_STATES = (10, 11, 12, 13, 14)     # methods states; narrow this list to run fewer episodes
             ROLLOUT_BUDGETS = (5, 20)             # sampler steps to compare
@@ -4356,61 +4446,61 @@ def lesson_11_tail(L: Lesson) -> Lesson:
     return L
 
 
-TINY_FIXTURE = r'''
-VLM_DIR = DATA / "models/smolvlm2-500m-video-instruct"     # local tokenizer files and config; the 500M weights are NOT read here
-IMAGES = ("observation.images.image", "observation.images.image2")
-PROMPT = "put the bowl on the plate"
+TINY_FIXTURE = """
+            VLM_DIR = DATA / "models/smolvlm2-500m-video-instruct"     # local tokenizer files and config; the 500M weights are NOT read here
+            IMAGES = ("observation.images.image", "observation.images.image2")
+            PROMPT = "put the bowl on the plate"
 
 
-def make_tiny_smolvla(seed=1):
-    """A small *real* pinned SmolVLAPolicy: the same classes and code path as the 450M model,
-    with a tiny VLM (width 64, 2 layers, 64x64 images). Random weights; it checks mechanics only."""
-    tiny = Path(tempfile.mkdtemp(prefix="tiny_smolvlm_"))
-    for path in VLM_DIR.iterdir():
-        if path.is_file() and path.name != "model.safetensors":
-            shutil.copy(path, tiny / path.name)
-    vlm = json.loads((VLM_DIR / "config.json").read_text())
-    vlm["text_config"].update(hidden_size=64, intermediate_size=128, num_attention_heads=4,
-                              num_key_value_heads=2, head_dim=16, num_hidden_layers=2)
-    vlm["vision_config"].update(hidden_size=32, num_attention_heads=2, num_hidden_layers=1, intermediate_size=64,
-                                image_size=64, patch_size=16, max_image_size={"longest_edge": 64}, size={"longest_edge": 64})
-    vlm["scale_factor"] = 2
-    (tiny / "config.json").write_text(json.dumps(vlm))
-    config = SmolVLAConfig(
-        device="cpu", push_to_hub=False, vlm_model_name=str(tiny), load_vlm_weights=False,
-        input_features={
-            IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
-            "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
-        },
-        output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
-        chunk_size=10, n_action_steps=5, num_vlm_layers=2, resize_imgs_with_padding=(64, 64),
-        max_state_dim=16, max_action_dim=16, prefix_length=0, num_steps=4, expert_width_multiplier=0.5,
-        tokenizer_max_length=24,
-    )
-    torch.manual_seed(seed)
-    return SmolVLAPolicy(config)
+            def make_tiny_smolvla(seed: int=1) -> SmolVLAPolicy:
+                \"\"\"A small *real* pinned SmolVLAPolicy: the same classes and code path as the 450M model,
+                with a tiny VLM (width 64, 2 layers, 64x64 images). Random weights; it checks mechanics only.\"\"\"
+                tiny = Path(tempfile.mkdtemp(prefix="tiny_smolvlm_"))
+                for path in VLM_DIR.iterdir():
+                    if path.is_file() and path.name != "model.safetensors":
+                        shutil.copy(path, tiny / path.name)
+                vlm = json.loads((VLM_DIR / "config.json").read_text())
+                vlm["text_config"].update(hidden_size=64, intermediate_size=128, num_attention_heads=4,
+                                          num_key_value_heads=2, head_dim=16, num_hidden_layers=2)
+                vlm["vision_config"].update(hidden_size=32, num_attention_heads=2, num_hidden_layers=1, intermediate_size=64,
+                                            image_size=64, patch_size=16, max_image_size={"longest_edge": 64}, size={"longest_edge": 64})
+                vlm["scale_factor"] = 2
+                (tiny / "config.json").write_text(json.dumps(vlm))
+                config = SmolVLAConfig(
+                    device="cpu", push_to_hub=False, vlm_model_name=str(tiny), load_vlm_weights=False,
+                    input_features={
+                        IMAGES[0]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        IMAGES[1]: PolicyFeature(FeatureType.VISUAL, (3, 64, 64)),
+                        "observation.state": PolicyFeature(FeatureType.STATE, (8,)),
+                    },
+                    output_features={"action": PolicyFeature(FeatureType.ACTION, (7,))},
+                    chunk_size=10, n_action_steps=5, num_vlm_layers=2, resize_imgs_with_padding=(64, 64),
+                    max_state_dim=16, max_action_dim=16, prefix_length=0, num_steps=4, expert_width_multiplier=0.5,
+                    tokenizer_max_length=24,
+                )
+                torch.manual_seed(seed)
+                return SmolVLAPolicy(config)
 
 
-TOKENIZER = AutoTokenizer.from_pretrained(str(VLM_DIR))
-POLICY = make_tiny_smolvla()
-print("tiny SmolVLA parameters:", sum(p.numel() for p in POLICY.parameters()))
-'''
+            TOKENIZER = AutoTokenizer.from_pretrained(str(VLM_DIR))
+            POLICY = make_tiny_smolvla()
+            print("tiny SmolVLA parameters:", sum(p.numel() for p in POLICY.parameters()))
+        """
 
 
 def lesson_12a() -> Lesson:
     L = Lesson("12a-vla-inputs", "12a-vla-inputs", "VLA inputs and trainable parameters")
     L.items += [
-        Md(r"""
-        # Unit 12A — A vision-language-action policy: its inputs and its trainable parameters
+        Md("""
+            # Unit 12A — A vision-language-action policy: its inputs and its trainable parameters
 
-        **Your result:** the input path and the parameter selection of SmolVLA. Your functions turn camera frames, a robot state and a text instruction into the tensors the model reads, and freeze the vision-language model (VLM) so that only the action expert and its projections are trained. They match the pinned LeRobot SmolVLA implementation exactly.
+            **Your result:** the input path and the parameter selection of SmolVLA. Your functions turn camera frames, a robot state and a text instruction into the tensors the model reads, and freeze the vision-language model (VLM) so that only the action expert and its projections are trained. They match the pinned LeRobot SmolVLA implementation exactly.
 
-        Four short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](12a-vla-inputs-reference.ipynb).
+            Four short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](12a-vla-inputs-reference.ipynb).
 
-        **Sources.** [SmolVLA method description](https://huggingface.co/blog/smolvla#method) (a frozen SmolVLM2 backbone, a small action expert trained with flow matching, a visual and language prefix plus the robot state), and the pinned code in `lerobot/policies/smolvla` (`modeling_smolvla.py`, `smolvlm_with_expert.py`, `processor_smolvla.py`; revision `e0d50211ef236143ae867228662b7dfaba554f02`).
+            **Sources.** [SmolVLA method description](https://huggingface.co/blog/smolvla#method) (a frozen SmolVLM2 backbone, a small action expert trained with flow matching, a visual and language prefix plus the robot state), and the pinned code in `lerobot/policies/smolvla` (`modeling_smolvla.py`, `smolvlm_with_expert.py`, `processor_smolvla.py`; revision `e0d50211ef236143ae867228662b7dfaba554f02`).
 
-        **Do not mix up two things.** The SmolVLA *action expert* is a small language-model-style stack that reads the VLM's cached keys and values. It is **not** the ACT Transformer you built in Unit 8; do not assume they compute the same thing. Also keep apart the *published* policy (`smolvla-libero`, trained by others), the *prepared learner* (`smolvla-c2-5000-development`, trained in this project), and your own runs.
+            **Do not mix up two things.** The SmolVLA *action expert* is a small language-model-style stack that reads the VLM's cached keys and values. It is **not** the ACT Transformer you built in Unit 8; do not assume they compute the same thing. Also keep apart the *published* policy (`smolvla-libero`, trained by others), the *prepared learner* (`smolvla-c2-5000-development`, trained in this project), and your own runs.
         """),
         setup_cell("""
             import json
@@ -4483,7 +4573,7 @@ def lesson_12a() -> Lesson:
             names=["resize_pad_normalize_image"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def resize_pad_normalize_image(image, height, width):
+        def resize_pad_normalize_image(image: torch.Tensor, height: int, width: int) -> torch.Tensor:
             # (B,3,h,w) in [0,1] -> (B,3,height,width) in [-1,1]; keep the aspect ratio; pad top and left with zeros.
             raise NotImplementedError("Complete Exercise 12A.1: resize_pad_normalize_image")
         """,
@@ -4541,10 +4631,10 @@ def lesson_12a() -> Lesson:
             names=["tokenize_prompts"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def tokenize_prompts(tokenizer, prompts, max_length):
+        def tokenize_prompts(tokenizer: PromptTokenizer, prompts: str | Sequence[str], max_length: int) -> tuple[torch.Tensor, torch.Tensor]:
             # Newline, tokenize with right padding to the longest prompt, return (tokens long (B,L), mask bool (B,L)).
             raise NotImplementedError("Complete Exercise 12A.2: tokenize_prompts")
-        """,
+""",
             check="""
         tokens, mask = tokenize_prompts(TOKENIZER, ["put the bowl on the plate", "open it\\n"], 48)
         assert tokens.dtype == torch.long and mask.dtype == torch.bool and tokens.shape == mask.shape and tokens.shape[0] == 2
@@ -4608,15 +4698,15 @@ def lesson_12a() -> Lesson:
             names=["pad_to_width", "prepare_vla_inputs"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def pad_to_width(values, width):
+        def pad_to_width(values: torch.Tensor, width: int) -> torch.Tensor:
             # Zero-pad the last axis to `width`; ValueError if it is already wider.
             raise NotImplementedError("Complete Exercise 12A.3: pad_to_width")
 
 
-        def prepare_vla_inputs(observation, prompts, tokenizer, config):
+        def prepare_vla_inputs(observation: Mapping[str, torch.Tensor], prompts: str | Sequence[str], tokenizer: PromptTokenizer, config: VLAInputConfig) -> VLAInputs:
             # Return {"images", "img_masks", "lang_tokens", "lang_masks", "state"} from the observation and prompts.
             raise NotImplementedError("Complete Exercise 12A.3: prepare_vla_inputs")
-        """,
+""",
             check="""
         out = pad_to_width(torch.ones(2, 3), 5)
         assert out.shape == (2, 5) and out[:, :3].eq(1).all() and out[:, 3:].eq(0).all(), "Pad with zeros on the right."
@@ -4695,15 +4785,15 @@ def lesson_12a() -> Lesson:
             names=["select_trainable_parameters", "train_mode_with_frozen_vlm"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def select_trainable_parameters(policy, frozen_prefix="model.vlm_with_expert.vlm."):
+        def select_trainable_parameters(policy: ModelT, frozen_prefix: str="model.vlm_with_expert.vlm.") -> list[torch.nn.Parameter]:
             # Freeze every parameter under frozen_prefix; leave all other flags alone; return the trainable parameters.
             raise NotImplementedError("Complete Exercise 12A.4: select_trainable_parameters")
 
 
-        def train_mode_with_frozen_vlm(policy, vlm_name="model.vlm_with_expert.vlm"):
+        def train_mode_with_frozen_vlm(policy: ModelT, vlm_name: str="model.vlm_with_expert.vlm") -> ModelT:
             # policy.train(), then keep the VLM submodule in eval mode. Return policy.
             raise NotImplementedError("Complete Exercise 12A.4: train_mode_with_frozen_vlm")
-        """,
+""",
             check="""
         model = make_tiny_smolvla(seed=3)
         for parameter in model.parameters():                      # something unfroze everything
@@ -4767,7 +4857,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
 
         The published policy (`smolvla-libero`) uses 512×512 images, a 48-token prompt limit and 32-wide state and action vectors. This check builds the *real* preprocessing pipeline of that policy from its saved files (configuration, tokenizer, normalization; no 450M weights are loaded) and compares your `prepare_vla_inputs` with it on real camera frames. It reads local files only. If they are missing, the cell says so.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_CONFIG_CHECK = True
 
             if RUN_REAL_CONFIG_CHECK:
@@ -4794,39 +4884,40 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
             else:
                 print("Real-configuration check is off.")
         """),
-        Md(r"""
-        ## Experiment — which parameters should be trained? (30–60 min)
+        Md("""
+            ## Experiment — which parameters should be trained? (30–60 min)
 
-        **Question.** With the same updates, how do three adaptation settings differ in trainable parameters, held-out flow loss, and whether the frozen backbone really stays fixed?
+            **Question.** With the same updates, how do three adaptation settings differ in trainable parameters, held-out flow loss, and whether the frozen backbone really stays fixed?
 
-        **Setup (real data, small real model).** 128 training and 64 validation windows, evenly spread over the frozen `bowl_plate` train and validation episodes: both camera frames (box-filtered to 64×64), the standardized state, 10 standardized actions, padding where the chunk passes the episode end, and the instruction `put the bowl on the plate`. The model is the small real SmolVLA from the supplied cell (random weights: this is a mechanics experiment, not a robot policy). **Your functions** `resize_pad_normalize_image`, `tokenize_prompts`, `pad_to_width`, `prepare_vla_inputs`, `select_trainable_parameters` and `train_mode_with_frozen_vlm` are all in the real update: the adapter's `input_fn` builds the inputs with them, and `train_mode_fn` keeps the VLM frozen. The loss is the Unit 12B flow loss (package version) through the training unit's `optimizer_update`.
+            **Setup (real data, small real model).** 128 training and 64 validation windows, evenly spread over the frozen `bowl_plate` train and validation episodes: both camera frames (box-filtered to 64×64), the standardized state, 10 standardized actions, padding where the chunk passes the episode end, and the instruction `put the bowl on the plate`. The model is the small real SmolVLA from the supplied cell (random weights: this is a mechanics experiment, not a robot policy). **Your functions** `resize_pad_normalize_image`, `tokenize_prompts`, `pad_to_width`, `prepare_vla_inputs`, `select_trainable_parameters` and `train_mode_with_frozen_vlm` are all in the real update: the adapter's `input_fn` builds the inputs with them, and `train_mode_fn` keeps the VLM frozen. The loss is the Unit 12B flow loss (package version) through the training unit's `optimizer_update`.
 
-        **Fixed for every trial.** Weight seed `1`; batch seed `1`; **300 updates**, batch 16, AdamW `lr=1e-3`; the noise and the times of every update come from the seeded generator (times uniform in `(0.001, 0.999)`); the same validation noise (seed `7`) at times `0.2, 0.5, 0.8` for every trial.
+            **Fixed for every trial.** Weight seed `1`; batch seed `1`; **300 updates**, batch 16, AdamW `lr=1e-3`; the noise and the times of every update come from the seeded generator (times uniform in `(0.001, 0.999)`); the same validation noise (seed `7`) at times `0.2, 0.5, 0.8` for every trial.
 
-        **Allowed changes (per trial).** `trainable`: `expert_only` (your selection: VLM frozen, expert and projections trained), `expert_and_vlm_text` (also unfreeze the VLM language model), `projections_only` (freeze the expert layers as well).
+            **Allowed changes (per trial).** `trainable`: `expert_only` (your selection: VLM frozen, expert and projections trained), `expert_and_vlm_text` (also unfreeze the VLM language model), `projections_only` (freeze the expert layers as well).
 
-        **Measures.** `trainable_params`; `val_flow_loss`; `vlm_drift`: the largest absolute change of any VLM weight (must be exactly `0` when the VLM is frozen); `seconds`.
+            **Measures.** `trainable_params`; `val_flow_loss`; `vlm_drift`: the largest absolute change of any VLM weight (must be exactly `0` when the VLM is frozen); `seconds`.
 
-        **Prediction first.** In the next cell: which setting reaches the lowest validation loss, and which keeps `vlm_drift` at 0?
+            **Prediction first.** In the next cell: which setting reaches the lowest validation loss, and which keeps `vlm_drift` at 0?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. A setting that is no better than the cheaper one is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. A setting that is no better than the cheaper one is a valid result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code("""
             # Supplied: real windows for the small model (64x64 frames, 10-step chunks)
             TRAIN = load_act_samples(CONFIGS, DATA, "bowl_plate", "train", count=128, chunk_size=10, image_size=64)
             VALID = load_act_samples(CONFIGS, DATA, "bowl_plate", "validation", count=64, chunk_size=10, image_size=64)
             print("train windows:", len(TRAIN["action"]), "| validation windows:", len(VALID["action"]), "| instruction:", repr(PROMPT))
         """),
-        Code(r"""
+        Code(
+            """
             # Supplied: harness. Your input and parameter functions are in the real update.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, SEED_NOISE = 300, 16, 1e-3, 1, 1, 7
             BASELINE = {"trainable": "expert_only"}
             TRIALS = []
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 started = time.perf_counter()
                 policy = make_tiny_smolvla(seed=SEED_WEIGHTS)
                 for parameter in policy.parameters():
@@ -4842,7 +4933,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
                 params = [p for p in policy.parameters() if p.requires_grad]
                 before = {name: p.detach().clone() for name, p in vlm.named_parameters()}
 
-                def input_fn(adapter, raw):                                         # YOUR input functions build every batch
+                def input_fn(adapter: SmolVLAAdapter, raw: Mapping[str, torch.Tensor]) -> VLAInputs:                                         # YOUR input functions build every batch
                     observation = {key: value for key, value in raw.items() if key.startswith("observation.")}
                     inputs = prepare_vla_inputs(observation, PROMPT, TOKENIZER, policy.config)
                     if "action" in raw:
@@ -4873,7 +4964,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
                 }
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -4884,7 +4975,8 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["trainable_params", "val_flow_loss", "vlm_drift", "seconds"]
             show_trials(TRIALS, COLUMNS);
-        """),
+        """
+        ),
         Md("**Your trials.** Add at least two trials. Budget: 300 updates per trial."),
         Pair(
             learner="""
@@ -4904,7 +4996,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 3, "Run the baseline and at least two trials of your own."
@@ -4915,7 +5007,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
             assert all(t["vlm_drift"] == 0.0 for t in frozen), "A frozen VLM must not drift: check select_trainable_parameters and train_mode_with_frozen_vlm."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}/{SEED_NOISE}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: parameters against held-out loss, every trial shown
             ok = [t for t in TRIALS if t["status"] == "ok"]
             labels = [t["config"]["trainable"] for t in ok]
@@ -4942,7 +5034,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
 
         It makes no update and writes nothing. The code selects CUDA when available and otherwise uses CPU. It loads one model. Set `RUN_REAL_SMOLVLA = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_SMOLVLA = False
             DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -4974,7 +5066,7 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
                 pinned_inputs = adapter.pinned_inputs(batch)
                 observation = {k: v for k, v in batch.items() if k.startswith("observation.") and "language" not in k}
                 mine = prepare_vla_inputs(observation, PROMPT, AutoTokenizer.from_pretrained(str(VLM_DIR)), learner.config)
-                same = all(torch.equal(a, b) for a, b in zip(mine["images"], pinned_inputs["images"], strict=True)) and torch.equal(mine["lang_tokens"], pinned_inputs["lang_tokens"]) \
+                same = all(torch.equal(a, b) for a, b in zip(mine["images"], pinned_inputs["images"], strict=True)) and torch.equal(mine["lang_tokens"], pinned_inputs["lang_tokens"]) \\
                     and torch.equal(mine["lang_masks"], pinned_inputs["lang_masks"]) and torch.equal(mine["state"], pinned_inputs["state"])
                 print("your inputs equal the pinned inputs at real size:", same)
                 noise = torch.randn(1, learner.config.chunk_size, learner.config.max_action_dim, generator=torch.Generator().manual_seed(0)).to(DEVICE)
@@ -5000,18 +5092,18 @@ def lesson_12a_tail(L: Lesson) -> Lesson:
 def lesson_12b() -> Lesson:
     L = Lesson("12b-flow", "12b-flow", "Flow matching for actions")
     L.items += [
-        Md(r"""
-        # Unit 12B — Flow matching: objective, Euler sampler and the policy hook
+        Md("""
+            # Unit 12B — Flow matching: objective, Euler sampler and the policy hook
 
-        **Your result:** the training objective and the sampler of SmolVLA's action expert, written by you and running inside the real model. Your loss equals the pinned LeRobot loss for the same noise and times; your Euler loop equals the pinned integrator; and a real policy wrapper uses your sampler to produce the actions it hands to the simulator.
+            **Your result:** the training objective and the sampler of SmolVLA's action expert, written by you and running inside the real model. Your loss equals the pinned LeRobot loss for the same noise and times; your Euler loop equals the pinned integrator; and a real policy wrapper uses your sampler to produce the actions it hands to the simulator.
 
-        Four short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](12b-flow-reference.ipynb).
+            Four short exercises (10–20 minutes each) and a larger experiment (30–60 minutes). These times are estimates, not measurements. Full answers are in [the reference notebook](12b-flow-reference.ipynb).
 
-        **Sources.** [SmolVLA method description](https://huggingface.co/blog/smolvla#method) (flow-matching action expert; the VLM is frozen); the pinned code in `lerobot/policies/smolvla/modeling_smolvla.py` (`VLAFlowMatching.forward`, `sample_actions`, `denoise_step`) and `lerobot/policies/common/flow_matching.py` (`euler_integrate`), revision `e0d50211ef236143ae867228662b7dfaba554f02`. Flow matching: [Lipman et al. 2023](https://arxiv.org/abs/2210.02747).
+            **Sources.** [SmolVLA method description](https://huggingface.co/blog/smolvla#method) (flow-matching action expert; the VLM is frozen); the pinned code in `lerobot/policies/smolvla/modeling_smolvla.py` (`VLAFlowMatching.forward`, `sample_actions`, `denoise_step`) and `lerobot/policies/common/flow_matching.py` (`euler_integrate`), revision `e0d50211ef236143ae867228662b7dfaba554f02`. Flow matching: [Lipman et al. 2023](https://arxiv.org/abs/2210.02747).
 
-        **Do not mix up two things.** The SmolVLA *action expert* is a small language-model-style stack that attends to the VLM's cached keys and values. It is **not** the ACT Transformer of Unit 8: do not assume they are the same computation. And flow matching here is **not** DDPM: there is no noise schedule `ᾱ`, no clipping and no random step noise. The sampler is deterministic given the starting noise.
+            **Do not mix up two things.** The SmolVLA *action expert* is a small language-model-style stack that attends to the VLM's cached keys and values. It is **not** the ACT Transformer of Unit 8: do not assume they are the same computation. And flow matching here is **not** DDPM: there is no noise schedule `ᾱ`, no clipping and no random step noise. The sampler is deterministic given the starting noise.
 
-        **Where this unit sits.** The six Unit 12A functions are available as package versions. The *raw velocity adapter* (`SmolVLAAdapter.velocity`, the pinned model's forward pass up to the velocity) is supplied and tested against the pinned `VLAFlowMatching.forward`; you write the objective around it.
+            **Where this unit sits.** The six Unit 12A functions are available as package versions. The *raw velocity adapter* (`SmolVLAAdapter.velocity`, the pinned model's forward pass up to the velocity) is supplied and tested against the pinned `VLAFlowMatching.forward`; you write the objective around it.
         """),
         setup_cell("""
             import json
@@ -5060,9 +5152,9 @@ def lesson_12b() -> Lesson:
             "# Supplied: a small real SmolVLA (the pinned classes, a tiny VLM, random weights) and its tokenizer\n"
             + tidy(TINY_FIXTURE)
         ),
-        Code(r"""
+        Code("""
             # Supplied: a small batch for algorithm checks (random numbers) in the shapes the model reads
-            def algorithm_check_batch(batch=2, chunk=10, seed=0):
+            def algorithm_check_batch(batch: int=2, chunk: int=10, seed: int=0) -> dict[str, torch.Tensor]:
                 g = torch.Generator().manual_seed(seed)
                 tokens, mask = ref.tokenize_prompts(TOKENIZER, ["put the bowl on the plate", "open it"], 24)
                 pad = torch.zeros(batch, chunk, dtype=torch.bool)
@@ -5100,7 +5192,7 @@ def lesson_12b() -> Lesson:
             names=["flow_training_pair"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def flow_training_pair(actions, noise, time):
+        def flow_training_pair(actions: torch.Tensor, noise: torch.Tensor, time: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
             # x_t = t * noise + (1 - t) * actions; u_t = noise - actions. t = 0 is clean, t = 1 is noise.
             raise NotImplementedError("Complete Exercise 12B.1: flow_training_pair")
         """,
@@ -5158,7 +5250,7 @@ def lesson_12b() -> Lesson:
             names=["masked_velocity_loss"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def masked_velocity_loss(prediction, target, is_pad, action_dim):
+        def masked_velocity_loss(prediction: torch.Tensor, target: torch.Tensor, is_pad: torch.Tensor, action_dim: int) -> torch.Tensor:
             # Mean squared error over real steps and the first action_dim columns.
             raise NotImplementedError("Complete Exercise 12B.2: masked_velocity_loss")
         """,
@@ -5228,7 +5320,7 @@ def lesson_12b() -> Lesson:
             names=["flow_loss_fn"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def flow_loss_fn(model, batch, *, noise=None, time=None):
+        def flow_loss_fn(model: SmolVLAAdapter, batch: Mapping[str, torch.Tensor], *, noise: torch.Tensor | None=None, time: torch.Tensor | None=None) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
             # Use model.prepare_inputs, flow_training_pair, model.velocity and masked_velocity_loss. Keep the graph.
             raise NotImplementedError("Complete Exercise 12B.3: flow_loss_fn")
         """,
@@ -5299,7 +5391,7 @@ def lesson_12b() -> Lesson:
             names=["euler_sample"],
             module="vla_lab.teaching.smolvla",
             stub="""
-        def euler_sample(velocity_fn, noise, num_steps):
+        def euler_sample(velocity_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], noise: torch.Tensor, num_steps: int) -> torch.Tensor:
             # Integrate from t = 1 to t = 0 with dt = -1/num_steps: x = x + dt * velocity_fn(x, t).
             raise NotImplementedError("Complete Exercise 12B.4: euler_sample")
         """,
@@ -5307,7 +5399,7 @@ def lesson_12b() -> Lesson:
         noise, field = torch.randn(2, 6, 4), torch.randn(2, 6, 4)
         seen = []
 
-        def velocity(x, t):
+        def velocity(x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             seen.append(t.clone())
             return field + 0.1 * x
 
@@ -5344,39 +5436,40 @@ def lesson_12b() -> Lesson:
 
 def lesson_12b_tail(L: Lesson) -> Lesson:
     L.items += [
-        Md(r"""
-        ## Experiment — time prior and Euler steps (30–60 min)
+        Md("""
+            ## Experiment — time prior and Euler steps (30–60 min)
 
-        **Question.** SmolVLA trains with a Beta time prior that favors noisy times and samples with 10 Euler steps. With a small real SmolVLA trained by your loss, how do the training time prior and the number of Euler steps change the executed actions and the time per chunk?
+            **Question.** SmolVLA trains with a Beta time prior that favors noisy times and samples with 10 Euler steps. With a small real SmolVLA trained by your loss, how do the training time prior and the number of Euler steps change the executed actions and the time per chunk?
 
-        **Setup (real data, small real model).** 128 training and 64 validation windows from the frozen `bowl_plate` episodes (64×64 frames, standardized state, 10 standardized actions, padding at episode ends, the instruction `put the bowl on the plate`). The expert and projections are trained for 300 updates with **your** `flow_loss_fn` (through `optimizer_update` with explicit noise and time) after your Unit 12A parameter selection; the sampler is **your** `euler_sample` through the adapter's prefix cache. The VLM has random weights: this is a mechanics experiment, not a robot policy.
+            **Setup (real data, small real model).** 128 training and 64 validation windows from the frozen `bowl_plate` episodes (64×64 frames, standardized state, 10 standardized actions, padding at episode ends, the instruction `put the bowl on the plate`). The expert and projections are trained for 300 updates with **your** `flow_loss_fn` (through `optimizer_update` with explicit noise and time) after your Unit 12A parameter selection; the sampler is **your** `euler_sample` through the adapter's prefix cache. The VLM has random weights: this is a mechanics experiment, not a robot policy.
 
-        **Fixed for every trial.** Weight seed `1`; batch/noise seed `1`; **300 updates**, batch 16, AdamW `lr=1e-3`; validation initial noise seed `11` (the same noise for every step count); first 5 actions of the chunk are the "executed" ones (`n_action_steps = 5`).
+            **Fixed for every trial.** Weight seed `1`; batch/noise seed `1`; **300 updates**, batch 16, AdamW `lr=1e-3`; validation initial noise seed `11` (the same noise for every step count); first 5 actions of the chunk are the "executed" ones (`n_action_steps = 5`).
 
-        **Allowed changes (per trial).** `time_prior`: `beta` (pinned: `0.001 + 0.999 · Beta(1.5, 1)`) or `uniform` (`0.001 + 0.998 · U(0, 1)`) — this retrains the model. `steps`: Euler steps at inference, any of `1, 2, 5, 10, 20, 50`.
+            **Allowed changes (per trial).** `time_prior`: `beta` (pinned: `0.001 + 0.999 · Beta(1.5, 1)`) or `uniform` (`0.001 + 0.998 · U(0, 1)`) — this retrains the model. `steps`: Euler steps at inference, any of `1, 2, 5, 10, 20, 50`.
 
-        **Measures.** `l1_to_demo`: masked L1 between the executed actions and the demonstrated first 5 actions. `l1_to_50`: L1 between the executed actions and those of the 50-step sample of the same model and noise. `ms_batch1`: milliseconds to sample one chunk at batch 1 (noisy; compare within one session).
+            **Measures.** `l1_to_demo`: masked L1 between the executed actions and the demonstrated first 5 actions. `l1_to_50`: L1 between the executed actions and those of the 50-step sample of the same model and noise. `ms_batch1`: milliseconds to sample one chunk at batch 1 (noisy; compare within one session).
 
-        **Prediction first.** In the next cell: which `time_prior` will be better, and where will extra Euler steps stop helping?
+            **Prediction first.** In the next cell: which `time_prior` will be better, and where will extra Euler steps stop helping?
 
-        **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
+            **Keep failed trials.** Every trial is appended to `TRIALS`. No improvement is a valid result.
         """),
         Code('PREDICTION = "TODO: replace this text with your prediction."\nprint(PREDICTION)'),
         Code("# Supplied: trial table helper\n" + tidy(EXPERIMENT_TABLE_HELPER)),
-        Code(r"""
+        Code("""
             # Supplied: real windows for the small model
             TRAIN = load_act_samples(CONFIGS, DATA, "bowl_plate", "train", count=128, chunk_size=10, image_size=64)
             VALID = load_act_samples(CONFIGS, DATA, "bowl_plate", "validation", count=64, chunk_size=10, image_size=64)
             print("train windows:", len(TRAIN["action"]), "| validation windows:", len(VALID["action"]))
         """),
-        Code(r'''
+        Code(
+            """
             # Supplied: harness. Your loss callback and your sampler are in the real path.
             STEPS, BATCH, LR, SEED_WEIGHTS, SEED_BATCH, SEED_NOISE, N_ACT = 300, 16, 1e-3, 1, 1, 11, 5
             BASELINE = {"time_prior": "beta", "steps": 10}
             TRIALS, TRAINED, REFERENCE_CHUNKS = [], {}, {}
 
 
-            def input_fn(adapter, raw):
+            def input_fn(adapter: SmolVLAAdapter, raw: Mapping[str, torch.Tensor]) -> VLAInputs:
                 observation = {key: value for key, value in raw.items() if key.startswith("observation.")}
                 inputs = prepare_vla_inputs(observation, PROMPT, TOKENIZER, adapter.policy.config)
                 if "action" in raw:
@@ -5384,8 +5477,8 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
                 return inputs
 
 
-            def train_model(time_prior):
-                """Train once per time prior (cached): your flow loss, explicit noise and time, seeded."""
+            def train_model(time_prior: str) -> SmolVLAAdapter:
+                \"\"\"Train once per time prior (cached): your flow loss, explicit noise and time, seeded.\"\"\"
                 if time_prior in TRAINED:
                     return TRAINED[time_prior]
                 policy = make_tiny_smolvla(seed=SEED_WEIGHTS)
@@ -5408,7 +5501,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
                 return TRAINED[time_prior]
 
 
-            def sample(adapter, batch, steps):
+            def sample(adapter: SmolVLAAdapter, batch: Mapping[str, torch.Tensor], steps: int) -> tuple[torch.Tensor, float]:
                 inputs = adapter.prepare_inputs(batch)
                 noise = torch.randn(len(batch["action"]), 10, adapter.policy.config.max_action_dim, generator=torch.Generator().manual_seed(SEED_NOISE))
                 started = time.perf_counter()
@@ -5416,7 +5509,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
                 return chunk, time.perf_counter() - started
 
 
-            def run_trial(config):
+            def run_trial(config: TrialConfig) -> dict[str, float | int]:
                 adapter = train_model(config["time_prior"])
                 with torch.no_grad():
                     if config["time_prior"] not in REFERENCE_CHUNKS:
@@ -5432,7 +5525,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
                 }
 
 
-            def record(config):
+            def record(config: TrialConfig) -> None:
                 config = {**BASELINE, **config}
                 try:
                     TRIALS.append({"config": config, "status": "ok", **run_trial(config)})
@@ -5443,7 +5536,8 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
             record(BASELINE)
             COLUMNS = ["l1_to_demo", "l1_to_50", "ms_batch1"]
             show_trials(TRIALS, COLUMNS);
-        '''),
+        """
+        ),
         Md(
             "**Your trials.** Add at least three trials. Each setting uses a fixed 300-update budget."
         ),
@@ -5465,7 +5559,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
             show_trials(TRIALS, COLUMNS);
             """,
         ),
-        Code(r"""
+        Code("""
             # Check: the protocol was followed.
             assert TRIALS[0]["config"] == BASELINE, "The first trial must be the baseline."
             assert len(TRIALS) >= 4, "Run the baseline and at least three trials of your own."
@@ -5475,7 +5569,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
             assert all(torch.isfinite(torch.tensor([t["l1_to_demo"], t["l1_to_50"], t["ms_batch1"]])).all() for t in ok), "Measures must be finite."
             print(f"{len(TRIALS)} trials kept ({len(ok)} ok). Budget: {STEPS} updates, batch {BATCH}, seeds {SEED_WEIGHTS}/{SEED_BATCH}/{SEED_NOISE}.")
         """),
-        Code(r"""
+        Code("""
             # Use your function: accuracy against time for every trial
             ok = [t for t in TRIALS if t["status"] == "ok"]
             fig, axes = plt.subplots(1, 2, figsize=(10, 3.6))
@@ -5497,7 +5591,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
 
         This loads the **prepared learner** (450M parameters, `smolvla-c2-5000-development`) from local files, builds one real batch with the real pipeline (two 256×256 frames, state, the instruction, 50 actions), and compares **your** `flow_loss_fn` with the pinned `policy(batch, noise, time)` for the same noise and time. It then makes `REAL_UPDATES` AdamW update(s) with your loss on the expert only (the VLM must not move) and prints the loss before and after. One or two updates are an integration check, not training evidence; nothing is saved. The code selects CUDA when available and otherwise uses CPU. It loads one model. Set `RUN_REAL_FLOW_LOSS = True` to run it.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_FLOW_LOSS = False
             DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
             REAL_UPDATES = 1
@@ -5535,7 +5629,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
 
         This runs a prepared policy with **your** `euler_sample` (through `CallbackSmolVLAPolicy`, which uses the pinned vision-language prefix and action expert but not the pinned sampler) in the LIBERO simulator on the *methods* development states `10–14` only (states `0–9` are for exploration, `15–19` for the intervention unit; the final states `20–49` are never used here). The reset seed is `20260930 + state`, the policy noise seed is the same, and every attempt, including failures and errors, is kept in `ATTEMPTS`. The instruction is the task's own text. The controller runs at 20 Hz and the demonstrations were recorded at 10 Hz; the policy is **not** resampled. This uses one 450M model and a bounded 300-step episode. Set `RUN_DEV_STATE_ROLLOUTS = True` to run it. Saved results of the same policies, produced earlier by the project, are printed for orientation and are **not** produced by this notebook.
         """),
-        Code(r"""
+        Code("""
             RUN_DEV_STATE_ROLLOUTS = False
             ROLLOUT_POLICY = "learner"             # "learner" (trained in this project) or "published" (smolvla-libero)
             DEV_STATES = (10, 11, 12, 13, 14)      # narrow this list to run fewer episodes
@@ -5584,7 +5678,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
 
         This compares two learning rates from the same prepared learner weights. Each setting uses the same two training examples, batch size 1, five updates, noise, and time values. The Unit 12B `flow_loss_fn` updates the selected action parameters through `optimizer_update`; the VLM stays frozen. The code measures held-out loss before and after training. It then runs your Euler sampler for at most 40 simulator steps on development state 10. Every training and simulator failure stays in `REAL_ADAPTATION_RESULTS`. The code loads one model at a time and writes no weights. It uses local files only. Set `RUN_REAL_ADAPTATION = True` to run these two bounded trials.
         """),
-        Code(r"""
+        Code("""
             RUN_REAL_ADAPTATION = False
             ADAPTATION_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
             ADAPTATION_LRS = (5e-6, 1e-5)
@@ -5620,7 +5714,7 @@ def lesson_12b_tail(L: Lesson) -> Lesson:
                 except Exception as error:
                     setup_error = setup_error or f"checkpoint setup failed: {type(error).__name__}: {error}"
 
-                def module_hash(module):
+                def module_hash(module: torch.nn.Module) -> str:
                     digest = hashlib.sha256()
                     for name, parameter in module.named_parameters():
                         digest.update(name.encode())
@@ -5746,7 +5840,7 @@ LESSON_BUILDERS = [
 ]
 
 
-def lessons():
+def lessons() -> list[Lesson]:
     return [builder() for builder in LESSON_BUILDERS]
 
 

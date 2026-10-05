@@ -24,6 +24,21 @@ def source_function(module: str, name: str) -> str:
     return "\n".join(lines[node.lineno - 1 : node.end_lineno])
 
 
+def typed_starter(starter: str, solution: str) -> str:
+    """Use the reference signature and keep the exercise body."""
+    tree = ast.parse(starter)
+    references = {
+        node.name: node for node in ast.parse(solution).body if isinstance(node, ast.FunctionDef)
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in references:
+            reference = references[node.name]
+            node.args = reference.args
+            node.returns = reference.returns
+            node.type_params = reference.type_params
+    return ast.unparse(tree)
+
+
 def md(text: str) -> dict[str, object]:
     return {"cell_type": "markdown", "metadata": {}, "source": text.splitlines(keepends=True)}
 
@@ -47,7 +62,58 @@ def build(
     experiment: tuple[str, ...],
 ) -> None:
     for reference in (False, True):
-        setup = """from pathlib import Path
+        setup = """from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from transformers import DynamicCache
+    from vla_lab.teaching.blocks import (
+        ACTPosteriorParts, ACTLatentParts, ACTEncoderParts, ACTDecoderParts,
+        ProjectedAttention, EncoderParts, DecoderParts, FilmParts, UNetParts,
+    )
+    from vla_lab.teaching.interfaces import (
+        ACTPredictionModel, ActionChunkPolicy, ActionPolicy, ActionT, ActionValue,
+        TensorBatch, LiberoObservation, ModelT, PolicyT, BatchT, ObservationT,
+        ResettablePolicy, ResettableEnvironment, EpisodeEnvironment,
+        DiffusionTrainingModel, NoiseScheduler, PromptTokenizer, VLAInputConfig, VLAInputs,
+    )
+    from vla_lab.teaching.records import (
+        ACTBatchData, CaseResult, PairedSummary, EpisodeRow, EpisodeArrays,
+        TrainingEpisode, TrialConfig, TrialResult, AlignedTransition,
+        TransitionAlignment, InterventionCase, InterventionSummary,
+    )
+    from numpy.typing import ArrayLike, NDArray
+    from vla_lab.teaching.interfaces import RobotState
+    from vla_lab.teaching.blocks import ScaledAttention, AttentionOperation
+    from vla_lab.teaching.diffusion import UNetChannelPlan
+    from collections.abc import Callable
+    from collections.abc import Iterable
+    from collections.abc import Mapping
+    from collections.abc import Sequence
+    from lerobot.policies.act.modeling_act import ACT
+    from lerobot.policies.diffusion import DiffusionPolicy
+    from lerobot.policies.diffusion.modeling_diffusion import DiffusionConditionalUnet1d
+    from lerobot.policies.smolvla import SmolVLAPolicy
+    from pathlib import Path
+    from torch import Tensor
+    from typing import Self
+    from vla_lab.data.stats import TrainingStats
+    from vla_lab.teaching.act_model import ACTHooks
+    from vla_lab.teaching.attention import DecoderLayer
+    from vla_lab.teaching.attention import EncoderLayer
+    from vla_lab.teaching.attention import MultiHeadAttention
+    from vla_lab.teaching.cvae import ConditionalVAE
+    from vla_lab.teaching.diffusion import ConditionalUnet1D
+    from vla_lab.teaching.diffusion import DDPMSchedule
+    from vla_lab.teaching.runtime import RolloutResult
+    from vla_lab.teaching.smolvla import SmolVLAAdapter
+    from vla_lab.teaching.training import LossCallback
+    import numpy as np
+    import pandas as pd
+    import torch
+
+from pathlib import Path
 import os, sys
 WORKSPACE = next((p for p in (Path.cwd(), *Path.cwd().parents) if (p / 'manifests/act_references.yaml').is_file()), None)
 if WORKSPACE is None:
@@ -80,7 +146,7 @@ print('Workspace:', WORKSPACE)
             if reference:
                 cells.append(code(ex["solution"]))
             else:
-                cells.append(code(ex["starter"]))
+                cells.append(code(typed_starter(ex["starter"], ex["solution"])))
             cells.append(md("### Check"))
             cells.append(code(ex["check"]))
             cells.append(md("### Use your function"))
@@ -152,7 +218,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="Flip both image axes, transpose HWC to CHW, and divide by 255. Reverse channels only when input is BGR.",
             pointers="Check one red pixel after conversion; it must move to the opposite corner.",
             hint="NumPy slicing with `[::-1, ::-1]` rotates the image by 180 degrees.",
-            starter="def camera_hwc_to_chw(image, *, channel_order='rgb'):\n    raise NotImplementedError('Exercise 1: convert camera layout, orientation, and scale')",
+            starter="def camera_hwc_to_chw(image: ArrayLike, *, channel_order: str='rgb') -> NDArray[np.float32]:\n    raise NotImplementedError('Exercise 1: convert camera layout, orientation, and scale')",
             check="rgb = np.zeros((2, 3, 3), dtype=np.uint8)\nrgb[0, 0] = [255, 0, 0]\nconverted = camera_hwc_to_chw(rgb)\nassert converted.shape == (3, 2, 3), f'Expected CHW, got {converted.shape}'\nassert np.allclose(converted[:, -1, -1], [1, 0, 0]), 'Pixel channels, 180-degree rotation, or scale are wrong'",
             use="frame = np.zeros((64, 80, 3), dtype=np.uint8)\nprint('Model image:', camera_hwc_to_chw(frame).shape)",
         ),
@@ -166,7 +232,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="Normalize the quaternion. Convert its vector part to an axis-angle vector, then join the three fields.",
             pointers="Identity rotation `[0,0,0,1]` becomes `[0,0,0]`.",
             hint="For quaternion `(x,y,z,w)`, use angle `2*atan2(norm([x,y,z]), w)` and multiply the unit axis by that angle.",
-            starter="def assemble_libero_state(robot_state):\n    raise NotImplementedError('Exercise 2: map raw LIBERO robot fields to ACT state')",
+            starter="def assemble_libero_state(robot_state: RobotState) -> NDArray[np.float32]:\n    raise NotImplementedError('Exercise 2: map raw LIBERO robot fields to ACT state')",
             check="robot = {'eef': {'pos': [1, 2, 3], 'quat': [0, 0, 0, 1]}, 'gripper': {'qpos': [-0.1, 0.1]}}\nstate = assemble_libero_state(robot)\nassert state.shape == (8,) and np.allclose(state, [1, 2, 3, 0, 0, 0, -0.1, 0.1]), f'Wrong raw state mapping: {state}'",
             use="print('Raw state:', state)",
         ),
@@ -180,7 +246,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="Convert each camera with Exercise 1; use the raw state from Exercise 2.",
             pointers="Reject missing cameras instead of silently changing order.",
             hint="The first name in `camera_order` maps to `image`; the second maps to `image2`.",
-            starter="def pack_observation(*, cameras, state, camera_order, channel_order='rgb'):\n    raise NotImplementedError('Exercise 3: assemble model inputs')",
+            starter="def pack_observation(*, cameras: Mapping[str, ArrayLike], state: ArrayLike, camera_order: tuple[str, ...], channel_order: str='rgb') -> dict[str, NDArray[np.float32]]:\n    raise NotImplementedError('Exercise 3: assemble model inputs')",
             check="frame = np.zeros((2, 3, 3), dtype=np.uint8)\nbatch = pack_observation(cameras={'front': frame, 'wrist': frame}, state=np.arange(8), camera_order=('front', 'wrist'))\nassert batch['observation.images.image'].shape == (3, 2, 3), 'Pinned ACT image key or camera order is wrong'\nassert batch['observation.state'].shape == (8,), 'State width must be eight'",
             use="print('Input keys:', sorted(batch))",
         ),
@@ -194,7 +260,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="Compute `(values - mean) / std` with NumPy broadcasting.",
             pointers="Use statistics fitted from training episodes only. The raw state from Exercise 2 has not been normalized yet.",
             hint="A `(2,8)` batch broadcasts against an `(8,)` mean.",
-            starter="def normalize_features(values, mean, std):\n    raise NotImplementedError('Exercise 4: apply training statistics')",
+            starter="def normalize_features(values: ArrayLike, mean: ArrayLike, std: ArrayLike) -> NDArray[np.float32]:\n    raise NotImplementedError('Exercise 4: apply training statistics')",
             check="normalized = normalize_features([[2, 4]], [1, 2], [1, 2])\nassert np.allclose(normalized, [[1, 1]]), f'Unexpected normalized values: {normalized}'",
             use="print('Normalized state:', normalize_features(np.arange(8), np.zeros(8), np.ones(8)))",
         ),
@@ -208,7 +274,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="ACT predicts normalized actions. Convert them to controller units, then apply controller limits in Exercise 6.",
             pointers="Clipping normalized predictions directly changes the model output scale.",
             hint="Use multiplication by standard deviation followed by addition of the training mean.",
-            starter="def denormalize_features(values, mean, std):\n    raise NotImplementedError('Exercise 5: restore physical action scale')",
+            starter="def denormalize_features(values: ArrayLike, mean: ArrayLike, std: ArrayLike) -> NDArray[np.float32]:\n    raise NotImplementedError('Exercise 5: restore physical action scale')",
             check="physical = denormalize_features([[1, -1]], [0.2, 0.0], [0.5, 2.0])\nassert np.allclose(physical, [[0.7, -2.0]]), f'Wrong physical scale: {physical}'",
             use="print('Physical action:', denormalize_features(np.zeros(7), np.zeros(7), np.ones(7)))",
         ),
@@ -222,7 +288,7 @@ from vla_lab.teaching.adapters import camera_hwc_to_chw, assemble_libero_state, 
             method="Call only after denormalizing the model output with the saved training statistics.",
             pointers="Clipping count is useful evidence; it does not repair a wrong scale.",
             hint="`np.clip` accepts scalar bounds and preserves the action shape.",
-            starter="def controller_action(physical_action, *, lower=-1.0, upper=1.0):\n    raise NotImplementedError('Exercise 6: validate and bound a controller action')",
+            starter="def controller_action(physical_action: ArrayLike, *, lower: float=-1.0, upper: float=1.0) -> NDArray[np.float32]:\n    raise NotImplementedError('Exercise 6: validate and bound a controller action')",
             check="physical = denormalize_features([2, -2, 0, 0, 0, 0, 0], np.zeros(7), np.ones(7))\naction = controller_action(physical)\nassert action.shape == (7,) and np.allclose(action[:2], [1, -1]), 'Expected a bounded seven-value action'",
             use="print('Controller action:', controller_action(np.zeros(7)))",
         ),
@@ -264,7 +330,7 @@ if RUN_LOCAL:
     action_stats = stats_file['modalities']['action']
     environment = open_libero_task('bowl_plate', 0, root / 'configs', root / '.local-data')
     learner_clipped_values = [0]
-    def prepare(raw):
+    def prepare(raw: LiberoObservation) -> TensorBatch:
         batch = prepare_libero_observation(raw, preprocessor)
         raw_state = assemble_libero_state(raw['robot_state'])
         adapted = pack_observation(
@@ -276,9 +342,9 @@ if RUN_LOCAL:
         batch['observation.images.image2'] = torch.from_numpy(adapted['observation.images.image2'][None]).to(device)
         batch['observation.state'] = torch.from_numpy(normalize_features(adapted['observation.state'], state_stats['mean'], state_stats['std'])[None]).to(device)
         return batch
-    def predict(policy, batch):
+    def predict(policy: ActionChunkPolicy, batch: TensorBatch) -> torch.Tensor:
         return policy.predict_action_chunk(batch)
-    def to_controller(action):
+    def to_controller(action: torch.Tensor | np.ndarray) -> np.ndarray:
         normalized = action.detach().cpu().numpy() if hasattr(action, 'detach') else action
         physical = denormalize_features(normalized, action_stats['mean'], action_stats['std'])
         learner_clipped_values[0] += int(np.count_nonzero((physical < -1.0) | (physical > 1.0)))
@@ -332,7 +398,7 @@ from vla_lab.teaching.data import order_episode_rows, extract_episode_arrays, ac
             method="Sort by the two-part key `(episode_index, frame_index)`.",
             pointers="A frame number alone is not unique across episodes.",
             hint="Keep the original row dictionaries so other dataset columns remain available.",
-            starter="def order_episode_rows(rows):\n    raise NotImplementedError('Exercise 1: order rows by episode and frame')",
+            starter="def order_episode_rows[RowT: EpisodeRow](rows: Sequence[RowT]) -> list[RowT]:\n    raise NotImplementedError('Exercise 1: order rows by episode and frame')",
             check="rows = [{'episode_index': 1, 'frame_index': 1}, {'episode_index': 0, 'frame_index': 2}]\nordered = order_episode_rows(rows)\nassert [(r['episode_index'], r['frame_index']) for r in ordered] == [(0, 2), (1, 1)], 'Rows are not ordered by episode then frame'",
             use="print('First ordered key:', ordered[0]['episode_index'], ordered[0]['frame_index'])",
         ),
@@ -346,7 +412,7 @@ from vla_lab.teaching.data import order_episode_rows, extract_episode_arrays, ac
             method="Read the stored action column directly. Do not create a delta action here; make chunks in Exercise 3.",
             pointers="A frame row contains one saved action. Preserve that action and its pre-action state.",
             hint="Stack each ordered row's `action` and `observation.state` values into a matrix.",
-            starter="def extract_episode_arrays(rows):\n    raise NotImplementedError('Exercise 2: extract raw action and state columns')",
+            starter="def extract_episode_arrays(rows: Sequence[EpisodeRow]) -> EpisodeArrays:\n    raise NotImplementedError('Exercise 2: extract raw action and state columns')",
             check="rows = [{'episode_index': 3, 'frame_index': 1, 'action': np.ones(7), 'observation.state': np.ones(8)},\n        {'episode_index': 3, 'frame_index': 0, 'action': np.zeros(7), 'observation.state': np.zeros(8)}]\npart = extract_episode_arrays(rows)\nassert part['frame_indices'].tolist() == [0, 1], 'Raw rows are not ordered'\nassert np.allclose(part['actions'][0], 0) and np.allclose(part['states'][1], 1), 'Wrong raw columns were read'",
             use="print('Episode rows:', len(part['actions']), 'action/state:', part['actions'].shape, part['states'].shape)",
         ),
@@ -360,7 +426,7 @@ from vla_lab.teaching.data import order_episode_rows, extract_episode_arrays, ac
             method="Copy only rows from this episode. Fill beyond its end with zeros and mark them padded.",
             pointers="Do not concatenate episodes before window creation.",
             hint="Initialize zeros and an all-True mask, then overwrite the valid prefix.",
-            starter="def action_window(episode_actions, *, start, horizon, action_dim=None):\n    raise NotImplementedError('Exercise 2: create an episode-safe action window')",
+            starter="def action_window(episode_actions: ArrayLike, *, start: int, horizon: int, action_dim: int | None=None) -> tuple[np.ndarray, np.ndarray]:\n    raise NotImplementedError('Exercise 2: create an episode-safe action window')",
             check="window, mask = action_window([[1, 2], [3, 4]], start=1, horizon=3)\nassert np.array_equal(window, [[3, 4], [0, 0], [0, 0]]), 'Window crossed episode end or used wrong padding'\nassert np.array_equal(mask, [False, True, True]), 'Mask must mark only the padded tail'",
             use="print('window shape:', window.shape, 'valid steps:', int((~mask).sum()))",
         ),
@@ -374,7 +440,7 @@ from vla_lab.teaching.data import order_episode_rows, extract_episode_arrays, ac
             method="Choose a validation suffix based on the requested fraction.",
             pointers="A random row split leaks nearby frames into validation.",
             hint="Round the validation count, then clamp it to `[1, len(ids)-1]`.",
-            starter="def split_episode_ids(episode_ids, *, validation_fraction=0.2):\n    raise NotImplementedError('Exercise 3: split whole episodes')",
+            starter="def split_episode_ids(episode_ids: Sequence[int], *, validation_fraction: float=0.2) -> tuple[list[int], list[int]]:\n    raise NotImplementedError('Exercise 3: split whole episodes')",
             check="train_ids, val_ids = split_episode_ids([0, 1, 2, 3, 4], validation_fraction=0.2)\nassert set(train_ids).isdisjoint(val_ids) and train_ids + val_ids == [0, 1, 2, 3, 4], 'Episodes must be split without overlap'\nassert train_ids and val_ids, 'Both partitions must contain an episode'",
             use="print('train episodes:', train_ids, 'validation episodes:', val_ids)",
         ),
@@ -388,7 +454,7 @@ from vla_lab.teaching.data import order_episode_rows, extract_episode_arrays, ac
             method="Concatenate training episode samples only. Replace zero std with one for safe normalization.",
             pointers="Pass validation to the contract so your check can prove it has no effect.",
             hint="Validation values can be extreme; the fitted result must stay unchanged.",
-            starter="def fit_training_statistics(training_episodes, *, validation_episodes=None):\n    raise NotImplementedError('Exercise 4: fit statistics from training data only')",
+            starter="def fit_training_statistics(training_episodes: Mapping[int, ArrayLike], *, validation_episodes: Mapping[int, ArrayLike] | None=None) -> TrainingStats:\n    raise NotImplementedError('Exercise 4: fit statistics from training data only')",
             check="stats = fit_training_statistics({0: [[0.0], [2.0]]}, validation_episodes={9: [[1000.0]]})\nassert np.allclose(stats.mean, [1]) and np.allclose(stats.std, [1]), 'Validation rows affected training statistics'",
             use="print('training mean/std:', stats.mean, stats.std)",
         ),
@@ -413,7 +479,7 @@ if RUN_LOCAL_DATA:
     results = {}
     loaded = {}
 
-    def order_samples(episodes):
+    def order_samples(episodes: dict[int, TrainingEpisode]) -> dict[int, TrainingEpisode]:
         keyed = [{'episode_index': eid, 'frame_index': sample['start'], '_episode': eid, '_sample': sample}
                  for eid, episode in episodes.items() for sample in episode['samples']]
         ordered = order_episode_rows(keyed)
@@ -458,7 +524,7 @@ if RUN_LOCAL_DATA:
 
     if loaded:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        def move_batches(built):
+        def move_batches(built: ACTBatchData) -> ACTBatchData:
             return {**built,
                 'train': [{key: value.to(device) for key, value in batch.items()} for batch in built['train']],
                 'validation': [{key: value.to(device) for key, value in batch.items()} for batch in built['validation']]}
@@ -470,7 +536,7 @@ if RUN_LOCAL_DATA:
                 policy = copy.deepcopy(base_policy).to(device)
                 model = make_act_raw_model(policy).to(device)
                 optimizer = torch.optim.AdamW(policy.get_optim_params(), lr=1e-6)
-                def physical_validation_l1(batch):
+                def physical_validation_l1(batch: Mapping[str, torch.Tensor]) -> torch.Tensor:
                     prediction = model(batch)[0]
                     mean = torch.as_tensor(built['action_stats'].mean, dtype=prediction.dtype, device=device)
                     std = torch.as_tensor(built['action_stats'].std, dtype=prediction.dtype, device=device)
@@ -531,7 +597,7 @@ from vla_lab.teaching.data import action_window
             method="Compare action tick i with observation tick i; do not shift the saved actions to hide an error.",
             pointers="LIBERO controls at 20 Hz. The reference demonstration rows are 10 Hz.",
             hint="Subtract the expected pre-action tick sequence from the saved action tick sequence.",
-            starter="def transition_alignment(observation_ticks, action_ticks):\n    raise NotImplementedError('Exercise 1: detect transition misalignment')",
+            starter="def transition_alignment(observation_ticks: Sequence[int] | np.ndarray, action_ticks: Sequence[int] | np.ndarray) -> TransitionAlignment:\n    raise NotImplementedError('Exercise 1: detect transition misalignment')",
             check="report = transition_alignment([0, 1, 2, 3], [1, 2, 3])\nassert report['aligned'] is False and report['offset_ticks'] == [1], f'Expected a one-tick defect, got {report}'",
             use="print('Detected action offset (20 Hz ticks):', report['offset_ticks'])",
         ),
@@ -545,7 +611,7 @@ from vla_lab.teaching.data import action_window
             method="Call the diagnostic first, then return one index for each valid action.",
             pointers="Do not make a one-tick defect look clean by shifting every row.",
             hint="The alignment report is a guard; it does not repair the recording.",
-            starter="def aligned_transition_indices(observation_ticks, action_ticks):\n    raise NotImplementedError('Exercise 2: select only correctly aligned rows')",
+            starter="def aligned_transition_indices(observation_ticks: Sequence[int] | np.ndarray, action_ticks: Sequence[int] | np.ndarray) -> np.ndarray:\n    raise NotImplementedError('Exercise 2: select only correctly aligned rows')",
             check="assert np.array_equal(aligned_transition_indices([0, 1, 2], [0, 1]), [0, 1]), 'Expected one index per aligned action'\ntry:\n    aligned_transition_indices([0, 1, 2], [1, 2])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('Misaligned rows must be rejected')",
             use="print('Aligned transitions:', aligned_transition_indices([0, 1, 2, 3], [0, 1, 2]))",
         ),
@@ -559,7 +625,7 @@ from vla_lab.teaching.data import action_window
             method="Reject a timing defect before pairing arrays.",
             pointers="The final observation has no following action and does not become a training row.",
             hint="Reuse the checked indices from Exercise 2.",
-            starter="def aligned_transition_rows(observations, actions, observation_ticks, action_ticks):\n    raise NotImplementedError('Exercise 3: construct aligned transition rows')",
+            starter="def aligned_transition_rows[ObservationT](observations: Sequence[ObservationT], actions: ArrayLike, observation_ticks: Sequence[int] | np.ndarray, action_ticks: Sequence[int] | np.ndarray) -> list[AlignedTransition[ObservationT]]:\n    raise NotImplementedError('Exercise 3: construct aligned transition rows')",
             check="rows = aligned_transition_rows([{'s': 0}, {'s': 1}, {'s': 2}], [[4], [5]], [0, 1, 2], [0, 1])\nassert rows[1]['observation'] == {'s': 1} and np.array_equal(rows[1]['action'], [5]), 'Observation/action pairing is wrong'",
             use="print('Second aligned transition:', rows[1])",
         ),
@@ -573,7 +639,7 @@ from vla_lab.teaching.data import action_window
             method="Select one aligned transition for each 100 ms interval. Do not average or repeat actions.",
             pointers="Run this after alignment checks and before making ACT action windows.",
             hint="Use a stride of `control_hz // dataset_hz`, then select source indices at that stride.",
-            starter="def resample_aligned_transitions_10hz(rows):\n    raise NotImplementedError('Exercise 4: select aligned 10 Hz transitions')",
+            starter="def resample_aligned_transitions_10hz[ObservationT](rows: Sequence[AlignedTransition[ObservationT]]) -> list[AlignedTransition[ObservationT]]:\n    raise NotImplementedError('Exercise 4: select aligned 10 Hz transitions')",
             check="rows = [{'tick': i, 'observation': i, 'action': [i]} for i in range(5)]\nsampled = resample_aligned_transitions_10hz(rows)\nassert [row['tick'] for row in sampled] == [0, 2, 4], 'Expected aligned 10 Hz rows from the 20 Hz stream'\nassert [row['action'] for row in sampled] == [[0], [2], [4]], 'Resampling must preserve applied actions'",
             use="print('Saved data ticks:', [row['tick'] for row in sampled])",
         ),
@@ -587,7 +653,7 @@ from vla_lab.teaching.data import action_window
             method="One timestamp interval in the dataset equals two simulator control ticks.",
             pointers="Record the current mapping; do not change the pipeline timing.",
             hint="Integer-divide even control ticks by two.",
-            starter="def dataset_tick_indices(control_ticks):\n    raise NotImplementedError('Exercise 5: map 20 Hz ticks to 10 Hz rows')",
+            starter="def dataset_tick_indices(control_ticks: Sequence[int]) -> np.ndarray:\n    raise NotImplementedError('Exercise 5: map 20 Hz ticks to 10 Hz rows')",
             check="assert np.array_equal(dataset_tick_indices([0, 2, 4]), [0, 1, 2]), '10 Hz mapping is wrong'",
             use="print('dataset indices:', dataset_tick_indices([0, 2, 4, 6]))",
         ),
@@ -601,7 +667,7 @@ from vla_lab.teaching.data import action_window
             method="Join by unique case ID, then check the state, seed, and task before counting gains and losses.",
             pointers="Use intervention states 15–19. Keep baseline data, evaluation conditions, and budget fixed.",
             hint="A case key can include both state and seed, for example `state-15-seed-20260945`. Reject duplicate keys before making a lookup map.",
-            starter="def intervention_effect(baseline, changed_data, *, case_ids):\n    raise NotImplementedError('Exercise 6: compare matched intervention results')",
+            starter="def intervention_effect(baseline: Sequence[InterventionCase], changed_data: Sequence[InterventionCase], *, case_ids: Sequence[str | int]) -> InterventionSummary:\n    raise NotImplementedError('Exercise 6: compare matched intervention results')",
             check="case = 'state-15-seed-20260945'\nbase = {'case_id': case, 'state_id': 15, 'reset_seed': 20260945, 'task_id': 'bowl_plate', 'success': False}\nchanged = {**base, 'success': True}\nresult = intervention_effect([base], [changed], case_ids=[case])\nassert result['gains'] == [case] and result['failed_attempts_included'], 'Paired gain or failure accounting is wrong'",
             use="print('Paired intervention summary:', result)",
         ),
@@ -654,7 +720,7 @@ if RUN_RECOVERY:
         data_root=root / '.local-data', output_dir=baseline_dir, state_ids=heldout)
     changed_summary = evaluate_act_states(checkpoint=intervention['checkpoint'], configs_root=root / 'configs',
         data_root=root / '.local-data', output_dir=changed_dir, state_ids=heldout)
-    def intervention_rows(folder):
+    def intervention_rows(folder: Path) -> list[CaseResult]:
         import json
         records = [json.loads(line) for line in (folder / 'episodes.jsonl').read_text().splitlines()]
         converted = []
@@ -699,7 +765,7 @@ from vla_lab.teaching.evaluation import development_cases, final_cases, validate
             method="Keep these groups fixed so experiments do not use the final set.",
             pointers="Try the state IDs once and inspect the exact returned list.",
             hint="A dictionary maps each stage name to one range.",
-            starter="def development_cases(stage):\n    raise NotImplementedError('Exercise 1: select the declared development group')",
+            starter="def development_cases(stage: str) -> list[int]:\n    raise NotImplementedError('Exercise 1: select the declared development group')",
             check="assert development_cases('method') == [10, 11, 12, 13, 14], 'Method states are wrong'",
             use="print('Method check states:', development_cases('method'))",
         ),
@@ -713,7 +779,7 @@ from vla_lab.teaching.evaluation import development_cases, final_cases, validate
             method="Compare actual IDs with the frozen expected set, then order records by ID.",
             pointers="Never silently drop a failed or missing run.",
             hint="Build a map only after checking duplicate IDs.",
-            starter="def validate_case_results(results, *, expected_case_ids):\n    raise NotImplementedError('Exercise 2: validate exact case coverage')",
+            starter="def validate_case_results(results: Sequence[CaseResult], *, expected_case_ids: Sequence[str | int]) -> list[CaseResult]:\n    raise NotImplementedError('Exercise 2: validate exact case coverage')",
             check="ordered = validate_case_results([{'case_id': 1, 'success': False}, {'case_id': 0, 'success': True}], expected_case_ids=[0, 1])\nassert [row['case_id'] for row in ordered] == [0, 1], 'Rows are not in frozen case order'",
             use="print('Included case IDs:', [row['case_id'] for row in ordered])",
         ),
@@ -727,7 +793,7 @@ from vla_lab.teaching.evaluation import development_cases, final_cases, validate
             method="Pair records before computing rates and disagreements. Count only explicit `success=True` as success; retain all failed attempts in the denominator.",
             pointers="Small paired samples can be inconclusive; show disagreement counts.",
             hint="Count `left_success and not right_success` separately from the reverse. Check state ID and reset seed as well as the display case key.",
-            starter="def paired_summary(left, right, *, expected_case_ids):\n    raise NotImplementedError('Exercise 3: aggregate paired attempts')",
+            starter="def paired_summary(left: Sequence[CaseResult], right: Sequence[CaseResult], *, expected_case_ids: Sequence[str | int]) -> PairedSummary:\n    raise NotImplementedError('Exercise 3: aggregate paired attempts')",
             check="base = {'state_id': 0, 'reset_seed': 4, 'task_id': 'bowl_plate', 'partition': 'method', 'prompt': 'place bowl', 'action_steps': 10}\nleft = [{**base, 'case_id': 'state-0-seed-4', 'policy_revision': 'rev-a', 'success': True}]\nright = [{**base, 'case_id': 'state-0-seed-4', 'policy_revision': 'rev-b', 'success': False}]\nsummary = paired_summary(left, right, expected_case_ids=['state-0-seed-4'])\nassert summary['cases'] == 1 and summary['left_only'] == 1 and summary['right_only'] == 0, 'Paired disagreement counts are wrong'",
             use="print('Paired difference:', summary['paired_difference'], 'disagreements:', summary['left_only'], summary['right_only'])",
         ),
@@ -741,7 +807,7 @@ from vla_lab.teaching.evaluation import development_cases, final_cases, validate
             method="Require both gates before returning the final IDs.",
             pointers="A valid final comparison can be inconclusive. Make no changes after seeing these outcomes.",
             hint="Check both booleans before creating the range.",
-            starter="def final_cases(*, data_unit_complete, recipes_frozen):\n    raise NotImplementedError('Exercise 4: enforce the final-set gate')",
+            starter="def final_cases(*, data_unit_complete: bool, recipes_frozen: bool) -> list[int]:\n    raise NotImplementedError('Exercise 4: enforce the final-set gate')",
             check="try:\n    final_cases(data_unit_complete=False, recipes_frozen=True)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('Final states opened before the data unit was complete')",
             use="print('Final set size:', len(final_cases(data_unit_complete=True, recipes_frozen=True)))",
         ),
@@ -771,7 +837,7 @@ if RUN_FINAL:
             item['vlm_dir'] = str((root / vlm_dir).resolve() if not vlm_dir.is_absolute() else vlm_dir.resolve())
     frozen_config.write_text(yaml.safe_dump(recipe, sort_keys=False))
     config = load_comparison_config(frozen_config, root / 'configs')
-    def sha256_file(path):
+    def sha256_file(path: Path) -> str:
         digest = hashlib.sha256()
         with path.open('rb') as stream:
             for block in iter(lambda: stream.read(1024 * 1024), b''):

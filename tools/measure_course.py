@@ -21,6 +21,8 @@ from uuid import uuid4
 
 import nbformat
 
+from vla_lab.types import JSONValue
+
 GPU_ALLOCATOR_SCOPE = (
     "PyTorch CUDA peak allocated/reserved bytes for this kernel process after reset, across the "
     "full notebook run; excludes non-PyTorch allocations and other processes."
@@ -28,7 +30,7 @@ GPU_ALLOCATOR_SCOPE = (
 RESOURCE_PREFIX = "COURSE_MEASURE_JSON="
 
 
-def enable_flag(notebook, flag: str) -> None:
+def enable_flag(notebook: nbformat.NotebookNode, flag: str) -> None:
     """Change the one exact ``NAME = False`` code assignment to ``NAME = True``."""
     if not flag.isidentifier():
         raise ValueError(f"flag must be a Python identifier: {flag!r}")
@@ -53,7 +55,7 @@ def enable_flag(notebook, flag: str) -> None:
     )
 
 
-def replace_once(notebook, old: str, new: str) -> None:
+def replace_once(notebook: nbformat.NotebookNode, old: str, new: str) -> None:
     """Replace one exact source string across code cells; reject zero or multiple matches."""
     if not old:
         raise ValueError("replacement OLD text must not be empty")
@@ -82,7 +84,9 @@ def _validate_assertion(assertion: str | None) -> None:
         raise ValueError("--assertion must contain one or more Python assert statements")
 
 
-def _apply_edits(notebook, flag: str, replacements: list[tuple[str, str]]) -> None:
+def _apply_edits(
+    notebook: nbformat.NotebookNode, flag: str, replacements: list[tuple[str, str]]
+) -> None:
     for old, new in replacements:
         replace_once(notebook, old, new)
     enable_flag(notebook, flag)
@@ -104,7 +108,9 @@ def _kernel_python(workspace: Path) -> str:
     return str(candidate) if candidate.is_file() else sys.executable
 
 
-def _measurement_cells(workload: str, flag: str, assertion: str | None):
+def _measurement_cells(
+    workload: str, flag: str, assertion: str | None
+) -> list[nbformat.NotebookNode]:
     prelude = """import json as _course_json
 import time as _course_time
 import torch as _course_torch
@@ -150,7 +156,7 @@ def _kernel_environment() -> dict[str, str]:
     return environment
 
 
-def _failed_cell(notebook):
+def _failed_cell(notebook: nbformat.NotebookNode) -> nbformat.NotebookNode | None:
     return next(
         (
             cell
@@ -162,7 +168,7 @@ def _failed_cell(notebook):
     )
 
 
-def _resource_streams(notebook) -> list[dict]:
+def _resource_streams(notebook: nbformat.NotebookNode) -> list[dict[str, JSONValue]]:
     found = []
     for cell in notebook.cells:
         if cell.cell_type != "code":
@@ -184,7 +190,7 @@ def measure_notebook(
     report_path: str | Path,
     assertion: str | None = None,
     timeout: int = 1800,
-) -> dict:
+) -> dict[str, JSONValue]:
     """Execute an explicitly enabled notebook in a fresh GPU kernel and write a JSON record."""
     from jupyter_client import AsyncKernelManager
     from jupyter_client.kernelspec import KernelSpecManager

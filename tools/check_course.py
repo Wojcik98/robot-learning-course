@@ -10,11 +10,14 @@ import sys
 import tempfile
 import time
 import warnings
+from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 import nbformat
+
+from vla_lab.types import JSONValue
 
 WORKSPACE_MARKER = Path("manifests/act_references.yaml")
 STUB_PATTERN = re.compile(r"\braise\s+NotImplementedError\b")
@@ -59,7 +62,7 @@ def discover_notebooks(paths: list[str | Path], workspace: Path, caller_dir: Pat
     return sorted(found)
 
 
-def _local_markdown_targets(source: str):
+def _local_markdown_targets(source: str) -> Iterator[str]:
     """Yield local paths from ordinary inline Markdown links and images."""
     for match in MARKDOWN_LINK_PATTERN.finditer(source):
         destination = match.group(1).strip()
@@ -83,14 +86,16 @@ def _notebook_class(path: Path) -> str:
     return "learner"
 
 
-def _first_stub(notebook):
+def _first_stub(notebook: nbformat.NotebookNode) -> nbformat.NotebookNode | None:
     for cell in notebook.cells:
         if cell.cell_type == "code" and STUB_PATTERN.search(cell.source):
             return cell
     return None
 
 
-def _check_stub_context(notebook, stub_cell) -> str | None:
+def _check_stub_context(
+    notebook: nbformat.NotebookNode, stub_cell: nbformat.NotebookNode
+) -> str | None:
     stub_index = notebook.cells.index(stub_cell)
     preceding_markdown = "\n".join(
         cell.source for cell in notebook.cells[:stub_index] if cell.cell_type == "markdown"
@@ -156,7 +161,7 @@ def _static_checks(path: Path, workspace: Path) -> tuple[object | None, list[str
 
 
 def _execute_notebook(
-    notebook, path: Path, timeout: int
+    notebook: nbformat.NotebookNode, path: Path, timeout: int
 ) -> tuple[str, str | None, str | None, str | None]:
     """Execute in a fresh kernel that uses this validator's Python executable."""
     from jupyter_client import AsyncKernelManager
@@ -218,7 +223,7 @@ def audit_notebook(
     workspace: str | Path | None = None,
     execute: bool = False,
     timeout: int = 180,
-) -> dict:
+) -> dict[str, JSONValue]:
     """Run static checks and, when requested, fresh-kernel checks on one notebook."""
     notebook_path = Path(path).resolve()
     root = Path(workspace).resolve() if workspace is not None else find_workspace(notebook_path)
