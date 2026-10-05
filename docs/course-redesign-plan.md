@@ -51,9 +51,5 @@ A code check, a model update, and simulator success are different evidence. Do n
 - [ ] GPU experiments have explicit bounds and output locations.
 - [ ] Reference notebooks run from fresh kernels. Learner notebooks fail clearly at unfinished stubs.
 - [ ] Notebooks have valid format, empty outputs, unset execution counts, and repository-root discovery.
-- [ ] Index links, setup steps, and earlier command-guide links are checked after integration.
+- [ ] Index links and setup steps are checked after integration.
 - [ ] Results preserve partition, seeds, provenance, timing, and failures.
-
-## Preserved learning material
-
-Keep the original Labs 0–11 and their solutions and learner answers. Link Labs 9–11 as focused runtime, RTC, and deployment extensions. The separate playground preview remains optional. Do not describe historical reports as new experiments.

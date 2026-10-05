@@ -4,7 +4,7 @@ This guide tells you how to trace, restore, release, and roll back a course chec
 
 ## 1. What this guide covers and what it does not
 
-The guide covers local operation on the prepared host: Ubuntu 24.04, Python 3.12, and one RTX 3070. It uses the existing commands only. The repository has no `release` command. A release record is a JSON file that you write. [The deployment guide](../tutorials/11-deployment/README.md) shows one.
+The guide covers local operation on the prepared host: Ubuntu 24.04, Python 3.12, and one RTX 3070. It uses the existing commands only. The repository has no `release` command. A release record is a JSON file that you write.
 
 Read these limits before you use a result:
 
@@ -64,7 +64,7 @@ The transfer archive has 14 files and 115,596,447 bytes. Its SHA-256 value is `0
 
 - A distribution source for a new learner machine does not exist yet. The archive is local only.
 - The source demonstrations may overlap the simulator initial states. A result on final states is not a test on new object placements.
-- The recovery data in Lab 8 are policy generated. They are not human demonstrations.
+- The supplied recovery reference data are policy generated. They are not human demonstrations.
 - The supplied ACT reference bundles lack saved random state and cannot support exact continuation. ACT training saves model, optimizer, and PyTorch random state for resumable checkpoints.
 - A checkpoint file does not record the host or the user that made it. Only the job record and your release record can state this.
 
@@ -177,13 +177,13 @@ Rules:
 3. Keep every attempt in the denominator. An infrastructure error makes a paired comparison invalid.
 4. Keep the record in a tracked location only after you remove paths that name a person or a secret.
 
-Lab 11 builds two such records in a temporary directory. The tracked [ACT release record](../artifacts/reference/release/act_bowl_plate_200.json) checks every checkpoint file hash and names its development and final result hashes. It sets the original checkpoint source commit to `null` because the saved checkpoint did not record it.
+The tracked [ACT release record](../artifacts/reference/release/act_bowl_plate_200.json) checks every checkpoint file hash and names its development and final result hashes. It sets the original checkpoint source commit to `null` because the saved checkpoint did not record it.
 
 ## 6. Roll back
 
 Use a release pointer. A pointer is a small file with the current `release_id` and `model_sha256`. Keep an append-only history file. A rollback changes the pointer. It deletes no checkpoint and no record.
 
-Decide with a rule that you write before you read the result. Lab 11 uses this rule:
+Decide with a rule that you write before you read the result. Use this rule:
 
 1. Reject the candidate if a hash check or a state-ID check fails.
 2. Reject the candidate if any attempt has an error.
@@ -283,8 +283,7 @@ UV_CACHE_DIR=.local-data/uv-cache uv sync --locked --extra dev
 .venv/bin/robot-lab jobs artifacts RUN_ID --output .local-data/retrieved/RUN_ID
 .venv/bin/robot-lab jobs cancel RUN_ID
 
-# Lab 11 and tests
-cat tutorials/11-deployment/README.md
+# Code checks
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OMP_NUM_THREADS=4 .venv/bin/python -m pytest -q
 ```
 

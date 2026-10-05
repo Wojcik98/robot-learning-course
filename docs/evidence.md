@@ -6,6 +6,7 @@ This page points to the checked records for the prepared local course. Run comma
 
 | Area | Checked record | Result and limit |
 |---|---|---|
+| Course function and resource checks | [course resource record](../artifacts/reference/course/local_resources.json) | Bounded checks report code execution and memory use. They do not establish policy quality. |
 | Data and controller | [feasibility](feasibility.md), [pinned source manifest](../manifests/core.yaml) | Real AV1 frames decode. LIBERO uses 50 ms control ticks. Dataset time labels do not prove physical elapsed time. |
 | ACT reference | [ACT manifest](../manifests/act_references.yaml), [release record](../artifacts/reference/release/act_bowl_plate_200.json) | Bowl-plate ACT succeeded on 19/20 seeded development states and 30/30 frozen final states. One training seed and one simulator task do not prove transfer. |
 | Learner SmolVLA | [SmolVLA manifest](../manifests/smolvla_reference.yaml) | The learner C2 checkpoint succeeded on 14/20 development states and 18/30 bowl-plate final states. The published checkpoint B has unknown training-data provenance. |
@@ -14,11 +15,10 @@ This page points to the checked records for the prepared local course. Run comma
 | Recovery data | [recovery report](../artifacts/reference/data_quality/recovery_reference.json), [keyboard recording sample](../artifacts/reference/data_quality/keyboard_human_retest.json) | Five policy-generated episodes gave no net success gain on 15 held-out development states. The saved keyboard sample contains nonzero arm actions. No human-recovery training result exists. |
 | Runtime and RTC | [frozen recipe](../configs/experiments/latency_final.yaml), [final report](../artifacts/reference/runtime/final_modes.json) | Five modes used one SmolVLA model on the same ten final states. Request times exceeded the set 100 ms virtual delay. This is a static simulator study, not a real-time robot result. |
 | Local job recovery | [interruption check](../artifacts/reference/jobs/act_interrupted_restore.json) | A new process resumed ACT after `SIGTERM` and completed one live simulator step. The restored weights were close, but not bitwise equal. A new machine and a long detached worker remain untested. |
-| Release and rollback | [Lab 11 check](../artifacts/reference/deployment/lab11_notebook.json), [operations guide](operations.md) | The lab wrote records and moved a release pointer in a temporary directory. Its exercise ends with a six-question career memo. It did not deploy to a robot or a service. |
 
 ## Commands that match the notebooks
 
-The [course index](../tutorials/index.ipynb) links the current learner and reference notebooks. Each lab guide gives a CLI command or a Python module command for its live or training path. Use the locked environment. For example:
+The [course index](../tutorials/index.ipynb) links the current learner and reference notebooks. Each notebook contains the code and run flags for its experiment. Use the locked environment. For example:
 
 ```bash
 .venv/bin/robot-lab doctor --live

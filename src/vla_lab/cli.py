@@ -123,7 +123,7 @@ def data_fetch_models(
     ] = DEFAULT_WORKSPACE,
     data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
 ) -> None:
-    """Fetch the pinned public SmolVLA and VLM files for Labs 4–5."""
+    """Fetch the pinned public SmolVLA and VLM files for VLA experiments."""
     from vla_lab.data.models import fetch_pinned_models
 
     root = workspace.expanduser().resolve()

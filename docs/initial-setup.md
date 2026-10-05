@@ -46,7 +46,7 @@ The default data root is `.local-data/`. Git ignores it. See [the environment gu
 
 Obtain the ACT archive from a machine that has the reference bundles. The course has no public archive download location. The [transfer guide](operations.md#41-restore-act-reference-checkpoints-on-a-clean-workspace) explains how to pack, copy, and install it. The archive contains checkpoints only; `data fetch` supplies the simulator assets.
 
-Before Labs 1–6, fetch training data. Before Labs 4–6, fetch the model files:
+Fetch training data before a training experiment. Fetch model files before a VLA experiment:
 
 ```bash
 .venv/bin/robot-lab data fetch --scope training
@@ -64,7 +64,7 @@ Network access is needed for the first install and download. Public core assets 
 
 Use a terminal with GPU access. The live check tests CUDA, AV1 decoding, checkpoint files, and an EGL simulator reset. Resolve each failed check before you start Unit 1. A restricted command environment can block GPU access even when your desktop terminal works.
 
-Select the `Python 3 (ipykernel)` kernel from this repository's `.venv`. Start with Unit 1, then follow the course index. The labs use local compute. See [the cloud guide](cloud.md) if local GPU memory or run time is insufficient.
+Select the `Python 3 (ipykernel)` kernel from this repository's `.venv`. Start with Unit 1, then follow the course index. The course uses local compute. See [the cloud guide](cloud.md) if local GPU memory or run time is insufficient.
 
 ## 5. Enable Bash completion
 

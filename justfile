@@ -47,7 +47,7 @@ act-suite *args:
 
 # Submit the ACT suite as a local job.
 act-suite-job:
-    .venv/bin/robot-lab jobs submit --config configs/train/act_task.yaml --purpose act-lab3-reference --seed 20260930 -- .venv/bin/python -m vla_lab.experiments.act --config configs/train/act_task.yaml --output '{run_dir}/experiment'
+    .venv/bin/robot-lab jobs submit --config configs/train/act_task.yaml --purpose act-reference --seed 20260930 -- .venv/bin/python -m vla_lab.experiments.act --config configs/train/act_task.yaml --output '{run_dir}/experiment'
 
 # Submit a local job or inspect its status, logs, and artifacts.
 jobs *args:

@@ -4,7 +4,7 @@ Use this guide to add a lesson to the 14-unit course. Keep the learner notebook 
 
 ## Course sequence
 
-Use the order in [the course index](../tutorials/index.ipynb): playground, execution, ACT training, adapters, data, CVAE, attention, ACT decoder, ACT assembly, diffusion training, denoiser blocks, U-Net, sampling, VLA inputs, flow matching, data improvement, and comparison. Use the earlier lab text guides for runtime, RTC, and deployment command details.
+Use the order in [the course index](../tutorials/index.ipynb): playground, execution, ACT training, adapters, data, CVAE, attention, ACT decoder, ACT assembly, diffusion training, denoiser blocks, U-Net, sampling, VLA inputs, flow matching, data improvement, and comparison.
 
 ## Lesson rules
 
@@ -22,12 +22,12 @@ Use the order in [the course index](../tutorials/index.ipynb): playground, execu
 
 ## Author and check a unit
 
-Run these commands from the repository root. The first command runs static checks. The second runs those checks and then uses fresh local kernels to execute each notebook. A file or directory path is accepted; the examples check all course notebooks.
+Run these commands from the repository root. The first command runs static checks. The second checks and executes one reference notebook in a fresh local kernel. A file or directory path is accepted. Check one notebook at a time to limit resource use.
 
 ```bash
 .venv/bin/python tools/check_course.py tutorials --report .local-data/course-redesign/notebook-validation.json
 
-.venv/bin/python tools/check_course.py tutorials --execute --report .local-data/course-redesign/notebook-validation.json
+.venv/bin/python tools/check_course.py tutorials/07-attention/07-attention-reference.ipynb --execute --report .local-data/course-redesign/notebook-validation.json
 ```
 
 The report records one result per notebook. The execution check expects each learner notebook to stop at its first `NotImplementedError` exercise. It runs reference notebooks and the playground through their default quick path. It uses fresh local Python kernels, hides CUDA, and sets model/data downloads to offline mode. Keep real GPU or robot experiments behind explicit flags and run them as separate, measured experiments. Do not enable them for the notebook check.

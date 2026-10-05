@@ -29,10 +29,10 @@ From the repository root, run the static checks first:
 .venv/bin/python tools/check_course.py tutorials --report .local-data/course-redesign/notebook-validation.json
 ```
 
-Then run each notebook in a fresh local Python kernel:
+Then check one notebook at a time in a fresh local Python kernel:
 
 ```bash
-.venv/bin/python tools/check_course.py tutorials --execute --report .local-data/course-redesign/notebook-validation.json
+.venv/bin/python tools/check_course.py tutorials/07-attention/07-attention-reference.ipynb --execute --report .local-data/course-redesign/notebook-validation.json
 ```
 
 The report records a result for each notebook. Learner notebooks pass this check when they stop at the first unfinished exercise with `NotImplementedError`. Reference notebooks and the playground must complete their default quick path. The execution check hides CUDA and disables model and data downloads. Real GPU and robot experiments stay behind explicit flags and run separately.
@@ -51,5 +51,3 @@ Do not use final results to select methods or tune settings. Keep failed attempt
 ## Units
 
 See the [course index](index.ipynb) for the exact learner and reference links. The sequence is: playground, execution, ACT training, adapters, data, CVAE, attention, ACT decoder, ACT assembly, diffusion training, denoiser blocks, U-Net, sampling, VLA inputs, flow matching, data improvement, and comparison.
-
-The earlier lab text guides remain available. Use them for command details about runtime, RTC, and deployment.

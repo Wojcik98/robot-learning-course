@@ -608,7 +608,7 @@ from vla_lab.teaching.data import action_window
     ],
     (
         "Test whether improved demonstrations help. Record and review accepted demonstrations, then compare the frozen baseline with a bounded ACT continuation. Use held-out development states from 15–19; keep final states 20–49 closed. Record hashes, training steps, all attempts, and paired gains/losses.",
-        "Use the keyboard recorder and checked recovery pipeline. Record five to ten accepted demonstrations on development states only. This cell uses your alignment function to build state-action rows, resamples aligned 20 Hz transitions to 10 Hz, then makes 20-step ACT windows. The controller still applies one action per 20 Hz tick. The continuation uses a new optimizer. This cell stays off by default and never fetches weights or data. See `tutorials/08-data-quality/README.md` for the keyboard recorder commands and key map.",
+        "Use the keyboard recorder and checked recovery pipeline. Record five to ten accepted demonstrations on development states only. This cell uses your alignment function to build state-action rows, resamples aligned 20 Hz transitions to 10 Hz, then makes 20-step ACT windows. The controller still applies one action per 20 Hz tick. The continuation uses a new optimizer. This cell stays off by default and never fetches weights or data. See `docs/recording.md` for the keyboard recorder commands and key map.",
         """RUN_RECOVERY = False
 if RUN_RECOVERY:
     from vla_lab.experiments.build_recovery_manifest import build_keyboard_manifest

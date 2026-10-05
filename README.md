@@ -12,10 +12,11 @@ The course assumes Python and NumPy. Each notebook explains the PyTorch operatio
 - [Operations and rollback](docs/operations.md)
 - [Checked evidence and limits](docs/evidence.md)
 - [How to add or change a lesson](docs/extending.md)
+- [Keyboard recording commands](docs/recording.md)
 
 Run `just` at the repository root to list available recipes. Install `just` and `uv` with the [initial setup checklist](docs/initial-setup.md). `just jupyter` starts one Jupyter server and opens the course index. To open a notebook directly, run `just jupyter tutorials/01-playground/01-playground.ipynb`. The server listens on `127.0.0.1`. If it is already running, open another notebook in its file browser.
 
-Run `just doctor` for local checks. Run `just doctor-live` for live-rendering checks. Use `just test` and `just lint` to check the code. These checks do not run the course's real GPU experiments.
+Run `just doctor` for local checks. Run `just doctor-live` for live-rendering checks. Use `just test` and `just lint` to check the code. Run `.venv/bin/python tools/check_course.py tutorials` for static notebook checks. These checks do not run the course's real GPU experiments.
 
 ## Assets, data, and compute
 
