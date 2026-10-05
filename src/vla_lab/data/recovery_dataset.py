@@ -31,6 +31,32 @@ def _single_env_batch(observation: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _values_equal(left: Any, right: Any) -> bool:
+    """Compare copied nested observations without relying on object identity."""
+    if left is right:
+        return True
+    if isinstance(left, np.ndarray) or isinstance(right, np.ndarray):
+        try:
+            return bool(np.array_equal(np.asarray(left), np.asarray(right), equal_nan=True))
+        except (TypeError, ValueError):
+            return False
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        return left.keys() == right.keys() and all(
+            _values_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+        return len(left) == len(right) and all(
+            _values_equal(a, b) for a, b in zip(left, right, strict=True)
+        )
+    try:
+        result = left == right
+    except (TypeError, ValueError):
+        return False
+    if isinstance(result, np.ndarray):
+        return bool(result.all())
+    return bool(result)
+
+
 def _libero_observation_transform(observation: Mapping[str, Any]) -> dict[str, torch.Tensor]:
     """Use the same observation conversion as the ACT simulator path."""
     from lerobot.envs.utils import preprocess_observation
@@ -66,6 +92,10 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
         observation_transform: Callable[
             [Mapping[str, Any]], Mapping[str, Any]
         ] = _libero_observation_transform,
+        transition_rows_fn: Callable[..., Sequence[Mapping[str, Any]]] | None = None,
+        resample_rows_fn: Callable[[Sequence[Mapping[str, Any]]], Sequence[Mapping[str, Any]]]
+        | None = None,
+        window_fn: Callable[..., tuple[np.ndarray, np.ndarray]] | None = None,
     ) -> None:
         if not episode_paths:
             raise ValueError("Recovery dataset needs at least one recording")
@@ -104,18 +134,67 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
 
         self._episodes = episodes
         self._observation_transform = observation_transform
+        self._resample_rows_fn = resample_rows_fn
+        self._window_fn = window_fn
         self._starts: list[tuple[int, int]] = []
+        self._observations: list[Mapping[str, Any]] = []
+        self._actions_by_episode: list[np.ndarray] = []
         for episode_index, episode in enumerate(episodes):
-            # Keep each applied action at its verified 50 ms controller tick.
-            self._starts.extend((episode_index, tick) for tick in range(len(episode.actions)))
+            if transition_rows_fn is None:
+                transitions = [
+                    {
+                        "tick": tick,
+                        "observation": episode.observations[tick],
+                        "action": episode.actions[tick],
+                    }
+                    for tick in range(len(episode.actions))
+                ]
+            else:
+                transitions = transition_rows_fn(
+                    episode.observations,
+                    episode.actions,
+                    episode.observation_ticks,
+                    episode.action_ticks,
+                )
+            if len(transitions) != len(episode.actions):
+                raise ValueError(
+                    "transition_rows_fn must return one aligned row per applied action"
+                )
+            for tick, row in enumerate(transitions):
+                action = np.asarray(row.get("action"), dtype=np.float32)
+                if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
+                    raise ValueError("transition_rows_fn changed an applied action or its order")
+            selected = (
+                list(self._resample_rows_fn(transitions))
+                if self._resample_rows_fn is not None
+                else list(transitions)
+            )
+            if not selected:
+                raise ValueError("resample_rows_fn must keep at least one transition per episode")
+            source_rows = {int(row["tick"]): row for row in transitions}
+            selected_actions = []
+            for selected_tick, row in enumerate(selected):
+                tick = int(row.get("tick", -1))
+                if tick not in source_rows or not _values_equal(
+                    row.get("observation"), source_rows[tick].get("observation")
+                ):
+                    raise ValueError("resample_rows_fn must select original aligned rows")
+                if selected_tick and tick <= int(selected[selected_tick - 1]["tick"]):
+                    raise ValueError("resample_rows_fn must preserve transition order")
+                action = np.asarray(row.get("action"), dtype=np.float32)
+                if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
+                    raise ValueError("resample_rows_fn changed an applied action")
+                selected_actions.append(action.copy())
+                self._starts.append((episode_index, selected_tick))
+                self._observations.append(row["observation"])
+            self._actions_by_episode.append(np.stack(selected_actions))
 
     def __len__(self) -> int:
         return len(self._starts)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         episode_index, source_tick = self._starts[index]
-        episode = self._episodes[episode_index]
-        transformed = self._observation_transform(episode.observations[source_tick])
+        transformed = self._observation_transform(self._observations[index])
         sample: dict[str, torch.Tensor] = {}
         expected_shapes = {
             _IMAGE_KEYS[0]: (3, 256, 256),
@@ -132,15 +211,26 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
                 raise ValueError(f"Transformed {key} values must be in [0, 1]")
             sample[key] = value.contiguous()
 
-        actions = np.zeros((ACT_CHUNK_SIZE, 7), dtype=np.float32)
-        padding = np.ones(ACT_CHUNK_SIZE, dtype=np.bool_)
-        source_indices = source_tick + np.arange(ACT_CHUNK_SIZE)
-        valid = source_indices < len(episode.actions)
-        action_indices = source_indices[valid]
-        actions[: len(action_indices)] = episode.actions[action_indices]
-        padding[: len(action_indices)] = False
-        if len(action_indices):
-            actions[len(action_indices) :] = actions[len(action_indices) - 1]
+        if self._window_fn is not None:
+            actions, padding = self._window_fn(
+                self._actions_by_episode[episode_index],
+                start=source_tick,
+                horizon=ACT_CHUNK_SIZE,
+            )
+            actions = np.asarray(actions, dtype=np.float32)
+            padding = np.asarray(padding, dtype=np.bool_)
+            if actions.shape != (ACT_CHUNK_SIZE, 7) or padding.shape != (ACT_CHUNK_SIZE,):
+                raise ValueError("window_fn must return a 20x7 action chunk and a 20-value mask")
+        else:
+            actions = np.zeros((ACT_CHUNK_SIZE, 7), dtype=np.float32)
+            padding = np.ones(ACT_CHUNK_SIZE, dtype=np.bool_)
+            source_indices = source_tick + np.arange(ACT_CHUNK_SIZE)
+            valid = source_indices < len(self._actions_by_episode[episode_index])
+            action_indices = source_indices[valid]
+            actions[: len(action_indices)] = self._actions_by_episode[episode_index][action_indices]
+            padding[: len(action_indices)] = False
+            if len(action_indices):
+                actions[len(action_indices) :] = actions[len(action_indices) - 1]
         sample["action"] = torch.from_numpy(actions)
         sample["action_is_pad"] = torch.from_numpy(padding)
         return sample

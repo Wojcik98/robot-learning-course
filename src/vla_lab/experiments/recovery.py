@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from vla_lab.data.recording import RecordedEpisode
+from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode
+
+_ACT_CHUNK_SIZE = 20
 
 
 def _sha256(path: Path) -> str:
@@ -19,6 +22,23 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _timing_provenance(training_transition_hz: int) -> dict[str, Any]:
+    """Describe recording, training, chunk, and controller timing separately."""
+    recording_hz = 1000 // CONTROL_PERIOD_MS
+    if training_transition_hz < 1 or recording_hz % training_transition_hz:
+        raise ValueError("training_transition_hz must be a positive divisor of the recording rate")
+    return {
+        "recorded_controller_period_ms": CONTROL_PERIOD_MS,
+        "recorded_control_hz": recording_hz,
+        "training_transition_hz": training_transition_hz,
+        "training_resample_stride": recording_hz // training_transition_hz,
+        "act_action_chunk_steps": _ACT_CHUNK_SIZE,
+        "act_action_chunk_duration_s": _ACT_CHUNK_SIZE / training_transition_hz,
+        "controller_action_hz": recording_hz,
+        "controller_behavior": "apply one action per 20 Hz controller tick",
+    }
 
 
 def load_recovery_manifest(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
@@ -87,11 +107,23 @@ def continue_act_with_recovery(
     output_dir: str | Path,
     steps: int = 200,
     seed: int = 20261001,
+    transition_rows_fn: Callable[..., Sequence[Mapping[str, Any]]] | None = None,
+    resample_rows_fn: Callable[[Sequence[Mapping[str, Any]]], Sequence[Mapping[str, Any]]]
+    | None = None,
+    training_transition_hz: int | None = None,
+    window_fn: Callable[..., tuple[Any, Any]] | None = None,
 ) -> dict[str, Any]:
     """Train a bounded ACT continuation with a new optimizer and saved processor."""
     from vla_lab.data.recovery_dataset import RecoveryDataset
     from vla_lab.policy.bundle import load_act_bundle
     from vla_lab.training.act import train_act_reference
+
+    if resample_rows_fn is not None and training_transition_hz is None:
+        raise ValueError("Set training_transition_hz when resample_rows_fn changes the data rate")
+    effective_training_hz = (
+        1000 // CONTROL_PERIOD_MS if training_transition_hz is None else training_transition_hz
+    )
+    timing = _timing_provenance(effective_training_hz)
 
     manifest_file = Path(manifest_path)
     config_root = Path(configs_root)
@@ -117,6 +149,9 @@ def continue_act_with_recovery(
         paths,
         task_id=task_alias,
         expected_reset_seeds={item["reset_seed"] for item in record["recordings"]},
+        transition_rows_fn=transition_rows_fn,
+        resample_rows_fn=resample_rows_fn,
+        window_fn=window_fn,
     )
     result = train_act_reference(
         task_alias=task_alias,
@@ -141,6 +176,7 @@ def continue_act_with_recovery(
         "recovery_manifest_sha256": _sha256(manifest_file),
         "recording_count": len(paths),
         "recording_sample_count": len(dataset),
+        **timing,
         "heldout_development_state_ids": record["heldout_development_state_ids"],
         "base_checkpoint": str(base),
         "base_model_sha256": _sha256(base / "model.safetensors"),
