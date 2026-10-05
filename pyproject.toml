@@ -19,10 +19,15 @@ dependencies = [
   "pyyaml>=6,<7",
   "ipywidgets>=8.1.9",
   "ruff>=0.16.9",
+  "ipykernel<7",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "ruff>=0.14,<1"]
+dev = [
+    "mypy>=2.4,<3",
+    "pytest>=8,<10",
+    "ruff>=0.14,<1",
+]
 
 [project.scripts]
 robot-lab = "vla_lab.cli:app"

@@ -93,3 +93,7 @@ test:
 lint:
     .venv/bin/ruff check src tests
     .venv/bin/ruff format --check src tests
+
+# Check shared source and notebook types, and reject invalid policy interfaces.
+typecheck:
+    .venv/bin/python tools/check_typing.py
