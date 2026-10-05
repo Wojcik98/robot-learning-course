@@ -62,9 +62,9 @@ Network access is needed for the first install and download. Public core assets 
 .venv/bin/jupyter lab tutorials/index.ipynb
 ```
 
-Use a terminal with GPU access. The live check tests CUDA, AV1 decoding, checkpoint files, and an EGL simulator reset. Resolve each failed check before you start Lab 0. A restricted command environment can block GPU access even when your desktop terminal works.
+Use a terminal with GPU access. The live check tests CUDA, AV1 decoding, checkpoint files, and an EGL simulator reset. Resolve each failed check before you start Unit 1. A restricted command environment can block GPU access even when your desktop terminal works.
 
-Select the `Python 3 (ipykernel)` kernel from this repository's `.venv`. Start with Lab 0, then follow the course index. The labs use local compute. See [the cloud guide](cloud.md) if local GPU memory or run time is insufficient.
+Select the `Python 3 (ipykernel)` kernel from this repository's `.venv`. Start with Unit 1, then follow the course index. The labs use local compute. See [the cloud guide](cloud.md) if local GPU memory or run time is insufficient.
 
 ## 5. Enable Bash completion
 

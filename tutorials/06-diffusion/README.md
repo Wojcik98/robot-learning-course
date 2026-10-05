@@ -1,12 +1,13 @@
 # Lab 6: Train and inspect a Diffusion Policy
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab checks one trained Diffusion Policy for the bowl-plate task. It covers observation history, action horizons, end padding, train-only state and action statistics, the training loss, checkpoint hashes, seeded development results, and a denoising-step comparison.
 
 Run from the repository root after you fetch the training data and the pinned LIBERO assets:
 
 ```bash
 just data-training
-just jupyter tutorials/06-diffusion/06-diffusion.ipynb
 ```
 
 To train a new reference, first make sure the pinned ResNet-18 file is in the local Torch cache. The training code checks its hash and stops if the file is missing or has a different hash. Then use a new output directory:
@@ -37,4 +38,4 @@ The notebook includes a separate live rollout of development state 2, which succ
 
 One training seed and 20 development states do not establish a general success rate. The denoising-step comparison changes sampling compute. A behavior difference can result from the sampling setting. The course has not used final states to select the checkpoint or sampler setting.
 
-Use the [exercise](06-diffusion.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/06-diffusion.md) after you save your answer.
+Use the exercise in the notebook. Read the [solution guide](../../solutions/06-diffusion.md) after you save your answer.

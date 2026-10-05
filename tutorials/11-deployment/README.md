@@ -1,12 +1,8 @@
 # Lab 11: Check, release, and roll back an ACT checkpoint
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab teaches you to trace a checkpoint to its sources, check its hashes, write a release record, and decide whether to keep or roll back a candidate. The rollback is a pointer change that you can undo. You finish with a short career assessment memo.
-
-Start from the repository root:
-
-```bash
-just jupyter tutorials/11-deployment/11-deployment.ipynb
-```
 
 The notebook runs on CPU. It needs no GPU, no LIBERO assets, and no checkpoint file. Cloud cost is US$0. No paid job ran for this lab.
 
@@ -46,4 +42,4 @@ The notebook has no cloud step. No real Brev allocation has been tested. Read [t
 - One training seed was used. Source demonstrations may overlap the simulator initial states.
 - No final state is opened. A rollback here does not change a real checkpoint.
 
-Read the [operations guide](../../docs/operations.md) for the exact commands. Read the [exercise](11-deployment.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/11-deployment.md) after you save your answer.
+Read the [operations guide](../../docs/operations.md) for the exact commands. Read the exercise in the notebook. Read the [solution guide](../../solutions/11-deployment.md) after you save your answer.

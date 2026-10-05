@@ -18,7 +18,7 @@ This page points to the checked records for the prepared local course. Run comma
 
 ## Commands that match the notebooks
 
-The [course index](../tutorials/index.ipynb) links Labs 0–11. Each lab guide gives a CLI command or a Python module command for its live or training path. Use the locked environment. For example:
+The [course index](../tutorials/index.ipynb) links the current learner and reference notebooks. Each lab guide gives a CLI command or a Python module command for its live or training path. Use the locked environment. For example:
 
 ```bash
 .venv/bin/robot-lab doctor --live
@@ -28,7 +28,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/pytest -q tests
 just lint
 ```
 
-Use [the setup guide](initial-setup.md) for Ubuntu, `uv`, `just`, data fetch, EGL, and GPU access. Use [the operations guide](operations.md) for saved jobs, checkpoint restore, and rollback. The [lesson guide](extending.md) shows how Lab 11 reuses an existing policy, evaluator, config, fixture, notebook, solution, and index entry.
+Use [the setup guide](initial-setup.md) for Ubuntu, `uv`, `just`, data fetch, EGL, and GPU access. Use [the operations guide](operations.md) for saved jobs, checkpoint restore, and rollback. Use the [lesson guide](extending.md) to add or change a lesson.
 
 ## Resource and cost boundary
 

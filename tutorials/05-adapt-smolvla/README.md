@@ -1,5 +1,7 @@
 # Lab 5: Train a SmolVLA robot policy
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab follows one learner model from source A to the trained checkpoints C1 and C2. It shows which weights come from the pinned SmolVLM source. It shows which weights start new and which weights get gradients. It then checks the saved files, the model lineage, the training loss, and the live development results.
 
 Run from the repository root after Lab 4 and the training data download:
@@ -7,7 +9,6 @@ Run from the repository root after Lab 4 and the training data download:
 ```bash
 just data-training
 just data-models
-just jupyter tutorials/05-adapt-smolvla/05-adapt-smolvla.ipynb
 ```
 
 To train both stages yourself, use two new output directories:
@@ -54,4 +55,4 @@ The published model B from Lab 4 is a separate reference with unknown training d
 
 The notebook also reads the first seeded ACT/VLA development comparison. ACT succeeded on 19/20 states, published B on 16/20, and learner C2 on 14/20. These are practical recipes with different models, pretrained data, and robot training steps. The counts do not isolate an effect of pretraining or architecture. Final states stay closed until the course freezes all recipes.
 
-Use the [exercise](05-adapt-smolvla.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/05-adapt-smolvla.md) after you save your answer.
+Use the exercise in the notebook. Read the [solution guide](../../solutions/05-adapt-smolvla.md) after you save your answer.

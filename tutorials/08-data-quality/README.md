@@ -1,12 +1,8 @@
 # Lab 8: Inspect and repair recording alignment
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab uses the seven-value LIBERO relative action contract. It checks source action values, a saved recording, and a labelled one-tick fault. It then guides you through short keyboard recordings and one bounded ACT continuation.
-
-Start from the repository root:
-
-```bash
-just jupyter tutorials/08-data-quality/08-data-quality.ipynb
-```
 
 The saved analysis runs on CPU. The [source action audit](../../artifacts/reference/data_quality/source_action_audit.json) covers 39 bowl-plate training episodes and 3,661 actions. It found 0 arm actions at or below 0.001, 11 at or below 0.01, and 61 at or below 0.05, using the largest absolute value among six arm components. Gripper values are excluded. These counts do not prove why near-zero values are rare. Source filtering history is unknown, and dataset timestamps cannot restore removed physical time.
 
@@ -47,4 +43,4 @@ just act-recovery \
 
 The supplied [reference report](../../artifacts/reference/data_quality/recovery_reference.json) uses five separately labelled ACT-generated demonstrations. The valid tick-aligned continuation reached 14/15 on held-out development states, as did the unchanged base checkpoint; the failure state changed. The diagnostic continuation that discards odd controller ticks reached 0/15. It has invalid timing alignment and must not be used as a reference recipe. The course keeps every recorded 50 ms controller tick. The [teacher manifest](../../artifacts/reference/data_quality/teacher_manifest.json) gives hashes and local paths for the five full NPZ files. They are in ignored `.local-data/` on this prepared machine. Their source is a policy, not a human.
 
-Read the [exercise](08-data-quality.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/08-data-quality.md) after you save your answer.
+Read the exercise in the notebook. Read the [solution guide](../../solutions/08-data-quality.md) after you save your answer.

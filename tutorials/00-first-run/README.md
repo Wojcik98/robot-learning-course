@@ -1,5 +1,7 @@
 # Lab 0: Run ACT in a simulator
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 In this lab, you load a supplied ACT checkpoint and run a robot task in LIBERO. You do not need to train a model first.
 
 ## Before you start
@@ -11,7 +13,6 @@ just setup
 just data-demo
 just references-install .local-data/bundles/act-references.zip
 just doctor
-just jupyter tutorials/00-first-run/00-first-run.ipynb
 ```
 
 Select the `Python 3 (ipykernel)` kernel that uses this repository's `.venv`. Start Jupyter from the repository root. The notebook writes runs to `.local-data/runs/`; Git ignores that directory.

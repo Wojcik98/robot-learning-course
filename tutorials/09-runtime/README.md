@@ -1,12 +1,8 @@
 # Lab 9: Run delayed action chunks on virtual ticks
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab teaches how a delayed policy reply reaches the robot controller. It uses a deterministic scheduler with 50 ms virtual ticks. It uses synthetic `ActionChunk` objects that you can read by eye. It also reads a saved six-setting sweep on one live development state.
-
-Start from the repository root:
-
-```bash
-just jupyter tutorials/09-runtime/09-runtime.ipynb
-```
 
 The notebook runs on CPU. It reads the saved sweep and needs no GPU, LIBERO assets, or model checkpoint. Cloud cost for the notebook is US$0. The saved sweep uses the reference local GPU.
 
@@ -29,10 +25,10 @@ The notebook runs on CPU. It reads the saved sweep and needs no GPU, LIBERO asse
 
 ## Limits
 
-The notebook's scheduler cells use synthetic chunks. The saved sweep did run SmolVLA and LIBERO on one development state, but the notebook does not repeat those GPU runs. The sweep is too small for a setting ranking. [Lab 10](../10-rtc/10-rtc.ipynb) reads the five-mode comparison on more states. The scheduler tests show queue rules only.
+The notebook's scheduler cells use synthetic chunks. The saved sweep did run SmolVLA and LIBERO on one development state, but the notebook does not repeat those GPU runs. The sweep is too small for a setting ranking. Lab 10 reads the five-mode comparison on more states. The scheduler tests show queue rules only.
 
 The scheduler records camera and policy availability. Only policy outage changes delivery. A camera fault is recorded and does not change the action.
 
 The wall clock cell prints numbers that depend on your host. The notebook does not assert them. Do not compare them across hosts.
 
-Read the [exercise](09-runtime.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/09-runtime.md) after you save your answer.
+Read the exercise in the notebook. Read the [solution guide](../../solutions/09-runtime.md) after you save your answer.

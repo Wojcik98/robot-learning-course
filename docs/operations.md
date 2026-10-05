@@ -4,7 +4,7 @@ This guide tells you how to trace, restore, release, and roll back a course chec
 
 ## 1. What this guide covers and what it does not
 
-The guide covers local operation on the prepared host: Ubuntu 24.04, Python 3.12, and one RTX 3070. It uses the existing commands only. The repository has no `release` command. A release record is a JSON file that you write. [Lab 11](../tutorials/11-deployment/11-deployment.ipynb) shows one.
+The guide covers local operation on the prepared host: Ubuntu 24.04, Python 3.12, and one RTX 3070. It uses the existing commands only. The repository has no `release` command. A release record is a JSON file that you write. [The deployment guide](../tutorials/11-deployment/README.md) shows one.
 
 Read these limits before you use a result:
 
@@ -284,7 +284,7 @@ UV_CACHE_DIR=.local-data/uv-cache uv sync --locked --extra dev
 .venv/bin/robot-lab jobs cancel RUN_ID
 
 # Lab 11 and tests
-.venv/bin/jupyter lab tutorials/11-deployment/11-deployment.ipynb
+cat tutorials/11-deployment/README.md
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OMP_NUM_THREADS=4 .venv/bin/python -m pytest -q
 ```
 

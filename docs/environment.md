@@ -41,7 +41,7 @@ Use a terminal with GPU access for CUDA and EGL checks. A restricted command env
 
 ## Lab 0 launch and checkpoint transfer
 
-Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lab 0](../tutorials/00-first-run/00-first-run.ipynb) from the repository root. The default notebook runs development state 0 twice and shows each live video.
+Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Unit 1](../tutorials/01-playground/01-playground.ipynb) from the repository root. Use the marked live cells to run a policy in the simulator.
 
 The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.
 

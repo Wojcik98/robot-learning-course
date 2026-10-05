@@ -1,6 +1,8 @@
-# End-to-end robot learning
+# Robot learning course
 
-This project is a notebook course on ACT, SmolVLA, and Diffusion Policy in simulation. Follow Labs 0–11 to run, train, compare, and inspect robot policies. Use the setup guide to prepare your machine and Python environment.
+Start with the [14-unit implementation course](tutorials/index.ipynb). It begins with a working policy playground, then asks you to implement small functions and use them in the same notebook. Each lesson has a learner notebook and a complete reference notebook in the same folder. Your saved notebook copy keeps your answers.
+
+The course assumes Python and NumPy. Each notebook explains the PyTorch operations that it needs. CPU checks run by default. Longer training and GPU experiments are explicit steps. The notebooks do not download assets or start long jobs automatically. Bring the local assets required by an experiment before you run it; use the setup and asset notes below.
 
 ## Setup
 
@@ -9,55 +11,16 @@ This project is a notebook course on ACT, SmolVLA, and Diffusion Policy in simul
 - [Runtime requirements and limits](docs/feasibility.md)
 - [Operations and rollback](docs/operations.md)
 - [Checked evidence and limits](docs/evidence.md)
-- [Add a lesson](docs/extending.md)
+- [How to add or change a lesson](docs/extending.md)
 
-## Course commands
+Run `just` at the repository root to list available recipes. Install `just` and `uv` with the [initial setup checklist](docs/initial-setup.md). `just jupyter` starts one Jupyter server and opens the course index. To open a notebook directly, run `just jupyter tutorials/01-playground/01-playground.ipynb`. The server listens on `127.0.0.1`. If it is already running, open another notebook in its file browser.
 
-Run `just` to list the available recipes. Install `just` and `uv` with the
-[initial setup checklist](docs/initial-setup.md). Run recipes from the repository root.
+Run `just doctor` for local checks. Run `just doctor-live` for live-rendering checks. Use `just test` and `just lint` to check the code. These checks do not run the course's real GPU experiments.
 
-`just jupyter` starts one Jupyter server for all labs and opens the course index.
-To open a specific notebook, use `just jupyter tutorials/01-act/01-act.ipynb`.
-The server listens on `127.0.0.1` and requires no password or token.
-If the server is already running, open another lab from its file browser.
+## Assets, data, and compute
 
-Use `just doctor` to check local requirements. Use `just doctor-live` to also
-check live rendering. Recipes that accept extra options pass them to the underlying
-command. For example, use `just data-training --offline` to check local data.
-Use `just test` and `just lint` to check the code.
+The first live playground needs the local policy and simulator assets described in [initial setup](docs/initial-setup.md). For current asset state, run `just doctor-live`; follow the printed setup instructions when an asset is absent. The course does not fetch assets automatically.
 
-## First live lab
+Training experiments use local data and can take longer than the function checks. Start them only from their marked cells or commands. Use [local job controls](docs/jobs.md) for longer training runs; they provide a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes. Cloud tasks are separate and use the controls in [the cloud guide](docs/cloud.md).
 
-Run these commands from this repository's root after the [environment setup](docs/environment.md):
-
-```bash
-just setup
-just data-demo
-just references-install .local-data/bundles/act-references.zip
-just doctor-live
-just jupyter
-```
-
-Open [Lab 0](tutorials/00-first-run/00-first-run.ipynb) from the index. It loads a trained ACT checkpoint, runs a LIBERO-Goal task, saves a live video, and resets the task for a second run. The [Lab 0 guide](tutorials/00-first-run/README.md) gives a terminal path and an exercise.
-
-The ACT reference checkpoints and simulator data are large files in ignored `.local-data/`. A prepared archive is at `.local-data/bundles/act-references.zip` on this machine. For another machine, copy that archive and run:
-
-```bash
-just references-install /path/to/act-references.zip
-```
-
-The installer checks each file against [the pinned reference manifest](manifests/act_references.yaml). The archive does not contain the simulator data. There is no public download location for the archive. Obtain it from a machine with the reference bundles.
-
-Before a training lab, run `just data-training` to add the selected data shards and camera videos. The command uses the exact Hub revisions in [the core manifest](manifests/core.yaml).
-
-Use [local job controls](docs/jobs.md) for longer training runs. They keep a run ID, heartbeat, log, cancel command, and bounded artifact copy after a notebook closes.
-
-[Brev cost and stop controls](docs/cloud.md) require a supervised provider check before unattended use. The local labs do not use cloud credit.
-
-The [course data flow](docs/architecture.md) has validated packets, a basic action queue, exact-state evaluation, and paired reports. [Lab 1](tutorials/01-act/01-act.ipynb) traces ACT tensors, loss terms, and action chunks. [Lab 2](tutorials/02-data-evaluation/02-data-evaluation.ipynb) audits a complete demonstration and runs two fixed development states.
-
-[Lab 3](tutorials/03-train-act/03-train-act.ipynb) trains ACT, resumes a checkpoint, and compares three saved local variants on the same 20 development states. The [reference record](artifacts/reference/act/lab3_suite.json) has every count and checkpoint hash. Use the [job guide](docs/jobs.md) to monitor a long run and check worker survival on your host.
-
-[Labs 4 and 5](tutorials/04-smolvla/04-smolvla.ipynb) run a published SmolVLA checkpoint and adapt a separate learner. [Lab 6](tutorials/06-diffusion/06-diffusion.ipynb) trains and evaluates Diffusion Policy. [Lab 7](tutorials/07-comparison/07-comparison.ipynb) reads checked final results for bowl-plate and stove-on tasks. [Lab 8](tutorials/08-data-quality/08-data-quality.ipynb) checks action timing and a bounded recovery continuation.
-
-[Lab 9](tutorials/09-runtime/09-runtime.ipynb) tests delayed action chunks on virtual controller ticks. [Lab 10](tutorials/10-rtc/10-rtc.ipynb) checks RTC masks and guidance, then reads the [frozen final runtime report](artifacts/reference/runtime/final_modes.json). [Lab 11](tutorials/11-deployment/11-deployment.ipynb) checks provenance, a reversible rollback, and a career assessment memo. The [course index](tutorials/index.ipynb) gives the lesson order and time estimates.
+Keep each result tied to its data partition, task, seed, checkpoint provenance, and timing settings. Exploration results use states 0–9. States 10–14 are for method checks. States 15–19 are for data-intervention checks. Final states 20–49 are for frozen recipes after Unit 13. Do not use final results to select a method or tune a setting. A short training run or successful check does not prove that a trained policy succeeds in the simulator.

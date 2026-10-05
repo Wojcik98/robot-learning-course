@@ -1,12 +1,10 @@
 # Lab 7: Compare three policy recipes
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab compares ACT, learner SmolVLA C2, and Diffusion Policy on the same bowl-plate task. It reads the frozen final-state recipe and every saved attempt. It also shows where the three training recipes differ.
 
 Start Jupyter from the repository root:
-
-```bash
-just jupyter tutorials/07-comparison/07-comparison.ipynb
-```
 
 The notebook uses tracked result files. It does not run training or open simulator states. Run Labs 4–6 first if you want to inspect each policy and its processor.
 All six code cells passed from a fresh kernel. The [notebook check](../../artifacts/reference/comparison/lab7_notebook.json) records source and executed file hashes. The executed file is in ignored `.local-data/runs/`.
@@ -39,4 +37,4 @@ All 90 stove-on final attempts completed without policy or infrastructure errors
 
 The published SmolVLA prompt study is a separate one-state development exercise. Its source training data are unknown.
 
-Read the [exercise](07-comparison.ipynb#exercise) in the notebook. Save your answer before you read the [solution guide](../../solutions/07-comparison.md).
+Read the exercise in the notebook. Save your answer before you read the [solution guide](../../solutions/07-comparison.md).

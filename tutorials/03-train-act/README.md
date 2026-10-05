@@ -1,12 +1,13 @@
 # Lab 3: Train ACT and compare settings
 
-This lab trains a task policy from public demonstrations, restores a checkpoint, and checks three declared variants on the same 20 development states. The [notebook](03-train-act.ipynb) starts a short detached training probe and then reads a prepared local reference suite. Its plots use saved training metrics and live simulator results.
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
+This lab trains a task policy from public demonstrations, restores a checkpoint, and checks three declared variants on the same 20 development states. The notebook starts a short detached training probe and then reads a prepared local reference suite. Its plots use saved training metrics and live simulator results.
 
 Run from the repository root after Labs 0–2 and the training data download:
 
 ```bash
 just data-training
-just jupyter tutorials/03-train-act/03-train-act.ipynb
 ```
 
 The full reference command is:

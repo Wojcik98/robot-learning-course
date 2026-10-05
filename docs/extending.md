@@ -1,172 +1,67 @@
-# Add a lesson
+# Add or change a course lesson
 
-This guide shows how to add one lesson that reuses an existing policy and evaluator. You change no method code. You add a config, a fixture reference, a notebook, an exercise, a solution, and an index entry. Run every command from the repository root.
+Use this guide to add a lesson to the 14-unit course. Keep the learner notebook and complete reference notebook in the same unit folder. Put the exercise in the learner notebook as Markdown and code cells. Do not put required exercise text in a separate file.
 
-## 1. Rules
+## Course sequence
 
-1. Reuse a policy from `src/vla_lab/policy/`. Do not edit it.
-2. Reuse an evaluator from `src/vla_lab/evaluation/`. Do not edit it.
-3. Take state IDs from `configs/eval/splits.yaml`. Do not choose new task states.
-4. Use development IDs 0 to 19. Final IDs 20 to 49 need a frozen recipe.
-5. Read saved results from `artifacts/reference/` first. Run a live step only as an optional cell.
-6. Keep notebook outputs small. Store large files under `.local-data/`.
-7. Write in short sentences. Use the same word for the same thing.
+Use the order in [the course index](../tutorials/index.ipynb): playground, execution, ACT training, adapters, data, CVAE, attention, ACT decoder, ACT assembly, diffusion training, denoiser blocks, U-Net, sampling, VLA inputs, flow matching, data improvement, and comparison. Use the earlier lab text guides for runtime, RTC, and deployment command details.
 
-## 2. Files for one lesson
+## Lesson rules
 
-Use `NN-name` for the lesson folder. `NN` is the next free lesson number.
+- Assume Python and NumPy. Explain each PyTorch operation when learners first need it.
+- Show a working result before the first exercise. Label cells **Supplied**, **Implement**, **Check**, and **Use your function**.
+- Each short exercise implements one named function. State input keys, shapes, units, masks, and return values beside the stub. Use `NotImplementedError` so an unfinished function fails clearly.
+- Give plain-text hints first. Put more revealing hints in a collapsed section. Put full answers in the reference notebook with the same basename and folder.
+- Test the learner function itself. The same function must drive the later unit experiment. After a concept is taught, later units can import its tested package function.
+- Use real `torch.nn.Module` objects and explicit callbacks in behavioral checks. Inject random noise and time values. Do not patch globals or hide a reference implementation behind an import in the learner notebook.
+- Use real data for the unit's use case and synthetic data for focused boundary checks. Test that learner output reaches the real optimizer, model, or environment path.
+- State the data partition, seeds, model and data provenance, training statistics, and timing. Keep failures in the result denominator. Keep validation and final data out of training statistics and tuning.
+- CPU checks are the default. Mark real GPU experiments as opt-in, with a step limit and output path. Do not download assets or start long jobs automatically. A disabled run flag must not make a required learning goal optional.
+- Keep notebook outputs empty and code execution counts unset. Find the repository root by locating `manifests/act_references.yaml`; do not assume `Path.cwd()` is the root.
+- Link the method source where the exercise appears. Check technical details against the pinned implementation.
 
-| Purpose | Path |
-|---|---|
-| Notebook | `tutorials/NN-name/NN-name.ipynb` |
-| Guide | `tutorials/NN-name/README.md` |
-| Exercise | Markdown cells in `tutorials/NN-name/NN-name.ipynb` |
-| Solution | `solutions/NN-name.md` |
-| Config (if needed) | `configs/experiments/name.yaml` |
-| Index entry | one line in `tutorials/index.ipynb` |
-| Fixture | An existing file under `artifacts/reference/`. Add a new compact file only if no existing file fits. |
+## Author and check a unit
 
-Copy the structure of [Lab 9](../tutorials/09-runtime/README.md) or [Lab 11](../tutorials/11-deployment/README.md). Each guide names its inputs, compute, cloud cost, and limits.
-
-## 3. Steps
-
-1. Pick the existing parts: policy, evaluator, config, fixture, and states.
-2. Write the dry run in section 4. Run it. Fix every failure before you write the notebook.
-3. Write the notebook. Start with a markdown cell that gives the goal, inputs, compute, cloud cost, and limit. Find the repository root. Load tracked records. Check hashes. Add assertions for each claim.
-4. Mark any GPU or cloud cell as optional. Gate it with a flag that is `False` by default.
-5. Write the exercise. Make each answer checkable from a saved file or a printed value.
-6. Write the solution with the exact expected values.
-7. Add the index entry. Put the lesson link, one sentence, and a learner-hour estimate in `tutorials/index.ipynb`.
-8. Run the notebook from a fresh kernel (section 6).
-9. Report the exact result. Do not state a time or a cost that you did not measure.
-
-## 4. Concrete dry run: one example lesson
-
-The example lesson is "Re-read one ACT result". It is a worked example. It is not part of the course. It reuses:
-
-| Part | Existing component |
-|---|---|
-| Policy | ACT, `bowl_plate` checkpoint. Hash `e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107` in `manifests/act_references.yaml`. |
-| Evaluator | `vla_lab.evaluation.states.selected_state_ids` and the `robot-lab eval` command. |
-| Config | `configs/eval/splits.yaml`, `bowl_plate` development IDs. |
-| Fixture | `artifacts/reference/act/bowl_plate_seeded_dev_all/episodes.jsonl`. |
-| States | Development IDs 0, 1, 2, 3, 4. These IDs already exist. The example selects no new state. |
-| Notebook style | [Lab 11](../tutorials/11-deployment/11-deployment.ipynb). |
-| Solution style | [Lab 11 solution](../solutions/11-deployment.md). |
-
-### 4.1 Check the states and the fixture
-
-This command runs on CPU. It starts no simulator. It writes no file.
+Run these commands from the repository root. The first command runs static checks. The second runs those checks and then uses fresh local kernels to execute each notebook. A file or directory path is accepted; the examples check all course notebooks.
 
 ```bash
-.venv/bin/python - <<'PY'
-import json
-from pathlib import Path
-from vla_lab.evaluation.states import selected_state_ids
+.venv/bin/python tools/check_course.py tutorials --report .local-data/course-redesign/notebook-validation.json
 
-ids = selected_state_ids("configs", "bowl_plate", "development", [0, 1, 2, 3, 4])
-path = Path("artifacts/reference/act/bowl_plate_seeded_dev_all/episodes.jsonl")
-rows = [json.loads(line) for line in path.read_text().splitlines()]
-rows = [row for row in rows if row["state_id"] in ids]
-assert [row["reset_seed"] for row in rows] == [20260930 + i for i in ids]
-print(ids, sum(row["success"] for row in rows), "of", len(rows))
-PY
+.venv/bin/python tools/check_course.py tutorials --execute --report .local-data/course-redesign/notebook-validation.json
 ```
 
-Expected output:
+The report records one result per notebook. The execution check expects each learner notebook to stop at its first `NotImplementedError` exercise. It runs reference notebooks and the playground through their default quick path. It uses fresh local Python kernels, hides CUDA, and sets model/data downloads to offline mode. Keep real GPU or robot experiments behind explicit flags and run them as separate, measured experiments. Do not enable them for the notebook check.
 
-```text
-[0, 1, 2, 3, 4] 5 of 5
-```
+The [local resource record](../artifacts/reference/course/local_resources.json) lists bounded runs that passed on the stated machine. It includes kernel startup in wall time and CPU notebook setup in execution time. Its measurements show code execution and resource use; they do not show policy quality or successful learning.
 
-The output follows from the saved fixture.
+## Measure one GPU experiment
 
-### 4.2 Check that the evaluator rejects a final state
+Use `tools/measure_course.py` for one opt-in GPU job. It requires a CUDA device and a notebook flag that is set to `False` in one code cell. It enables that flag in memory in a fresh local kernel and executes the full notebook. Keep all other long jobs behind disabled flags. You can use `--replace OLD NEW` to bound a subset or set the device. The tool keeps the source notebook unchanged, disables network downloads, and writes a JSON report with the notebook hash, workload description, execution result, wall time, and CUDA memory peaks. The CUDA peak covers PyTorch allocations after the measurement reset, across the full notebook run; it excludes non-PyTorch GPU allocations and other processes. The run includes CPU notebook setup after the reset. It does not measure policy quality.
+
+For example, compare the Unit 12B loss with the prepared 450M learner and make one optimizer update on CUDA:
 
 ```bash
-.venv/bin/python -c "
-from vla_lab.evaluation.states import selected_state_ids
-selected_state_ids('configs', 'bowl_plate', 'final', [20])
-"
+.venv/bin/python tools/measure_course.py tutorials/12b-flow/12b-flow-reference.ipynb \
+  --flag RUN_REAL_FLOW_LOSS \
+  --assertion 'assert DEVICE == "cuda" and REAL_UPDATES == 1' \
+  --workload 'Unit 12B prepared learner: one flow-loss comparison and one optimizer update; auto-select CUDA' \
+  --report .local-data/course-redesign/unit12b-real-flow-gpu.json
 ```
 
-Expected result: a `ValueError` with the message `Final states need an explicit final-evaluation flag`. The lesson must not pass a final ID.
+This job needs the prepared learner, VLM and local LIBERO data. Its notebook selects CUDA when it is available; the measurement tool stops before running cells if no CUDA device is present. The assertion checks the selected device and one-update limit. The command enables only the named notebook flag; it does not select assets or create a checkpoint. Check the report before you describe the run. Record its workload and machine with any resource result. Do not use the CUDA memory peak as evidence of training quality or simulator performance.
 
-### 4.3 Check the checkpoint hash
+1. Read the prior and next unit contracts. Reuse only concepts already taught; do not make one notebook kernel depend on another.
+2. Define the learner function, its exact contract, and the output that will show its effect.
+3. Add a behavioral check with meaningful inputs, including a boundary or failure case. For model changes, compare fixed-weight outputs with the pinned implementation and separately test the learner-trained path.
+4. Connect the learner function to the real unit path. Confirm that replacing it changes the result or triggers the expected failure.
+5. Write the reference notebook beside the learner notebook. Keep it in sync with the exercised interface.
+6. Run CPU checks and execute the reference notebook from a fresh kernel. Check the learner notebook fails at the first unfinished stub with its stated message.
+7. Check notebook format, root discovery, relative links, empty outputs, and unset execution counts. Record what ran and what did not.
 
-If the checkpoint exists on your host:
+## Data, timing, and model rules
 
-```bash
-sha256sum .local-data/runs/act-bowl-plate-probe-200/checkpoint-000200/model.safetensors
-```
+Keep complete episodes in one split. Compute normalization statistics from training episodes only. The course uses states 0–9 for exploration, 10–14 for method checks, 15–19 for data-intervention checks, and 20–49 for final evaluation after Unit 13 and recipe freeze. Do not report a result without its task, partition, seeds, checkpoint/data source, and timing.
 
-Compare the value with the one in `manifests/act_references.yaml`. If the file is absent, the notebook must print `absent` and continue. It must not fail.
+Keep source data frequency, controller frequency, observation history, prediction horizon, and executed action count as separate values. State any resampling rule. For ACT and diffusion conversion exercises, compare the learner path and the pinned implementation using fixed weights and inputs. For VLA work, record the frozen backbone state and confirm that only intended parameters update.
 
-### 4.4 Check the index links
-
-```bash
-.venv/bin/python - <<'PY'
-import json, re
-from pathlib import Path
-
-index = json.loads(Path("tutorials/index.ipynb").read_text())
-links = re.findall(r"\]\(([^)#]+\.ipynb)\)", "".join(index["cells"][0]["source"]))
-missing = [link for link in links if not (Path("tutorials") / link).is_file()]
-print(len(links), "links; missing:", missing)
-PY
-```
-
-Run it again after you add the index entry. The list of missing files must be empty.
-
-### 4.5 Optional live step
-
-To run the same five states live, use the existing evaluator on a GPU host. Use a new output path:
-
-```bash
-.venv/bin/robot-lab eval \
-  --checkpoint .local-data/runs/act-bowl-plate-probe-200/checkpoint-000200 \
-  --output .local-data/runs/example-lesson-eval \
-  --state-id 0 --state-id 1 --state-id 2 --state-id 3 --state-id 4
-```
-
-The saved fixture shows 5 of 5 successes for these states. A new run can differ. State this in the lesson. Keep the live step optional.
-
-## 5. What the new lesson must say
-
-- Name the compute and the cloud cost. Write US$0 only if no paid job runs.
-- Name what the lesson does not prove.
-- Keep failed attempts in every denominator.
-- Name the partition. Do not tune on final states.
-
-## 6. Run the notebook from a fresh kernel
-
-```bash
-.venv/bin/python - <<'PY'
-import nbformat
-from nbclient import NotebookClient
-
-path = "tutorials/NN-name/NN-name.ipynb"
-notebook = nbformat.read(path, as_version=4)
-nbformat.validate(notebook)
-NotebookClient(notebook, timeout=300, kernel_name="python3",
-               resources={"metadata": {"path": "tutorials/NN-name"}}).execute()
-errors = [o for c in notebook.cells if c.cell_type == "code" for o in c.outputs if o.output_type == "error"]
-print("errors:", len(errors))
-PY
-```
-
-This command executes the notebook in memory. It does not change the file. Replace `NN-name` with your folder.
-
-Then run the tests:
-
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OMP_NUM_THREADS=4 .venv/bin/python -m pytest -q
-```
-
-## 7. Limits of this guide
-
-- [Lab 11](../tutorials/11-deployment/11-deployment.ipynb) reuses ACT hashes, the paired evaluator, the comparison config, and saved recovery results. Its exercise, solution, and index entry show the lesson structure. It needs no separate policy or evaluator.
-- The dry-run example in section 4 is a command example. It has no separate notebook in the course.
-- The dry run checks states, fixture rows, and index links. It does not run a policy or a simulator.
-- The index link check reads only the first index cell.
-- A new method or a new task needs new code and new tests. This guide does not cover that work.
+A code check, a model update, and simulator success are separate results. Report each only when measured. A local resource measurement applies only to its stated machine, model, batch, and run settings.

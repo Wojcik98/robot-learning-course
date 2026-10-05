@@ -1,12 +1,8 @@
 # Lab 10: Check the RTC mask and guidance
 
+This guide describes the earlier lab. Its notebook was removed. Use the [course index](../index.ipynb) for current exercises.
+
 This lab teaches how real-time chunking (RTC) keeps a new action chunk close to actions that the robot already committed to run. You compute the RTC v2 mask, compare it with the pinned upstream mask, check the guidance term on a toy model, and read a saved report of five runtime modes.
-
-Start from the repository root:
-
-```bash
-just jupyter tutorials/10-rtc/10-rtc.ipynb
-```
 
 The notebook runs on CPU. It needs no GPU, no LIBERO assets, and no model checkpoint. Cloud cost is US$0.
 
@@ -56,4 +52,4 @@ Use only `latency.yaml`. Do not use `latency_final.yaml`.
 - Peak memory is PyTorch allocation only. It excludes the renderer.
 - The lab does not run a simulator. It reads the saved final report; it does not select a recipe with final states.
 
-Read the [exercise](10-rtc.ipynb#exercise) in the notebook. Read the [solution guide](../../solutions/10-rtc.md) after you save your answer.
+Read the exercise in the notebook. Read the [solution guide](../../solutions/10-rtc.md) after you save your answer.

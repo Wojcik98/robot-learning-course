@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-03",
+  "scope": "Bounded local validation runs, separate from learner experiment results.",
+  "torch_version": "2.11.0+cu128",
+  "measurement": "Each run used a fresh Jupyter kernel. seconds covers notebook execution after CUDA initialization and includes CPU setup; kernel_wall_seconds also includes kernel startup. Peak allocated/reserved values are PyTorch CUDA allocator peaks across the run. They exclude non-PyTorch allocations and other processes. Models ran sequentially.",
+  "results_interpretation": "These bounded runs record code execution and resource use; they do not establish policy success or compare policy quality. No final evaluation states were used.",
+  "runs": [
+    {
+      "unit": "01",
+      "notebook": "tutorials/01-playground/01-playground-reference.ipynb",
+      "workload": "Three prepared policies, one development state, up to 160 controller steps each",
+      "status": "passed",
+      "kernel_wall_seconds": 52.667,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 49.157819921005284,
+      "peak_allocated_mib": 1509.15869140625,
+      "peak_reserved_mib": 1552.0
+    },
+    {
+      "unit": "02",
+      "notebook": "tutorials/02-run-policy/02-run-policy-reference.ipynb",
+      "workload": "Learner ACT loop, execution lengths 1, 5, 10, one development state, up to 100 steps each",
+      "status": "passed",
+      "kernel_wall_seconds": 22.425,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 19.1161427529878,
+      "peak_allocated_mib": 82.1796875,
+      "peak_reserved_mib": 110.0
+    },
+    {
+      "unit": "03",
+      "notebook": "tutorials/03-act-training/03-act-training-reference.ipynb",
+      "workload": "ACT, three learning rates, two seeds, 20 updates per trial, batch size 2",
+      "status": "passed",
+      "kernel_wall_seconds": 14.633,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 11.436262146002264,
+      "peak_allocated_mib": 324.31689453125,
+      "peak_reserved_mib": 364.0
+    },
+    {
+      "unit": "04",
+      "notebook": "tutorials/04-adapters/04-adapters-reference.ipynb",
+      "workload": "Learner observation and action adapters, prepared ACT, one development state, up to 40 controller steps",
+      "status": "passed",
+      "kernel_wall_seconds": 13.575,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 10.317420774998027,
+      "peak_allocated_mib": 85.1826171875,
+      "peak_reserved_mib": 114.0
+    },
+    {
+      "unit": "05",
+      "notebook": "tutorials/05-data/05-data-reference.ipynb",
+      "workload": "Learner row, window and training-statistics callbacks; identical fresh ACT weights; two trials of 20 updates with 2 versus 8 training episodes",
+      "status": "passed",
+      "kernel_wall_seconds": 11.093,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 7.704998959990917,
+      "peak_allocated_mib": 402.12646484375,
+      "peak_reserved_mib": 442.0
+    },
+    {
+      "unit": "06",
+      "notebook": "tutorials/06-cvae/06-cvae-reference.ipynb",
+      "workload": "CVAE action chunks, three settings, 20 updates per setting, batch size 2",
+      "status": "passed",
+      "kernel_wall_seconds": 8.816,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 5.683822232007515,
+      "peak_allocated_mib": 17.8505859375,
+      "peak_reserved_mib": 22.0
+    },
+    {
+      "unit": "08b",
+      "notebook": "tutorials/08b-act/08b-act-reference.ipynb",
+      "notebook_sha256": "5a55ac518435d4c5fc35c4b648bab6ba1511c04b378ea2a108ba77885c1f8f55",
+      "workload": "Learner full-size ACT with converted reference weights, 10 real-data updates at batch size 4 and held-out validation",
+      "status": "passed",
+      "kernel_wall_seconds": 11.58,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 9.739440684003057,
+      "peak_allocated_mib": 639.73388671875,
+      "peak_reserved_mib": 822.0,
+      "settings": {
+        "assertion": "assert len(history) == 10 and next(learner_full.parameters()).is_cuda",
+        "flag_enabled": "RUN_FULL_SIZE_FINETUNE",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "09",
+      "notebook": "tutorials/09-diffusion-training/09-diffusion-training-reference.ipynb",
+      "notebook_sha256": "3990c07336d636ad6087ec3cb54a1b8bbd0c13e6547a78b6ae562f122722b435",
+      "workload": "Learner diffusion noise-loss callback through the real prepared policy, two updates on real image and action batches",
+      "status": "passed",
+      "kernel_wall_seconds": 10.08,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 8.243604051996954,
+      "peak_allocated_mib": 936.3203125,
+      "peak_reserved_mib": 962.0,
+      "settings": {
+        "assertion": "assert len(history) == 2 and next(policy.parameters()).is_cuda and not torch.equal(before, policy.diffusion.unet.final_conv[1].weight)",
+        "flag_enabled": "RUN_REAL_DIFFUSION_UPDATE",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "10b",
+      "notebook": "tutorials/10b-unet/10b-unet-reference.ipynb",
+      "notebook_sha256": "b3fab1f4301eba63e45e2c5fe83b0496054e95f3ec7baf14a6ffb55a842a47f2",
+      "workload": "Learner conditional U-Net with converted reference weights, real image conditioning parity and two optimizer updates",
+      "status": "passed",
+      "kernel_wall_seconds": 9.05,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 7.22959328199795,
+      "peak_allocated_mib": 534.7978515625,
+      "peak_reserved_mib": 544.0,
+      "settings": {
+        "assertion": "assert len(history) == 2 and changed and next(learner_unet.parameters()).is_cuda",
+        "flag_enabled": "RUN_REAL_UNET_UPDATE",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "11",
+      "notebook": "tutorials/11-diffusion-sampling/11-diffusion-sampling-reference.ipynb",
+      "notebook_sha256": "5d47deed2ca3497e20998a79c786dbdb374b29e430cfbb51f171f723cb6e2d11",
+      "workload": "Learner DDPM sampler and action slice, 5 and 20 sampling steps, development state 10, at most 40 controller steps per attempt",
+      "status": "passed",
+      "kernel_wall_seconds": 15.36,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 13.528538654994918,
+      "peak_allocated_mib": 185.5107421875,
+      "peak_reserved_mib": 208.0,
+      "settings": {
+        "assertion": "assert len(ATTEMPTS) == 2 and all(row.get(\"chunks\", 0) > 0 and \"error\" not in row.get(\"ended\", \"\") and \"close_error\" not in row for row in ATTEMPTS)",
+        "flag_enabled": "RUN_DEV_STATE_ROLLOUTS",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [
+          {
+            "new": "DEV_STATES = (10,)",
+            "old": "DEV_STATES = (10, 11, 12, 13, 14)"
+          },
+          {
+            "new": "MAX_STEPS = 40",
+            "old": "MAX_STEPS = 300"
+          }
+        ],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "12a",
+      "notebook": "tutorials/12a-vla-inputs/12a-vla-inputs-reference.ipynb",
+      "notebook_sha256": "f92d1ea47bd4d9f089c28d3109360e37d9d3e6e2a18fcfc3bd5af712231ce098",
+      "workload": "Learner SmolVLA image, state and text inputs and parameter selection, real prepared learner forward parity",
+      "status": "passed",
+      "kernel_wall_seconds": 27.83,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 25.997603043011623,
+      "peak_allocated_mib": 1215.0751953125,
+      "peak_reserved_mib": 1270.0,
+      "settings": {
+        "assertion": "assert same and difference < 1e-4 and next(learner.parameters()).is_cuda",
+        "flag_enabled": "RUN_REAL_SMOLVLA",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "12b",
+      "notebook": "tutorials/12b-flow/12b-flow-reference.ipynb",
+      "notebook_sha256": "1f2919f4368f71278d7319ba3788b75a327e23e64382728912db65aeb84f6035",
+      "workload": "Two real SmolVLA learning-rate settings from identical weights, five updates each, held-out validation, frozen-VLM hashes and 40-step state-10 rollouts through learner Euler sampler",
+      "status": "passed",
+      "kernel_wall_seconds": 63.53,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 61.633764209997025,
+      "peak_allocated_mib": 1994.14306640625,
+      "peak_reserved_mib": 2126.0,
+      "settings": {
+        "assertion": "assert ADAPTATION_DEVICE == \"cuda\" and len(REAL_ADAPTATION_RESULTS) == 2 and all(row[\"status\"] == \"trained\" and row[\"expert_changed\"] and row[\"vlm_hash_unchanged\"] and row[\"rollout\"][\"status\"] == \"ok\" and row[\"rollout\"][\"chunks\"] > 0 and \"close_error\" not in row[\"rollout\"] for row in REAL_ADAPTATION_RESULTS), REAL_ADAPTATION_RESULTS",
+        "flag_enabled": "RUN_REAL_ADAPTATION",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    },
+    {
+      "unit": "12b-loss",
+      "notebook": "tutorials/12b-flow/12b-flow-reference.ipynb",
+      "notebook_sha256": "1f2919f4368f71278d7319ba3788b75a327e23e64382728912db65aeb84f6035",
+      "workload": "Learner flow loss against pinned SmolVLA loss with fixed noise/time, one real optimizer update, frozen VLM and changed action-head checks",
+      "status": "passed",
+      "kernel_wall_seconds": 27.39,
+      "device": "NVIDIA GeForce RTX 3070",
+      "seconds": 25.522594398004003,
+      "peak_allocated_mib": 1992.00732421875,
+      "peak_reserved_mib": 2084.0,
+      "settings": {
+        "assertion": "assert len(history) == 1 and torch.equal(before[0], vlm_probe) and not torch.equal(before[1], head_probe) and head_probe.is_cuda",
+        "flag_enabled": "RUN_REAL_FLOW_LOSS",
+        "mpl_backend": "Agg",
+        "offline_environment": true,
+        "omp_num_threads": 2,
+        "replacements": [],
+        "timeout_seconds": 1800
+      }
+    }
+  ],
+  "unrun_learner_experiments": [
+    "Unit 13: record improved demonstrations and test the data intervention.",
+    "Unit 14: freeze selected recipes and run the final paired evaluation on states 20\u201349."
+  ]
+}
