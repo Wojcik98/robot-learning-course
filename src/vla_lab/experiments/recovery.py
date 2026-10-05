@@ -5,13 +5,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode
+from vla_lab.teaching.interfaces import ResampleRowsFunction, TransitionRowsFunction, WindowFunction
+from vla_lab.types import JSONValue
 
 _ACT_CHUNK_SIZE = 20
 
@@ -24,7 +24,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _timing_provenance(training_transition_hz: int) -> dict[str, Any]:
+def _timing_provenance(training_transition_hz: int) -> dict[str, JSONValue]:
     """Describe recording, training, chunk, and controller timing separately."""
     recording_hz = 1000 // CONTROL_PERIOD_MS
     if training_transition_hz < 1 or recording_hz % training_transition_hz:
@@ -41,7 +41,7 @@ def _timing_provenance(training_transition_hz: int) -> dict[str, Any]:
     }
 
 
-def load_recovery_manifest(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
+def load_recovery_manifest(path: str | Path, configs_root: str | Path) -> dict[str, JSONValue]:
     """Check accepted recording identities and held-out development IDs."""
     source = Path(path)
     record = json.loads(source.read_text())
@@ -107,12 +107,11 @@ def continue_act_with_recovery(
     output_dir: str | Path,
     steps: int = 200,
     seed: int = 20261001,
-    transition_rows_fn: Callable[..., Sequence[Mapping[str, Any]]] | None = None,
-    resample_rows_fn: Callable[[Sequence[Mapping[str, Any]]], Sequence[Mapping[str, Any]]]
-    | None = None,
+    transition_rows_fn: TransitionRowsFunction | None = None,
+    resample_rows_fn: ResampleRowsFunction | None = None,
     training_transition_hz: int | None = None,
-    window_fn: Callable[..., tuple[Any, Any]] | None = None,
-) -> dict[str, Any]:
+    window_fn: WindowFunction | None = None,
+) -> dict[str, JSONValue]:
     """Train a bounded ACT continuation with a new optimizer and saved processor."""
     from vla_lab.data.recovery_dataset import RecoveryDataset
     from vla_lab.policy.bundle import load_act_bundle

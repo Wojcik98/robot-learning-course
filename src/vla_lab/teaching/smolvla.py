@@ -22,11 +22,25 @@ import time as _time
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+from vla_lab.teaching.interfaces import (
+    FlowSampler,
+    ModelT,
+    PromptTokenizer,
+    VLAInputConfig,
+    VLAInputs,
+)
+
+if TYPE_CHECKING:
+    from lerobot.policies.smolvla import SmolVLAConfig, SmolVLAPolicy
+    from lerobot.processor import PolicyProcessorPipeline
+    from transformers.cache_utils import DynamicCache
+
 
 STATE_KEY = "observation.state"
 ACTION_KEY = "action"
@@ -64,7 +78,7 @@ def pad_to_width(values: Tensor, width: int) -> Tensor:
 
 
 def tokenize_prompts(
-    tokenizer: Any, prompts: str | Sequence[str], max_length: int
+    tokenizer: PromptTokenizer, prompts: str | Sequence[str], max_length: int
 ) -> tuple[Tensor, Tensor]:
     """Turn prompts into ``(tokens (B, L) long, mask (B, L) bool)``; ``True`` marks a real token.
 
@@ -88,9 +102,9 @@ def tokenize_prompts(
 def prepare_vla_inputs(
     observation: Mapping[str, Tensor],
     prompts: str | Sequence[str],
-    tokenizer: Any,
-    config: Any,
-) -> dict[str, Any]:
+    tokenizer: PromptTokenizer,
+    config: VLAInputConfig,
+) -> VLAInputs:
     """Assemble the model inputs from a preprocessed observation and a prompt.
 
     ``observation`` holds ``observation.state (B, S)`` (already normalized) and one
@@ -101,7 +115,10 @@ def prepare_vla_inputs(
     ``lang_tokens``, ``lang_masks`` (from ``tokenize_prompts`` with ``config.tokenizer_max_length``)
     and ``state`` (``(B, config.max_state_dim)``, zero padded).
     """
-    width, height = config.resize_imgs_with_padding
+    size = config.resize_imgs_with_padding
+    if size is None:
+        raise ValueError("VLA inputs require an image resize size")
+    width, height = size
     images = [
         resize_pad_normalize_image(observation[key], height, width) for key in config.image_features
     ]
@@ -119,7 +136,7 @@ def prepare_vla_inputs(
 
 
 def select_trainable_parameters(
-    policy: nn.Module, frozen_prefix: str = "model.vlm_with_expert.vlm."
+    policy: ModelT, frozen_prefix: str = "model.vlm_with_expert.vlm."
 ) -> list[nn.Parameter]:
     """Freeze the VLM and return the parameters an optimizer should update.
 
@@ -135,8 +152,8 @@ def select_trainable_parameters(
 
 
 def train_mode_with_frozen_vlm(
-    policy: nn.Module, vlm_name: str = "model.vlm_with_expert.vlm"
-) -> nn.Module:
+    policy: ModelT, vlm_name: str = "model.vlm_with_expert.vlm"
+) -> ModelT:
     """Put ``policy`` in training mode but keep the frozen VLM in evaluation mode.
 
     ``policy.train()`` switches every submodule on. A frozen backbone should not use dropout or
@@ -204,17 +221,21 @@ class SmolVLAAdapter(nn.Module):
 
     def __init__(
         self,
-        policy: nn.Module,
-        train_mode_fn: Callable[[nn.Module], nn.Module] = train_mode_with_frozen_vlm,
-        input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], dict[str, Any]] | None = None,
-    ):
+        policy: SmolVLAPolicy,
+        train_mode_fn: Callable[[SmolVLAPolicy], SmolVLAPolicy] = train_mode_with_frozen_vlm,
+        input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], VLAInputs] | None = None,
+    ) -> None:
         super().__init__()
         self.policy = policy
         self.train_mode_fn = train_mode_fn
         self.input_fn = input_fn
-        self.action_dim = policy.config.action_feature.shape[0]
-        self.max_action_dim = policy.config.max_action_dim
-        self.chunk_size = policy.config.chunk_size
+        self.config = cast("SmolVLAConfig", policy.config)
+        feature = self.config.action_feature
+        if feature is None:
+            raise ValueError("SmolVLA requires an action feature")
+        self.action_dim = feature.shape[0]
+        self.max_action_dim = self.config.max_action_dim
+        self.chunk_size = self.config.chunk_size
 
     def train(self, mode: bool = True) -> SmolVLAAdapter:
         """``adapter.train()`` (called by every update) uses ``train_mode_fn`` to keep the VLM frozen."""
@@ -224,7 +245,7 @@ class SmolVLAAdapter(nn.Module):
         return self
 
     # --- inputs ---
-    def prepare_inputs(self, batch: Mapping[str, Tensor]) -> dict[str, Any]:
+    def prepare_inputs(self, batch: Mapping[str, Tensor]) -> VLAInputs:
         """Model inputs for ``batch``: ``input_fn(self, batch)`` if one was given, else the pinned path.
 
         A learner ``input_fn`` must return the keys of ``pinned_inputs`` (``images``, ``img_masks``,
@@ -235,10 +256,10 @@ class SmolVLAAdapter(nn.Module):
             return self.input_fn(self, batch)
         return self.pinned_inputs(batch)
 
-    def pinned_inputs(self, batch: Mapping[str, Tensor]) -> dict[str, Any]:
+    def pinned_inputs(self, batch: Mapping[str, Tensor]) -> VLAInputs:
         """Inputs from a batch produced by the pinned preprocessor (images, state, tokens)."""
         images, img_masks = self.policy.prepare_images(batch)
-        inputs: dict[str, Any] = {
+        inputs: VLAInputs = {
             "images": images,
             "img_masks": img_masks,
             "lang_tokens": batch[TOKENS_KEY],
@@ -254,7 +275,7 @@ class SmolVLAAdapter(nn.Module):
         return self.policy.model.sample_time(batch_size, device)
 
     # --- raw velocity (training path) ---
-    def velocity(self, inputs: Mapping[str, Any], x_t: Tensor, time: Tensor) -> Tensor:
+    def velocity(self, inputs: VLAInputs, x_t: Tensor, time: Tensor) -> Tensor:
         """Predicted velocity ``v (B, T, max_action_dim)`` for noisy actions ``x_t`` at ``time``."""
         from lerobot.policies.common.vla_utils import make_att_2d_masks
 
@@ -271,7 +292,7 @@ class SmolVLAAdapter(nn.Module):
         att_masks = torch.cat([prefix_att, suffix_att], dim=1)
         (_, suffix_out), _ = model.vlm_with_expert.forward(
             attention_mask=make_att_2d_masks(pad_masks, att_masks),
-            position_ids=torch.cumsum(pad_masks, dim=1) - 1,
+            position_ids=cast("torch.LongTensor", torch.cumsum(pad_masks, dim=1) - 1),
             past_key_values=None,
             inputs_embeds=[prefix_embs, suffix_embs],
             use_cache=False,
@@ -279,9 +300,7 @@ class SmolVLAAdapter(nn.Module):
         suffix_out = suffix_out[:, -model.config.chunk_size :].to(dtype=torch.float32)
         return model.action_out_proj(suffix_out)
 
-    def pinned_per_element_loss(
-        self, inputs: Mapping[str, Any], noise: Tensor, time: Tensor
-    ) -> Tensor:
+    def pinned_per_element_loss(self, inputs: VLAInputs, noise: Tensor, time: Tensor) -> Tensor:
         """The pinned ``VLAFlowMatching.forward`` result ``(B, T, max_action_dim)``, for comparison only."""
         return self.policy.model.forward(
             inputs["images"],
@@ -296,7 +315,7 @@ class SmolVLAAdapter(nn.Module):
 
     # --- inference path ---
     @torch.no_grad()
-    def prefix_cache(self, inputs: Mapping[str, Any]) -> tuple[Tensor, Any]:
+    def prefix_cache(self, inputs: VLAInputs) -> tuple[Tensor, DynamicCache | None]:
         """Run the image/text/state prefix once. Returns ``(prefix_pad_masks, key_value_cache)``."""
         from lerobot.policies.common.vla_utils import make_att_2d_masks
 
@@ -310,7 +329,7 @@ class SmolVLAAdapter(nn.Module):
         )
         _, cache = model.vlm_with_expert.forward(
             attention_mask=make_att_2d_masks(pad, att),
-            position_ids=torch.cumsum(pad, dim=1) - 1,
+            position_ids=cast("torch.LongTensor", torch.cumsum(pad, dim=1) - 1),
             past_key_values=None,
             inputs_embeds=[embs, None],
             use_cache=model.config.use_cache,
@@ -318,7 +337,9 @@ class SmolVLAAdapter(nn.Module):
         return pad, cache
 
     @torch.no_grad()
-    def denoise(self, cache: tuple[Tensor, Any], x_t: Tensor, time: Tensor) -> Tensor:
+    def denoise(
+        self, cache: tuple[Tensor, DynamicCache | None], x_t: Tensor, time: Tensor
+    ) -> Tensor:
         """The pinned ``denoise_step``: velocity for ``x_t`` using the cached prefix."""
         pad, past = cache
         return self.policy.model.denoise_step(pad, past, x_t, time)
@@ -326,8 +347,8 @@ class SmolVLAAdapter(nn.Module):
     @torch.no_grad()
     def sample_chunk(
         self,
-        inputs: Mapping[str, Any],
-        sampler: Callable[..., Tensor] = euler_sample,
+        inputs: VLAInputs,
+        sampler: FlowSampler = euler_sample,
         noise: Tensor | None = None,
         num_steps: int | None = None,
     ) -> Tensor:
@@ -347,7 +368,7 @@ class SmolVLAAdapter(nn.Module):
                 dtype=torch.float32,
             )
         cache = self.prefix_cache(inputs)
-        steps = num_steps or self.policy.config.num_steps
+        steps = num_steps or self.config.num_steps
         actions = sampler(lambda x, t: self.denoise(cache, x, t), noise, steps)
         return actions[:, :, : self.action_dim]
 
@@ -393,24 +414,24 @@ class CallbackSmolVLAPolicy:
 
     def __init__(
         self,
-        policy: nn.Module,
-        sampler: Callable[..., Tensor] = euler_sample,
-        input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], dict[str, Any]] | None = None,
+        policy: SmolVLAPolicy,
+        sampler: FlowSampler = euler_sample,
+        input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], VLAInputs] | None = None,
         *,
         num_steps: int | None = None,
         seed: int = 0,
-    ):
+    ) -> None:
         self.adapter = SmolVLAAdapter(policy)
         self.policy = policy
         self.sampler = sampler
         self.input_fn = input_fn or (lambda adapter, batch: adapter.prepare_inputs(batch))
-        self.num_steps = num_steps or policy.config.num_steps
+        self.num_steps = num_steps or self.adapter.config.num_steps
         self.seed = seed
         self.sample_seconds: list[float] = []
         self.reset()
 
     def reset(self) -> None:
-        self._queue: deque = deque(maxlen=self.policy.config.n_action_steps)
+        self._queue: deque = deque(maxlen=self.adapter.config.n_action_steps)
         self.chunks_made = 0
 
     @torch.no_grad()
@@ -436,13 +457,13 @@ class CallbackSmolVLAPolicy:
                 torch.cuda.synchronize()
             self.sample_seconds.append(_time.perf_counter() - started)
             self.chunks_made += 1
-            self._queue.extend(chunk[:, : self.policy.config.n_action_steps].transpose(0, 1))
+            self._queue.extend(chunk[:, : self.adapter.config.n_action_steps].transpose(0, 1))
         return self._queue.popleft()
 
 
 def load_prepared_smolvla(
     kind: str, data_root: str | Path, *, device: str = "cpu", n_action_steps: int = 10
-):
+) -> tuple[SmolVLAPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]:
     """Load a prepared SmolVLA policy with its processors on ``device`` from local files only.
 
     ``kind="published"`` is the published ``smolvla-libero`` policy; ``kind="learner"`` is the

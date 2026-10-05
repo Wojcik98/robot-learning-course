@@ -5,15 +5,17 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import numpy as np
+import torch
 import yaml
+from numpy.typing import ArrayLike
 
 from vla_lab.data.splits import partition_sha256, split_episodes
+from vla_lab.types import JSONValue
 
 
-def audit_task_split(configs_root: str | Path, task_id: str) -> dict[str, Any]:
+def audit_task_split(configs_root: str | Path, task_id: str) -> dict[str, JSONValue]:
     """Check that the saved statistics use the fixed training episodes."""
     data_root = Path(configs_root) / "data"
     manifest = yaml.safe_load((data_root / "episodes.yaml").read_text())
@@ -66,7 +68,9 @@ def audit_task_split(configs_root: str | Path, task_id: str) -> dict[str, Any]:
     }
 
 
-def _array(sample: Mapping[str, Any], key: str, shape: tuple[int, ...]) -> np.ndarray:
+def _array(
+    sample: Mapping[str, ArrayLike | torch.Tensor], key: str, shape: tuple[int, ...]
+) -> np.ndarray:
     if key not in sample:
         raise ValueError(f"missing {key}")
     value = sample[key]
@@ -82,7 +86,7 @@ def _array(sample: Mapping[str, Any], key: str, shape: tuple[int, ...]) -> np.nd
     return array
 
 
-def audit_example(sample: Mapping[str, Any]) -> dict[str, Any]:
+def audit_example(sample: Mapping[str, ArrayLike | torch.Tensor]) -> dict[str, JSONValue]:
     """Check the two-camera, state, and action shapes of a decoded sample."""
     for key in ("observation.images.image", "observation.images.image2"):
         image = _array(sample, key, (3, 256, 256))

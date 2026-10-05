@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from vla_lab.teaching.interfaces import (
+    ActionProcessor,
+    LiberoObservation,
+    ObservationProcessor,
+    ProcessorObservation,
+    RawObservationValue,
+    RTCChunkOperation,
+    RTCOptions,
+)
+
+if TYPE_CHECKING:
+    from lerobot.policies.smolvla import SmolVLAConfig, SmolVLAPolicy
+
+from typing import cast
 
 import numpy as np
 import torch
@@ -16,14 +32,16 @@ RUNTIME_MODES = frozenset({"synchronous", "naive_async", "temporal_ensemble", *R
 
 
 def prepare_policy_batch(
-    observation: dict[str, Any], task_prompt: str, preprocessor: Any
-) -> dict[str, torch.Tensor]:
+    observation: LiberoObservation, task_prompt: str, preprocessor: ObservationProcessor
+) -> ProcessorObservation:
     """Use the same LIBERO image and state path as ordinary evaluation."""
     processed = LiberoProcessorStep().observation(
-        preprocess_observation(_single_env_batch(observation))
+        cast(
+            Callable[[dict[str, RawObservationValue]], ProcessorObservation], preprocess_observation
+        )(_single_env_batch(observation))
     )
     processed["task"] = task_prompt
-    return preprocessor(processed)
+    return preprocessor(cast(ProcessorObservation, processed))
 
 
 class SmolVLAChunkPredictor:
@@ -31,10 +49,10 @@ class SmolVLAChunkPredictor:
 
     def __init__(
         self,
-        policy: Any,
+        policy: SmolVLAPolicy,
         *,
-        preprocessor: Any,
-        postprocessor: Any,
+        preprocessor: ObservationProcessor,
+        postprocessor: ActionProcessor,
         task_prompt: str,
         mode: str,
         stride: int,
@@ -45,7 +63,8 @@ class SmolVLAChunkPredictor:
             raise ValueError(f"Unknown runtime mode: {mode}")
         if stride < 1 or delay < 0 or noise_seed < 0:
             raise ValueError("Stride, delay, and noise seed must be valid")
-        if mode in RTC_MODES and not delay <= stride <= policy.config.chunk_size - delay:
+        self.config = cast("SmolVLAConfig", policy.config)
+        if mode in RTC_MODES and not delay <= stride <= self.config.chunk_size - delay:
             raise ValueError("RTC needs delay <= stride <= horizon - delay")
         self.policy = policy
         self.preprocessor = preprocessor
@@ -58,7 +77,7 @@ class SmolVLAChunkPredictor:
 
     def __call__(
         self,
-        observation: dict[str, Any],
+        observation: LiberoObservation,
         observation_tick: int,
         previous_normalized_chunk: np.ndarray | None,
         previous_origin: int | None,
@@ -67,15 +86,15 @@ class SmolVLAChunkPredictor:
         if observation_tick < 0:
             raise ValueError("Observation tick must be nonnegative")
         batch = prepare_policy_batch(observation, self.task_prompt, self.preprocessor)
-        device = torch.device(self.policy.config.device)
+        device = torch.device(self.config.device or "cpu")
         generator = torch.Generator(device=device)
         generator.manual_seed(self.noise_seed + observation_tick)
         noise = torch.randn(
-            (1, self.policy.config.chunk_size, self.policy.config.max_action_dim),
+            (1, self.config.chunk_size, self.config.max_action_dim),
             generator=generator,
             device=device,
         )
-        kwargs: dict[str, Any] = {}
+        kwargs: RTCOptions = {}
         if self.mode in RTC_MODES:
             if previous_normalized_chunk is not None:
                 previous = np.asarray(previous_normalized_chunk, dtype=np.float32)
@@ -87,11 +106,13 @@ class SmolVLAChunkPredictor:
             kwargs["inference_delay"] = self.delay
             kwargs["execution_horizon"] = self.stride
         with torch.no_grad():
-            normalized = self.policy.predict_action_chunk(batch, noise=noise, **kwargs)
+            # LeRobot annotations omit the task text retained in this batch.
+            predict_chunk = cast(RTCChunkOperation, self.policy.predict_action_chunk)
+            normalized = predict_chunk(batch, noise=noise, **kwargs)
             physical = self.postprocessor(normalized)
         normalized_np = np.asarray(normalized.detach().cpu(), dtype=np.float32)
         physical_np = np.asarray(physical.detach().cpu(), dtype=np.float32)
-        expected = (1, self.policy.config.chunk_size, 7)
+        expected = (1, self.config.chunk_size, 7)
         if normalized_np.shape != expected or physical_np.shape != expected:
             raise ValueError(f"SmolVLA chunk needs shape {expected}")
         if not np.isfinite(normalized_np).all() or not np.isfinite(physical_np).all():

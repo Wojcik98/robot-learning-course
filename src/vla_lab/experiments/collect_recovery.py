@@ -6,14 +6,16 @@ import argparse
 import hashlib
 import json
 import random
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
 import yaml
 
 from vla_lab.data.recording import record_action_episode
+from vla_lab.teaching.interfaces import EpisodeEnvironment, LiberoObservation
+from vla_lab.types import JSONValue
 
 
 def _sha256(path: Path) -> str:
@@ -38,16 +40,18 @@ def candidate_development_states(
     return state_ids
 
 
-class _TrackedEnvironment:
-    def __init__(self, environment: Any) -> None:
+class _TrackedEnvironment[ObservationT]:
+    def __init__(self, environment: EpisodeEnvironment[ObservationT]) -> None:
         self.environment = environment
         self.success = False
 
-    def reset(self, *args: Any, **kwargs: Any) -> Any:
+    def reset(self, seed: int | None = None) -> tuple[ObservationT, Mapping[str, JSONValue]]:
         self.success = False
-        return self.environment.reset(*args, **kwargs)
+        return self.environment.reset(seed=seed)
 
-    def step(self, action: np.ndarray) -> Any:
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[ObservationT, float, bool, bool, Mapping[str, JSONValue]]:
         result = self.environment.step(action)
         self.success = bool(result[4].get("is_success", False))
         return result
@@ -62,7 +66,7 @@ def collect_reference_recovery(
     task_alias: str = "bowl_plate",
     candidate_ids: list[int] | None = None,
     target_successes: int = 5,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Record a bounded set of successful ACT rollouts as labelled examples."""
     from lerobot.envs.utils import preprocess_observation
     from lerobot.processor import LiberoProcessorStep
@@ -85,8 +89,8 @@ def collect_reference_recovery(
         raise ValueError("Reference teacher checkpoint belongs to another task")
     policy.eval()
     libero_processor = LiberoProcessorStep()
-    accepted: list[dict[str, Any]] = []
-    rejected: list[dict[str, Any]] = []
+    accepted: list[dict[str, JSONValue]] = []
+    rejected: list[dict[str, JSONValue]] = []
     attempted: list[int] = []
     for state_id in candidates:
         if len(accepted) >= target_successes:
@@ -102,7 +106,7 @@ def collect_reference_recovery(
         environment = open_libero_task(task_alias, state_id, configs, data_root)
         tracked = _TrackedEnvironment(environment)
 
-        def action_at_tick(_tick: int, observation: dict[str, Any]) -> np.ndarray:
+        def action_at_tick(_tick: int, observation: LiberoObservation) -> np.ndarray:
             processed = libero_processor.observation(
                 preprocess_observation(_single_env_batch(observation))
             )

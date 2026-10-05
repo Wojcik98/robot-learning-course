@@ -9,7 +9,6 @@ import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -25,6 +24,7 @@ from vla_lab.experiments.runtime_modes import (
     save_atomic,
     verify_model_source,
 )
+from vla_lab.types import JSONValue
 
 SCHEMA_VERSION = 1
 PINNED_VLM_SHA256 = "b9bfd456c9472c0acd5719d6e514c4b859891af205ee1a736552fd3497b8b0c3"
@@ -50,7 +50,7 @@ RUNTIME_KEYS = {"horizon", "num_steps", "ensemble_decay"}
 GRID_KEYS = {"mode", "strides", "delays"}
 
 
-def _is_int(value: Any) -> bool:
+def _is_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
@@ -58,11 +58,13 @@ def condition_name(mode: str, stride: int, delay: int) -> str:
     return f"{mode}-s{stride:02d}-d{delay}"
 
 
-def expand_conditions(grids: Sequence[dict[str, Any]], horizon: int) -> list[dict[str, Any]]:
+def expand_conditions(
+    grids: Sequence[dict[str, JSONValue]], horizon: int
+) -> list[dict[str, JSONValue]]:
     """Check each grid, expand it, and drop a condition that repeats an earlier one."""
     if not isinstance(grids, list) or not grids:
         raise ValueError("Sweep needs a nonempty list of grids")
-    conditions: list[dict[str, Any]] = []
+    conditions: list[dict[str, JSONValue]] = []
     seen: set[tuple[int, int]] = set()
     for grid in grids:
         if not isinstance(grid, dict) or set(grid) != GRID_KEYS:
@@ -102,7 +104,7 @@ def expand_conditions(grids: Sequence[dict[str, Any]], horizon: int) -> list[dic
     return conditions
 
 
-def load_sweep_config(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
+def load_sweep_config(path: str | Path, configs_root: str | Path) -> dict[str, JSONValue]:
     """Read the sweep config, check its pins, and add the condition list and file hash."""
     content = Path(path).read_bytes()
     config = yaml.safe_load(content)
@@ -158,7 +160,7 @@ def load_sweep_config(path: str | Path, configs_root: str | Path) -> dict[str, A
     return config
 
 
-def condition_identity(config: dict[str, Any], name: str) -> dict[str, Any]:
+def condition_identity(config: dict[str, JSONValue], name: str) -> dict[str, JSONValue]:
     """Everything that must match before a saved condition result is reused."""
     matches = [item for item in config["conditions"] if item["name"] == name]
     if len(matches) != 1:
@@ -191,7 +193,9 @@ def result_path(output: str | Path, name: str) -> Path:
     return Path(output) / f"{name}.json"
 
 
-def summarize(config: dict[str, Any], results: Sequence[dict[str, Any]]) -> dict[str, Any]:
+def summarize(
+    config: dict[str, JSONValue], results: Sequence[dict[str, JSONValue]]
+) -> dict[str, JSONValue]:
     """List saved results in config order. Missing conditions are named, not guessed."""
     by_name = {saved["identity"]["condition"]: saved for saved in results}
     rows = []
@@ -242,15 +246,15 @@ def run_sweep(
     data_root: str | Path,
     output_dir: str | Path,
     conditions: Sequence[str] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Run every missing condition, saving each one as soon as it finishes."""
     config = load_sweep_config(config_path, configs_root)
     names = [item["name"] for item in config["conditions"]]
     chosen = list(conditions) if conditions is not None else names
     if not chosen or len(chosen) != len(set(chosen)) or not set(chosen) <= set(names):
         raise ValueError("Requested conditions are empty, repeated, or outside the sweep config")
-    pending: list[dict[str, Any]] = []
-    saved_results: list[dict[str, Any]] = []
+    pending: list[dict[str, JSONValue]] = []
+    saved_results: list[dict[str, JSONValue]] = []
     for name in chosen:
         identity = condition_identity(config, name)
         saved = load_reusable(result_path(output_dir, name), identity)

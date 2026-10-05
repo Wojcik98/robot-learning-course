@@ -8,19 +8,21 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
 
 from vla_lab.cloud.brev import BrevCLI
 from vla_lab.cloud.lifecycle import STOPPED_STATES, stop_with_retries
+from vla_lab.types import JSONValue
 
 
-def _save(path: Path, data: dict[str, Any]) -> None:
+def _save(path: Path, data: dict[str, JSONValue]) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     os.replace(temporary, path)
 
 
-def watchdog_once(provider: BrevCLI, lease: dict[str, Any], *, now: float) -> dict[str, Any]:
+def watchdog_once(
+    provider: BrevCLI, lease: dict[str, JSONValue], *, now: float
+) -> dict[str, JSONValue]:
     """Check one lease and stop its named VM at the saved deadline."""
     name = lease["instance_name"]
     if now >= lease["hard_deadline_at"]:

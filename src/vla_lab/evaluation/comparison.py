@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from vla_lab.teaching.records import ComparisonConfig, PolicyRecipe
+
+if TYPE_CHECKING:
+    from lerobot.policies.act import ACTPolicy
+    from lerobot.policies.diffusion import DiffusionPolicy
+    from lerobot.policies.smolvla import SmolVLAPolicy
+
 import argparse
 import hashlib
 import json
@@ -9,7 +18,6 @@ import random
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
@@ -18,6 +26,8 @@ import yaml
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.states import evaluate_states, selected_state_ids
 from vla_lab.sim.episode import EpisodeResult
+from vla_lab.teaching.interfaces import ActionProcessor, ObservationProcessor
+from vla_lab.types import JSONValue
 
 METHODS = ("act", "smolvla_learner", "diffusion")
 
@@ -30,7 +40,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_comparison_config(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
+def load_comparison_config(path: str | Path, configs_root: str | Path) -> ComparisonConfig:
     """Read one fixed final recipe and reject changes to its states or data split."""
     config = yaml.safe_load(Path(path).read_text())
     if (
@@ -72,8 +82,8 @@ def load_comparison_config(path: str | Path, configs_root: str | Path) -> dict[s
 
 
 def _load_method(
-    method: str, recipe: dict[str, Any], task_alias: str, split_hash: str, revision: str
-) -> tuple[Any, Any, Any]:
+    method: str, recipe: PolicyRecipe, task_alias: str, split_hash: str, revision: str
+) -> tuple[ACTPolicy | DiffusionPolicy | SmolVLAPolicy, ObservationProcessor, ActionProcessor]:
     """Load one policy after its saved model and training split pass checks."""
     source = Path(recipe["checkpoint"])
     if _sha256(source / "model.safetensors") != recipe["model_sha256"]:
@@ -146,7 +156,7 @@ def evaluate_frozen_method(
     data_root: str | Path,
     output_dir: str | Path,
     run_one: Callable[[int], EpisodeResult] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Record one attempt on every final state for one committed recipe."""
     config = load_comparison_config(config_path, configs_root)
     if method not in METHODS:

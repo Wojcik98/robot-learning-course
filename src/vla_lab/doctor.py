@@ -6,18 +6,21 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any
 
 import torch
 import yaml
 from torchcodec.decoders import VideoDecoder
+
+from vla_lab.types import JSONValue
 
 
 def _result(name: str, ok: bool, detail: str) -> dict[str, str | bool]:
     return {"name": name, "ok": ok, "detail": detail}
 
 
-def check_act_references(workspace: Path, manifest: dict[str, Any]) -> list[dict[str, str | bool]]:
+def check_act_references(
+    workspace: Path, manifest: dict[str, JSONValue]
+) -> list[dict[str, str | bool]]:
     """Check each complete ACT bundle against its recorded file hashes."""
     results = []
     for task, item in manifest["tasks"].items():
@@ -105,7 +108,7 @@ def check_live_renderer(workspace: Path, data_root: Path) -> dict[str, str | boo
             environment.close()
 
 
-def doctor_report(workspace: Path, data_root: Path, *, live: bool = False) -> dict[str, Any]:
+def doctor_report(workspace: Path, data_root: Path, *, live: bool = False) -> dict[str, JSONValue]:
     """Return a structured check report for a local course launch."""
     checks = check_local_runtime(workspace, data_root)
     if live and all(item["ok"] for item in checks):
@@ -118,6 +121,6 @@ def doctor_report(workspace: Path, data_root: Path, *, live: bool = False) -> di
     }
 
 
-def report_json(report: dict[str, Any]) -> str:
+def report_json(report: dict[str, JSONValue]) -> str:
     """Format a doctor report for scripts and notebook tools."""
     return json.dumps(report, indent=2, sort_keys=True)

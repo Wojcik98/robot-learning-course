@@ -6,7 +6,8 @@ import json
 import math
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+
+from vla_lab.types import JSONValue
 
 
 def wilson_interval(
@@ -37,7 +38,7 @@ def exact_mcnemar(a_only: int, b_only: int) -> float:
     return min(1.0, 2 * tail / 2**discordant)
 
 
-def load_episode_rows(path: str | Path) -> list[dict[str, Any]]:
+def load_episode_rows(path: str | Path) -> list[dict[str, JSONValue]]:
     """Read one JSONL evaluation result without dropping failed attempts."""
     rows = [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
     if not rows:
@@ -46,8 +47,8 @@ def load_episode_rows(path: str | Path) -> list[dict[str, Any]]:
 
 
 def paired_report(
-    a_rows: Sequence[dict[str, Any]], b_rows: Sequence[dict[str, Any]]
-) -> dict[str, Any]:
+    a_rows: Sequence[dict[str, JSONValue]], b_rows: Sequence[dict[str, JSONValue]]
+) -> dict[str, JSONValue]:
     """Compare two policies on the same ordered simulator states."""
     if not a_rows or len(a_rows) != len(b_rows):
         raise ValueError("Paired report needs equal nonempty state lists")
@@ -102,7 +103,7 @@ def paired_report(
 
 def write_paired_report(
     a_path: str | Path, b_path: str | Path, output: str | Path
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Save one comparison after checking both exact state lists."""
     report = paired_report(load_episode_rows(a_path), load_episode_rows(b_path))
     target = Path(output)

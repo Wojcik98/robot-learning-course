@@ -5,18 +5,27 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
 
 import numpy as np
+import torch
+from numpy.typing import ArrayLike
 
 from vla_lab.data.stats import TrainingStats
+from vla_lab.teaching.interfaces import StatisticsFunction, WindowFunction
+from vla_lab.teaching.records import (
+    ACTBatchData,
+    EpisodeArrays,
+    EpisodeRow,
+    ImageSample,
+    TrainingEpisode,
+)
 
 
-def order_episode_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+def order_episode_rows[RowT: EpisodeRow](rows: Sequence[RowT]) -> list[RowT]:
     """Return rows ordered by episode and frame, rejecting duplicate keys."""
-    keyed: dict[tuple[int, int], Mapping[str, Any]] = {}
+    keyed: dict[tuple[int, int], RowT] = {}
     for row in rows:
         try:
             key = (int(row["episode_index"]), int(row["frame_index"]))
@@ -28,7 +37,7 @@ def order_episode_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, A
     return [keyed[key] for key in sorted(keyed)]
 
 
-def extract_episode_arrays(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def extract_episode_arrays(rows: Sequence[EpisodeRow]) -> EpisodeArrays:
     """Read ordered model inputs from raw LeRobot rows for one episode."""
     ordered = order_episode_rows(rows)
     if not ordered:
@@ -59,7 +68,7 @@ def extract_episode_arrays(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def action_window(
-    episode_actions: object, *, start: int, horizon: int, action_dim: int | None = None
+    episode_actions: ArrayLike, *, start: int, horizon: int, action_dim: int | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Make a zero-padded action window and True-for-padding mask.
 
@@ -99,9 +108,9 @@ def split_episode_ids(
 
 
 def fit_training_statistics(
-    training_episodes: Mapping[object, object],
+    training_episodes: Mapping[int, ArrayLike],
     *,
-    validation_episodes: Mapping[object, object] | None = None,
+    validation_episodes: Mapping[int, ArrayLike] | None = None,
 ) -> TrainingStats:
     """Fit population mean/std on training samples and hash the result.
 
@@ -138,8 +147,8 @@ def read_local_episode_rows(
     *,
     workspace: str | Path | None = None,
     image_samples_per_episode: int = 4,
-    row_fn: Any = extract_episode_arrays,
-) -> dict[int, dict[str, Any]]:
+    row_fn: Callable[[Sequence[EpisodeRow]], EpisodeArrays] = extract_episode_arrays,
+) -> dict[int, TrainingEpisode]:
     """Read full actions/states and a few images from selected local episodes.
 
     This helper never downloads files. IDs must belong to the frozen train or
@@ -193,12 +202,12 @@ def read_local_episode_rows(
     if any(not positions for positions in episode_positions.values()):
         raise ValueError("a selected local episode contains no rows")
 
-    def array(value: Any) -> np.ndarray:
-        if hasattr(value, "detach"):
+    def array(value: torch.Tensor | ArrayLike) -> np.ndarray:
+        if isinstance(value, torch.Tensor):
             value = value.detach().cpu().numpy()
         return np.asarray(value)
 
-    episodes: dict[int, dict[str, Any]] = {}
+    episodes: dict[int, TrainingEpisode] = {}
     for episode_id, positions in episode_positions.items():
         raw_rows = [raw_dataset[index] for index in positions]
         extracted = row_fn(raw_rows)
@@ -212,7 +221,7 @@ def read_local_episode_rows(
         sample_starts = np.linspace(
             0, len(positions) - 1, min(image_samples_per_episode, len(positions)), dtype=int
         )
-        samples = []
+        samples: list[ImageSample] = []
         for local_index in sorted(set(map(int, sample_starts))):
             decoded = dataset[positions[local_index]]
             samples.append(
@@ -232,14 +241,14 @@ def read_local_episode_rows(
 
 
 def build_act_batches(
-    training_episodes: Mapping[int, Mapping[str, Any]],
-    validation_episodes: Mapping[int, Mapping[str, Any]],
+    training_episodes: Mapping[int, TrainingEpisode],
+    validation_episodes: Mapping[int, TrainingEpisode],
     *,
     horizon: int,
     batch_size: int,
-    window_fn: Any,
-    stats_fn: Any,
-) -> dict[str, Any]:
+    window_fn: WindowFunction,
+    stats_fn: StatisticsFunction,
+) -> ACTBatchData:
     """Build real ACT batches with learner-provided windows and statistics.
 
     Each episode mapping comes from ``read_local_episode_rows``. Validation
@@ -256,7 +265,7 @@ def build_act_batches(
     state_stats = stats_fn({key: value["states"] for key, value in training_episodes.items()})
     action_stats = stats_fn({key: value["actions"] for key, value in training_episodes.items()})
 
-    def convert(episodes: Mapping[int, Mapping[str, Any]]) -> list[dict[str, torch.Tensor]]:
+    def convert(episodes: Mapping[int, TrainingEpisode]) -> list[dict[str, torch.Tensor]]:
         samples: list[dict[str, np.ndarray]] = []
         for episode in episodes.values():
             actions = np.asarray(episode["actions"], dtype=np.float32)

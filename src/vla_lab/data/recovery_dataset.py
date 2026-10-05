@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 import numpy as np
 import torch
@@ -12,15 +12,25 @@ from torch.utils.data import Dataset
 
 from vla_lab.contracts import ActionSchema
 from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode
+from vla_lab.teaching.interfaces import (
+    ProcessorObservation,
+    RawObservation,
+    RawObservationValue,
+    RecordedObservation,
+    ResampleRowsFunction,
+    TransitionRowsFunction,
+    WindowFunction,
+)
+from vla_lab.teaching.records import AlignedTransition
 
 ACT_CHUNK_SIZE = 20
 _IMAGE_KEYS = ("observation.images.image", "observation.images.image2")
 _SAMPLE_KEYS = (*_IMAGE_KEYS, "observation.state")
 
 
-def _single_env_batch(observation: Mapping[str, Any]) -> dict[str, Any]:
+def _single_env_batch(observation: Mapping[str, RawObservationValue]) -> RawObservation:
     """Add a batch axis to raw NumPy leaves for the pinned LIBERO path."""
-    result: dict[str, Any] = {}
+    result: RawObservation = {}
     for key, value in observation.items():
         if isinstance(value, Mapping):
             result[key] = _single_env_batch(value)
@@ -31,7 +41,7 @@ def _single_env_batch(observation: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _values_equal(left: Any, right: Any) -> bool:
+def _values_equal(left: object, right: object) -> bool:
     """Compare copied nested observations without relying on object identity."""
     if left is right:
         return True
@@ -57,13 +67,17 @@ def _values_equal(left: Any, right: Any) -> bool:
     return bool(result)
 
 
-def _libero_observation_transform(observation: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+def _libero_observation_transform(
+    observation: Mapping[str, RawObservationValue],
+) -> dict[str, torch.Tensor]:
     """Use the same observation conversion as the ACT simulator path."""
     from lerobot.envs.utils import preprocess_observation
     from lerobot.processor import LiberoProcessorStep
 
     processed = LiberoProcessorStep().observation(
-        preprocess_observation(_single_env_batch(observation))
+        cast(Callable[[RawObservation], ProcessorObservation], preprocess_observation)(
+            _single_env_batch(observation)
+        )
     )
     features: dict[str, torch.Tensor] = {}
     for key in _SAMPLE_KEYS:
@@ -90,12 +104,11 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
         task_id: str,
         expected_reset_seeds: Collection[int],
         observation_transform: Callable[
-            [Mapping[str, Any]], Mapping[str, Any]
+            [Mapping[str, RawObservationValue]], Mapping[str, torch.Tensor]
         ] = _libero_observation_transform,
-        transition_rows_fn: Callable[..., Sequence[Mapping[str, Any]]] | None = None,
-        resample_rows_fn: Callable[[Sequence[Mapping[str, Any]]], Sequence[Mapping[str, Any]]]
-        | None = None,
-        window_fn: Callable[..., tuple[np.ndarray, np.ndarray]] | None = None,
+        transition_rows_fn: TransitionRowsFunction | None = None,
+        resample_rows_fn: ResampleRowsFunction | None = None,
+        window_fn: WindowFunction | None = None,
     ) -> None:
         if not episode_paths:
             raise ValueError("Recovery dataset needs at least one recording")
@@ -137,9 +150,10 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
         self._resample_rows_fn = resample_rows_fn
         self._window_fn = window_fn
         self._starts: list[tuple[int, int]] = []
-        self._observations: list[Mapping[str, Any]] = []
+        self._observations: list[Mapping[str, RawObservationValue]] = []
         self._actions_by_episode: list[np.ndarray] = []
         for episode_index, episode in enumerate(episodes):
+            transitions: list[AlignedTransition[RecordedObservation]]
             if transition_rows_fn is None:
                 transitions = [
                     {
@@ -173,20 +187,20 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
                 raise ValueError("resample_rows_fn must keep at least one transition per episode")
             source_rows = {int(row["tick"]): row for row in transitions}
             selected_actions = []
-            for selected_tick, row in enumerate(selected):
-                tick = int(row.get("tick", -1))
+            for selected_tick, selected_row in enumerate(selected):
+                tick = int(selected_row.get("tick", -1))
                 if tick not in source_rows or not _values_equal(
-                    row.get("observation"), source_rows[tick].get("observation")
+                    selected_row.get("observation"), source_rows[tick].get("observation")
                 ):
                     raise ValueError("resample_rows_fn must select original aligned rows")
                 if selected_tick and tick <= int(selected[selected_tick - 1]["tick"]):
                     raise ValueError("resample_rows_fn must preserve transition order")
-                action = np.asarray(row.get("action"), dtype=np.float32)
+                action = np.asarray(selected_row.get("action"), dtype=np.float32)
                 if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
                     raise ValueError("resample_rows_fn changed an applied action")
                 selected_actions.append(action.copy())
                 self._starts.append((episode_index, selected_tick))
-                self._observations.append(row["observation"])
+                self._observations.append(selected_row["observation"])
             self._actions_by_episode.append(np.stack(selected_actions))
 
     def __len__(self) -> int:

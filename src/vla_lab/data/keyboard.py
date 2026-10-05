@@ -7,12 +7,14 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar, Protocol
 
 import numpy as np
 import yaml
 
 from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode, record_episode
+from vla_lab.teaching.interfaces import EpisodeEnvironment, LiberoObservation, ManagedEnvironment
+from vla_lab.types import JSONValue
 
 
 @dataclass(frozen=True)
@@ -174,24 +176,34 @@ class OpenCVKeyboardInterface:
         self._cv2.destroyWindow(self._window_name)
 
 
-class _StopAwareEnvironment:
+class KeyboardInterface(Protocol):
+    def tick(self, frame: np.ndarray, period_ms: int) -> KeyboardEvent: ...
+
+    def close(self) -> None: ...
+
+
+class _StopAwareEnvironment[ObservationT]:
     """Mark the simulator step after a save or quit key as truncated."""
 
-    def __init__(self, environment: Any, stop_requested: Callable[[], bool]) -> None:
+    def __init__(
+        self, environment: EpisodeEnvironment[ObservationT], stop_requested: Callable[[], bool]
+    ) -> None:
         self._environment = environment
         self._stop_requested = stop_requested
 
-    def reset(self, *args: Any, **kwargs: Any) -> Any:
-        return self._environment.reset(*args, **kwargs)
+    def reset(self, seed: int | None = None) -> tuple[ObservationT, Mapping[str, JSONValue]]:
+        return self._environment.reset(seed=seed)
 
-    def step(self, action: np.ndarray) -> Any:
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[ObservationT, float, bool, bool, Mapping[str, JSONValue]]:
         observation, reward, terminated, truncated, info = self._environment.step(action)
         if self._stop_requested():
             truncated = True
         return observation, reward, terminated, truncated, info
 
 
-def _camera_frame(observation: Mapping[str, Any]) -> np.ndarray:
+def _camera_frame(observation: LiberoObservation) -> np.ndarray:
     """Read the agent camera image from a LIBERO observation."""
     try:
         return np.asarray(observation["pixels"]["image"])
@@ -200,8 +212,8 @@ def _camera_frame(observation: Mapping[str, Any]) -> np.ndarray:
 
 
 def run_keyboard_recording(
-    environment: Any,
-    interface: Any,
+    environment: ManagedEnvironment[LiberoObservation],
+    interface: KeyboardInterface,
     *,
     configs_root: str | Path,
     task_alias: str,
@@ -217,7 +229,7 @@ def run_keyboard_recording(
     def stop_requested() -> bool:
         return last_event.save or last_event.quit
 
-    def keys_at_tick(_tick: int, observation: Mapping[str, Any]) -> frozenset[str]:
+    def keys_at_tick(_tick: int, observation: LiberoObservation) -> frozenset[str]:
         nonlocal last_event
         last_event = interface.tick(_camera_frame(observation), CONTROL_PERIOD_MS)
         return last_event.keys

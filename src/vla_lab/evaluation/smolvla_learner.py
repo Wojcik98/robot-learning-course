@@ -7,7 +7,6 @@ import json
 import random
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
@@ -16,6 +15,7 @@ import yaml
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.states import evaluate_states, selected_state_ids
 from vla_lab.sim.episode import EpisodeResult
+from vla_lab.types import JSONValue
 
 
 def evaluate_learner_reference(
@@ -28,7 +28,7 @@ def evaluate_learner_reference(
     state_ids: Sequence[int] | None = None,
     seed: int = 20260930,
     run_one: Callable[[int], EpisodeResult] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Record one C1 or C2 attempt for each selected development state."""
     source = Path(checkpoint).expanduser().resolve()
     manifest = json.loads((source / "manifest.json").read_text())

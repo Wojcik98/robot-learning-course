@@ -5,16 +5,23 @@ from __future__ import annotations
 import json
 import subprocess
 import time
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Sequence
+from typing import Protocol
 
 from vla_lab.cloud.budget import CloudQuote
+from vla_lab.types import JSONValue
+
+
+class CommandRunner(Protocol):
+    def __call__(
+        self, args: Sequence[str], *, capture_output: bool, text: bool, check: bool, timeout: int
+    ) -> subprocess.CompletedProcess[str]: ...
 
 
 class BrevCLI:
     """Run bounded Brev commands without a shell."""
 
-    def __init__(self, runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run):
+    def __init__(self, runner: CommandRunner = subprocess.run) -> None:
         self.runner = runner
 
     def _run(self, *args: str, timeout_s: int = 60) -> str:
@@ -40,7 +47,7 @@ class BrevCLI:
             checked_at=time.time(),
         )
 
-    def instances(self) -> list[dict[str, Any]]:
+    def instances(self) -> list[dict[str, JSONValue]]:
         """Read active organization instances; an empty list is valid."""
         content = json.loads(self._run("ls", "instances", "--json"))
         rows = content.get("workspaces")

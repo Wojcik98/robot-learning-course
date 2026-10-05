@@ -14,10 +14,32 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Unpack, cast
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+from vla_lab.teaching.blocks import (
+    AttentionOperation,
+    DecoderForward,
+    DecoderHooks,
+    DecoderParts,
+    EncoderForward,
+    EncoderHooks,
+    EncoderParts,
+    MultiHeadForward,
+    ProjectedAttention,
+    ScaledAttention,
+)
+
+if TYPE_CHECKING:
+    from lerobot.policies.act.modeling_act import (
+        ACTDecoder,
+        ACTDecoderLayer,
+        ACTEncoder,
+        ACTEncoderLayer,
+    )
 
 
 def scaled_dot_product_attention(
@@ -62,12 +84,12 @@ def merge_heads(x: Tensor) -> Tensor:
 
 
 def multi_head_forward(
-    attention: nn.Module,
+    attention: ProjectedAttention,
     query: Tensor,
     key: Tensor,
     value: Tensor,
     key_padding_mask: Tensor | None = None,
-    attend: Callable[..., tuple[Tensor, Tensor]] = scaled_dot_product_attention,
+    attend: ScaledAttention = scaled_dot_product_attention,
 ) -> tuple[Tensor, Tensor]:
     """Multi-head attention (section 3.2.2): project, split heads, attend, merge, project.
 
@@ -92,9 +114,9 @@ class MultiHeadAttention(nn.Module):
         n_heads: int,
         dropout: float = 0.0,
         *,
-        forward_fn: Callable[..., tuple[Tensor, Tensor]] = multi_head_forward,
-        attend_fn: Callable[..., tuple[Tensor, Tensor]] = scaled_dot_product_attention,
-    ):
+        forward_fn: MultiHeadForward = multi_head_forward,
+        attend_fn: ScaledAttention = scaled_dot_product_attention,
+    ) -> None:
         super().__init__()
         if d_model % n_heads != 0:
             raise ValueError("d_model must be divisible by n_heads")
@@ -138,7 +160,7 @@ def feedforward_activation(name: str) -> Callable[[Tensor], Tensor]:
 
 
 def encoder_layer_forward(
-    layer: nn.Module,
+    layer: EncoderParts,
     x: Tensor,
     pos_embed: Tensor | None = None,
     key_padding_mask: Tensor | None = None,
@@ -180,10 +202,10 @@ class EncoderLayer(nn.Module):
         *,
         activation: str = "relu",
         pre_norm: bool = False,
-        forward_fn: Callable[..., Tensor] = encoder_layer_forward,
-        attend_fn: Callable[..., tuple[Tensor, Tensor]] = scaled_dot_product_attention,
-        attention_forward_fn: Callable[..., tuple[Tensor, Tensor]] = multi_head_forward,
-    ):
+        forward_fn: EncoderForward = encoder_layer_forward,
+        attend_fn: ScaledAttention = scaled_dot_product_attention,
+        attention_forward_fn: MultiHeadForward = multi_head_forward,
+    ) -> None:
         super().__init__()
         self.self_attn = MultiHeadAttention(
             d_model, n_heads, dropout, forward_fn=attention_forward_fn, attend_fn=attend_fn
@@ -218,8 +240,8 @@ class TransformerEncoder(nn.Module):
         *,
         activation: str = "relu",
         pre_norm: bool = False,
-        **hooks: Callable,
-    ):
+        **hooks: Unpack[EncoderHooks],
+    ) -> None:
         super().__init__()
         self.layers = nn.ModuleList(
             [
@@ -246,7 +268,7 @@ class TransformerEncoder(nn.Module):
 
 
 def attend_with_positions(
-    attention: nn.Module,
+    attention: AttentionOperation,
     query_input: Tensor,
     key_value_input: Tensor,
     query_pos: Tensor | None = None,
@@ -267,7 +289,7 @@ def attend_with_positions(
 
 
 def decoder_layer_forward(
-    layer: nn.Module,
+    layer: DecoderParts,
     x: Tensor,
     memory: Tensor,
     query_pos: Tensor | None = None,
@@ -324,10 +346,10 @@ class DecoderLayer(nn.Module):
         *,
         activation: str = "relu",
         pre_norm: bool = False,
-        forward_fn: Callable[..., Tensor] = decoder_layer_forward,
-        attend_fn: Callable[..., tuple[Tensor, Tensor]] = scaled_dot_product_attention,
-        attention_forward_fn: Callable[..., tuple[Tensor, Tensor]] = multi_head_forward,
-    ):
+        forward_fn: DecoderForward = decoder_layer_forward,
+        attend_fn: ScaledAttention = scaled_dot_product_attention,
+        attention_forward_fn: MultiHeadForward = multi_head_forward,
+    ) -> None:
         super().__init__()
         self.self_attn = MultiHeadAttention(
             d_model, n_heads, dropout, forward_fn=attention_forward_fn, attend_fn=attend_fn
@@ -372,8 +394,8 @@ class TransformerDecoder(nn.Module):
         *,
         activation: str = "relu",
         pre_norm: bool = False,
-        **hooks: Callable,
-    ):
+        **hooks: Unpack[DecoderHooks],
+    ) -> None:
         super().__init__()
         self.layers = nn.ModuleList(
             [
@@ -434,37 +456,41 @@ def _load_layer_common(target: nn.Module, source: nn.Module, norms: tuple[str, .
         _copy(getattr(target, name).bias, getattr(source, name).bias.detach(), f"{name}.bias")
 
 
-def load_lerobot_encoder_layer(target: EncoderLayer, source: nn.Module) -> None:
+def load_lerobot_encoder_layer(target: EncoderLayer, source: ACTEncoderLayer) -> None:
     load_lerobot_attention(target.self_attn, source.self_attn)
     _load_layer_common(target, source, ("norm1", "norm2"))
 
 
-def load_lerobot_decoder_layer(target: DecoderLayer, source: nn.Module) -> None:
+def load_lerobot_decoder_layer(target: DecoderLayer, source: ACTDecoderLayer) -> None:
     load_lerobot_attention(target.self_attn, source.self_attn)
     load_lerobot_attention(target.cross_attn, source.multihead_attn)
     _load_layer_common(target, source, ("norm1", "norm2", "norm3"))
 
 
-def load_lerobot_encoder(target: TransformerEncoder, source: nn.Module) -> None:
+def load_lerobot_encoder(target: TransformerEncoder, source: ACTEncoder) -> None:
     """Copy a LeRobot ``ACTEncoder`` into a ``TransformerEncoder`` of the same shape."""
     if len(target.layers) != len(source.layers):
         raise ValueError("encoder layer count differs")
     if type(target.norm) is not type(source.norm):
         raise ValueError("pre_norm setting differs: final norm type differs")
     for learner_layer, reference_layer in zip(target.layers, source.layers, strict=True):
+        learner_layer = cast(EncoderLayer, learner_layer)
+        reference_layer = cast("ACTEncoderLayer", reference_layer)
         if learner_layer.pre_norm != reference_layer.pre_norm:
             raise ValueError("pre_norm setting differs")
         load_lerobot_encoder_layer(learner_layer, reference_layer)
-    if isinstance(target.norm, nn.LayerNorm):
+    if isinstance(target.norm, nn.LayerNorm) and isinstance(source.norm, nn.LayerNorm):
         _copy(target.norm.weight, source.norm.weight.detach(), "norm.weight")
         _copy(target.norm.bias, source.norm.bias.detach(), "norm.bias")
 
 
-def load_lerobot_decoder(target: TransformerDecoder, source: nn.Module) -> None:
+def load_lerobot_decoder(target: TransformerDecoder, source: ACTDecoder) -> None:
     """Copy a LeRobot ``ACTDecoder`` into a ``TransformerDecoder`` of the same shape."""
     if len(target.layers) != len(source.layers):
         raise ValueError("decoder layer count differs")
     for learner_layer, reference_layer in zip(target.layers, source.layers, strict=True):
+        learner_layer = cast(DecoderLayer, learner_layer)
+        reference_layer = cast("ACTDecoderLayer", reference_layer)
         if learner_layer.pre_norm != reference_layer.pre_norm:
             raise ValueError("pre_norm setting differs")
         load_lerobot_decoder_layer(learner_layer, reference_layer)

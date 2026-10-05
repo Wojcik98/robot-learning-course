@@ -4,22 +4,43 @@ from __future__ import annotations
 
 import hashlib
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
 import torch
 import yaml
 from torch.utils.data._utils.collate import default_collate
+
+from vla_lab.teaching.interfaces import (
+    ActionProcessor,
+    ACTOutput,
+    JSONValue,
+    ObservationProcessor,
+    ProcessorObservation,
+    TensorBatch,
+)
+from vla_lab.teaching.records import ActBatchMetadata
+
+if TYPE_CHECKING:
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    from lerobot.policies.act.modeling_act import ACTPolicy
+    from lerobot.policies.diffusion import DiffusionPolicy
+    from lerobot.policies.smolvla import SmolVLAPolicy
+
+    from vla_lab.teaching.records import PolicyRecipe
+
+    type PreparedPolicy = ACTPolicy | DiffusionPolicy | SmolVLAPolicy
 
 
 @dataclass(frozen=True)
 class ActBatchSet:
     """Prepared CPU batches and the frozen split identity used to read them."""
 
-    train: tuple[dict[str, Any], ...]
-    validation: tuple[dict[str, Any], ...]
-    metadata: dict[str, Any]
+    train: tuple[TensorBatch, ...]
+    validation: tuple[TensorBatch, ...]
+    metadata: ActBatchMetadata
 
 
 def _sha256_file(path: Path) -> str:
@@ -43,7 +64,7 @@ def find_workspace(start: str | Path | None = None) -> Path:
 
 def load_prepared_policy(
     method: str, workspace: str | Path | None = None, *, task_alias: str = "bowl_plate"
-) -> tuple[Any, Any, Any, dict[str, Any]]:
+) -> tuple[PreparedPolicy, ObservationProcessor, ActionProcessor, dict[str, JSONValue]]:
     """Load one hash-checked local ACT, SmolVLA, or Diffusion checkpoint.
 
     This helper reads the saved comparison recipe and checks the model, data
@@ -102,33 +123,33 @@ def load_prepared_policy(
             recipe[key] = str((root / recipe[key]).resolve())
     episodes = yaml.safe_load((configs / "data" / "episodes.yaml").read_text())
     task = episodes["tasks"][task_alias]
-    policy, preprocessor, postprocessor = _load_method(
+    comparison_policy, comparison_preprocessor, comparison_postprocessor = _load_method(
         method,
-        recipe,
+        cast("PolicyRecipe", recipe),
         task_alias,
         task["split_sha256"],
         episodes["dataset_revision"],
     )
-    policy.eval()
-    return policy, preprocessor, postprocessor, recipe
+    comparison_policy.eval()
+    return comparison_policy, comparison_preprocessor, comparison_postprocessor, recipe
 
 
 class _ACTRawModel(torch.nn.Module):
     """Expose ACT's predictions without running the policy's built-in loss."""
 
-    def __init__(self, policy: Any) -> None:
+    def __init__(self, policy: ACTPolicy) -> None:
         super().__init__()
         self.policy = policy
 
-    def forward(self, batch: dict[str, Any]) -> Any:
+    def forward(self, batch: Mapping[str, torch.Tensor]) -> ACTOutput:
         from lerobot.utils.constants import OBS_IMAGES
 
-        model_input = dict(batch)
+        model_input: dict[str, torch.Tensor | list[torch.Tensor]] = dict(batch)
         model_input[OBS_IMAGES] = [batch[key] for key in self.policy.config.image_features]
         return self.policy.model(model_input)
 
 
-def make_act_raw_model(policy: Any) -> torch.nn.Module:
+def make_act_raw_model(policy: ACTPolicy) -> _ACTRawModel:
     """Return ACT raw predictions so learner loss code can drive its update.
 
     The wrapper shares the policy parameters. Supply ``policy.get_optim_params()``
@@ -144,7 +165,7 @@ def make_act_raw_model(policy: Any) -> torch.nn.Module:
 make_raw_act_model = make_act_raw_model
 
 
-def _cpu_batch(batch: dict[str, Any]) -> dict[str, Any]:
+def _cpu_batch(batch: ProcessorObservation) -> ProcessorObservation:
     return {
         key: value.detach().cpu() if isinstance(value, torch.Tensor) else value
         for key, value in batch.items()
@@ -204,7 +225,7 @@ def load_act_batches(
     required_train_rows = train_batches * batch_size
     required_validation_rows = validation_batches * batch_size
 
-    def open_dataset(episodes: list[int]) -> Any:
+    def open_dataset(episodes: list[int]) -> LeRobotDataset:
         return LeRobotDataset(
             "lerobot/libero",
             root=cache,
@@ -225,27 +246,27 @@ def load_act_batches(
     train_order = torch.randperm(len(training_data), generator=generator)[:required_train_rows]
     train_rows = [training_data[int(index)] for index in train_order]
     val_rows = [validation_data[index] for index in range(required_validation_rows)]
-    train = tuple(
+    cpu_train = tuple(
         _cpu_batch(preprocessor(default_collate(train_rows[start : start + batch_size])))
         for start in range(0, required_train_rows, batch_size)
     )
-    validation = tuple(
+    cpu_validation = tuple(
         _cpu_batch(preprocessor(default_collate(val_rows[start : start + batch_size])))
         for start in range(0, required_validation_rows, batch_size)
     )
 
     # Keep only fields that the raw ACT model needs. The processors return
     # extra bookkeeping keys for the policy wrapper.
-    def model_batch(batch: dict[str, Any]) -> dict[str, Any]:
+    def model_batch(batch: ProcessorObservation) -> TensorBatch:
         return {
-            key: value
+            key: cast(torch.Tensor, value)
             for key, value in batch.items()
             if key in {"action", "action_is_pad", "observation.state", *config.image_features}
         }
 
-    train = tuple(model_batch(batch) for batch in train)
-    validation = tuple(model_batch(batch) for batch in validation)
-    metadata = {
+    train = tuple(model_batch(batch) for batch in cpu_train)
+    validation = tuple(model_batch(batch) for batch in cpu_validation)
+    metadata: ActBatchMetadata = {
         "task_alias": task_alias,
         "dataset_revision": split_manifest["dataset_revision"],
         "split_sha256": task["split_sha256"],

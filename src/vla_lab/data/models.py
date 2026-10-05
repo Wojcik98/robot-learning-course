@@ -5,10 +5,11 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
-from typing import Any
 
 import yaml
 from huggingface_hub import snapshot_download
+
+from vla_lab.types import JSONValue
 
 MODEL_FILES = {
     "published_reference": (
@@ -39,13 +40,13 @@ def _sha256(path: Path) -> str:
 
 def fetch_pinned_models(
     workspace: str | Path, data_root: str | Path, *, offline: bool = False
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Download exact Hub commits or check the files that are already local."""
     root = Path(workspace).expanduser().resolve()
     data = Path(data_root).expanduser().resolve()
     manifest = yaml.safe_load((root / "manifests" / "smolvla_reference.yaml").read_text())
     cache = data / "hf" / "hub"
-    report: dict[str, Any] = {"offline": offline, "models": {}}
+    report: dict[str, JSONValue] = {"offline": offline, "models": {}}
     for key, (name, required) in MODEL_FILES.items():
         source = manifest[key]
         revision = str(source["revision"])

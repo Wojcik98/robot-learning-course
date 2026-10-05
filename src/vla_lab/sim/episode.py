@@ -5,13 +5,27 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 import numpy as np
 import torch
 import yaml
 from lerobot.envs.utils import preprocess_observation
-from lerobot.processor import LiberoProcessorStep, PolicyProcessorPipeline
+from lerobot.processor import LiberoProcessorStep
+from numpy.typing import NDArray
+
+from vla_lab.teaching.interfaces import (
+    ActionPolicy,
+    ActionProcessor,
+    EpisodeEnvironment,
+    LiberoObservation,
+    ManagedEnvironment,
+    ObservationPolicy,
+    ObservationProcessor,
+    ProcessorObservation,
+    RawObservationValue,
+)
+from vla_lab.teaching.records import SimulationTask
 
 from .setup import prepare_local_libero, select_local_assets
 
@@ -32,7 +46,7 @@ class PolicyActionError(ValueError):
     """A policy sent an action that cannot enter the controller."""
 
 
-def _task_split(task_alias: str, configs_root: str | Path) -> dict[str, Any]:
+def _task_split(task_alias: str, configs_root: str | Path) -> SimulationTask:
     manifest = yaml.safe_load((Path(configs_root) / "eval" / "splits.yaml").read_text())
     try:
         return manifest["tasks"][task_alias]
@@ -40,22 +54,24 @@ def _task_split(task_alias: str, configs_root: str | Path) -> dict[str, Any]:
         raise ValueError(f"Unknown task alias: {task_alias}") from error
 
 
-def _single_env_batch(observation: dict[str, Any]) -> dict[str, Any]:
+def _single_env_batch(observation: LiberoObservation) -> dict[str, RawObservationValue]:
     """Add one batch axis to each array from a direct LIBERO environment."""
 
-    def add_axis(value: Any) -> Any:
+    def add_axis(value: RawObservationValue) -> RawObservationValue:
         if isinstance(value, dict):
             return {key: add_axis(item) for key, item in value.items()}
         if isinstance(value, np.ndarray):
             return np.expand_dims(value, axis=0)
         return value
 
-    return add_axis(observation)
+    return cast(
+        dict[str, RawObservationValue], add_axis(cast(dict[str, RawObservationValue], observation))
+    )
 
 
 def open_libero_task(
     task_alias: str, state_id: int, configs_root: str | Path, data_root: str | Path
-) -> Any:
+) -> ManagedEnvironment[LiberoObservation]:
     """Open one pinned LIBERO task at one initial state."""
     task = _task_split(task_alias, configs_root)
     if state_id < 0 or state_id >= task["state_count"]:
@@ -66,7 +82,7 @@ def open_libero_task(
     from libero.libero import benchmark
 
     suite = benchmark.get_benchmark_dict()[task["suite"]]()
-    return LiberoEnv(
+    environment = LiberoEnv(
         task_suite=suite,
         task_id=task["task_id"],
         task_suite_name=task["suite"],
@@ -83,12 +99,14 @@ def open_libero_task(
         hard_reset=True,
     )
 
+    return cast(ManagedEnvironment[LiberoObservation], environment)
+
 
 def run_policy_episode(
-    environment: Any,
-    policy: Any,
-    preprocessor: PolicyProcessorPipeline,
-    postprocessor: PolicyProcessorPipeline,
+    environment: EpisodeEnvironment[LiberoObservation],
+    policy: ActionPolicy | ObservationPolicy,
+    preprocessor: ObservationProcessor,
+    postprocessor: ActionProcessor,
     task_alias: str,
     state_id: int,
     configs_root: str | Path,
@@ -103,7 +121,9 @@ def run_policy_episode(
     task = _task_split(task_alias, configs_root)
     if partition not in ("development", "final"):
         raise ValueError(f"Unknown state partition: {partition}")
-    if state_id not in task[f"{partition}_state_ids"]:
+    if state_id not in (
+        task["development_state_ids"] if partition == "development" else task["final_state_ids"]
+    ):
         raise ValueError(f"State {state_id} is not in the {partition} partition")
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
@@ -115,20 +135,25 @@ def run_policy_episode(
     if on_frame is not None:
         on_frame(np.ascontiguousarray(observation["pixels"]["image"][::-1, ::-1]))
     libero_processor = LiberoProcessorStep()
+    # LeRobot method annotations omit the task text kept by its processors.
+    select_action = cast(Callable[[ProcessorObservation], torch.Tensor], policy.select_action)
     clipped_values = 0
     success = False
     termination_reason = "timeout"
     for step in range(1, max_steps + 1):
         processed = libero_processor.observation(
-            preprocess_observation(_single_env_batch(observation))
+            cast(
+                Callable[[dict[str, RawObservationValue]], ProcessorObservation],
+                preprocess_observation,
+            )(_single_env_batch(observation))
         )
         if task_prompt is not None:
             processed["task"] = task_prompt
-        batch = preprocessor(processed)
+        batch = preprocessor(cast(ProcessorObservation, processed))
         with torch.no_grad():
-            normalized_action = policy.select_action(batch)
+            normalized_action = select_action(batch)
             physical_action = postprocessor(normalized_action)
-        action = np.asarray(physical_action, dtype=np.float32).reshape(-1)
+        action: NDArray[np.float32] = np.asarray(physical_action, dtype=np.float32).reshape(-1)
         if action.shape != (7,) or not np.isfinite(action).all():
             raise PolicyActionError("Policy returned an invalid seven-value action")
         clipped_values += int(np.count_nonzero((action < -1.0) | (action > 1.0)))
@@ -146,10 +171,10 @@ def run_policy_episode(
 
 
 def run_act_episode(
-    environment: Any,
-    policy: Any,
-    preprocessor: PolicyProcessorPipeline,
-    postprocessor: PolicyProcessorPipeline,
+    environment: EpisodeEnvironment[LiberoObservation],
+    policy: ActionPolicy | ObservationPolicy,
+    preprocessor: ObservationProcessor,
+    postprocessor: ActionProcessor,
     task_alias: str,
     state_id: int,
     configs_root: str | Path,

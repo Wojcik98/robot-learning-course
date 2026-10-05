@@ -5,11 +5,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import numpy as np
+from numpy.typing import ArrayLike
+
+from vla_lab.teaching.records import (
+    AlignedTransition,
+    InterventionCase,
+    InterventionSummary,
+    TransitionAlignment,
+)
 
 
 def transition_alignment(
-    observation_ticks: Sequence[int], action_ticks: Sequence[int]
-) -> dict[str, object]:
+    observation_ticks: Sequence[int] | np.ndarray, action_ticks: Sequence[int] | np.ndarray
+) -> TransitionAlignment:
     """Check that action i was applied after observation i on the same tick."""
     obs = np.asarray(observation_ticks, dtype=np.int64)
     act = np.asarray(action_ticks, dtype=np.int64)
@@ -41,7 +49,7 @@ def dataset_tick_indices(control_ticks: Sequence[int]) -> np.ndarray:
 
 
 def aligned_transition_indices(
-    observation_ticks: Sequence[int], action_ticks: Sequence[int]
+    observation_ticks: Sequence[int] | np.ndarray, action_ticks: Sequence[int] | np.ndarray
 ) -> np.ndarray:
     """Return action row indexes paired with their pre-action observations.
 
@@ -54,20 +62,20 @@ def aligned_transition_indices(
     return np.arange(len(action_ticks), dtype=np.int64)
 
 
-def aligned_transition_rows(
-    observations: Sequence[object],
-    actions: object,
-    observation_ticks: Sequence[int],
-    action_ticks: Sequence[int],
-) -> list[dict[str, object]]:
+def aligned_transition_rows[ObservationT](
+    observations: Sequence[ObservationT],
+    actions: ArrayLike,
+    observation_ticks: Sequence[int] | np.ndarray,
+    action_ticks: Sequence[int] | np.ndarray,
+) -> list[AlignedTransition[ObservationT]]:
     """Build state/action rows only after exact temporal alignment passes."""
-    action_array = np.asarray(actions)
+    action_array = np.asarray(actions, dtype=np.float32)
     indices = aligned_transition_indices(observation_ticks, action_ticks)
     if action_array.ndim != 2 or len(action_array) != len(indices):
         raise ValueError("actions must have shape (transitions, action_dim)")
     if len(observations) != len(indices) + 1:
         raise ValueError("observations must contain one final state after the last action")
-    rows = []
+    rows: list[AlignedTransition[ObservationT]] = []
     for index in indices:
         rows.append(
             {
@@ -79,9 +87,9 @@ def aligned_transition_rows(
     return rows
 
 
-def resample_aligned_transitions_10hz(
-    rows: Sequence[dict[str, object]], *, control_hz: int = 20, dataset_hz: int = 10
-) -> list[dict[str, object]]:
+def resample_aligned_transitions_10hz[ObservationT](
+    rows: Sequence[AlignedTransition[ObservationT]], *, control_hz: int = 20, dataset_hz: int = 10
+) -> list[AlignedTransition[ObservationT]]:
     """Select aligned rows at the saved 10 Hz cadence from 20 Hz control rows.
 
     This conversion is for newly recorded recovery data. It does not change
@@ -96,15 +104,15 @@ def resample_aligned_transitions_10hz(
     ticks = [int(row["tick"]) for row in rows]
     if ticks != list(range(len(rows))):
         raise ValueError("transition rows must have contiguous aligned control ticks from zero")
-    return [dict(rows[index]) for index in range(0, len(rows), stride)]
+    return [rows[index].copy() for index in range(0, len(rows), stride)]
 
 
 def intervention_effect(
-    baseline: Sequence[dict[str, object]],
-    changed_data: Sequence[dict[str, object]],
+    baseline: Sequence[InterventionCase],
+    changed_data: Sequence[InterventionCase],
     *,
-    case_ids: Sequence[object],
-) -> dict[str, object]:
+    case_ids: Sequence[str | int],
+) -> InterventionSummary:
     """Compare a data intervention on the same development cases."""
     wanted = list(case_ids)
     if not wanted or len(wanted) != len(set(wanted)):
@@ -118,6 +126,10 @@ def intervention_effect(
     left_rows = {row["case_id"]: row for row in baseline}
     right_rows = {row["case_id"]: row for row in changed_data}
     identity_fields = ("state_id", "reset_seed", "task_id", "prompt")
+
+    def identity(row: InterventionCase) -> tuple[int | None, int | None, str | None, str | None]:
+        return row.get("state_id"), row.get("reset_seed"), row.get("task_id"), row.get("prompt")
+
     for case_id in wanted:
         a, b = left_rows[case_id], right_rows[case_id]
         present = [key for key in identity_fields if key in a or key in b]
@@ -125,7 +137,7 @@ def intervention_effect(
             raise ValueError(
                 "paired intervention rows need matching state, seed, task, and prompt identity"
             )
-        if any(a[key] != b[key] for key in present):
+        if identity(a) != identity(b):
             raise ValueError(
                 "paired intervention rows differ in state, seed, task, or prompt identity"
             )

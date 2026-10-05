@@ -2,6 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from vla_lab.runtime.experiment import Predictor
+from vla_lab.teaching.interfaces import (
+    ActionProcessor,
+    EpisodeEnvironment,
+    LiberoObservation,
+    ObservationProcessor,
+)
+from vla_lab.types import JSONValue
+
+if TYPE_CHECKING:
+    from lerobot.policies.smolvla import SmolVLAPolicy
+
 import argparse
 import hashlib
 import json
@@ -9,7 +23,6 @@ import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
@@ -55,7 +68,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_latency_config(path: str | Path, configs_root: str | Path) -> dict[str, Any]:
+def load_latency_config(path: str | Path, configs_root: str | Path) -> dict[str, JSONValue]:
     """Read the development or frozen final config and check its source pins."""
     content = Path(path).read_bytes()
     config = yaml.safe_load(content)
@@ -124,7 +137,7 @@ def load_latency_config(path: str | Path, configs_root: str | Path) -> dict[str,
     return config
 
 
-def verify_model_source(config: dict[str, Any]) -> dict[str, Any]:
+def verify_model_source(config: dict[str, JSONValue]) -> dict[str, JSONValue]:
     """Check the local checkpoint and VLM files against the pins; return the manifest."""
     learner = config["learner"]
     source = Path(learner["checkpoint"])
@@ -145,7 +158,9 @@ def verify_model_source(config: dict[str, Any]) -> dict[str, Any]:
     return manifest
 
 
-def episode_identity(config: dict[str, Any], mode: str, state_id: int) -> dict[str, Any]:
+def episode_identity(
+    config: dict[str, JSONValue], mode: str, state_id: int
+) -> dict[str, JSONValue]:
     """Everything that must match before a saved episode result is reused."""
     if mode not in config["modes"] or state_id not in config["state_ids"]:
         raise ValueError("Mode or state is outside the latency config")
@@ -172,7 +187,7 @@ def result_path(output: str | Path, mode: str, state_id: int) -> Path:
     return Path(output) / mode / f"state-{state_id:03d}.json"
 
 
-def load_reusable(path: Path, identity: dict[str, Any]) -> dict[str, Any] | None:
+def load_reusable(path: Path, identity: dict[str, JSONValue]) -> dict[str, JSONValue] | None:
     """Return a saved result only if its identity is exactly the requested one."""
     try:
         saved = json.loads(path.read_text())
@@ -210,7 +225,7 @@ def load_reusable(path: Path, identity: dict[str, Any]) -> dict[str, Any] | None
     return saved
 
 
-def save_atomic(path: Path, payload: dict[str, Any]) -> None:
+def save_atomic(path: Path, payload: dict[str, JSONValue]) -> None:
     """Write beside the target and rename, so a crash never leaves a partial result."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
@@ -231,7 +246,7 @@ def episode_metrics(
     *,
     peak_allocated_bytes: int | None,
     peak_reserved_bytes: int | None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Reduce one episode to runtime metrics."""
     if not result.ticks:
         raise ValueError("Episode has no controller ticks")
@@ -259,12 +274,12 @@ def episode_metrics(
     }
 
 
-def summarize(results: Sequence[dict[str, Any]]) -> dict[str, Any]:
+def summarize(results: Sequence[dict[str, JSONValue]]) -> dict[str, JSONValue]:
     """Group saved per-state results by mode, pooling every request latency."""
-    by_mode: dict[str, list[dict[str, Any]]] = {}
+    by_mode: dict[str, list[dict[str, JSONValue]]] = {}
     for saved in results:
         by_mode.setdefault(saved["identity"]["mode"], []).append(saved)
-    summary: dict[str, Any] = {}
+    summary: dict[str, JSONValue] = {}
     for mode in MODES:
         rows = by_mode.get(mode)
         if not rows:
@@ -315,20 +330,26 @@ def _synchronize() -> None:
 class TimedPredictor:
     """Time each chunk request after CUDA work has finished."""
 
-    def __init__(self, predictor: Any) -> None:
+    def __init__(self, predictor: Predictor) -> None:
         self.predictor = predictor
         self.latencies_ms: list[float] = []
 
-    def __call__(self, *args: Any) -> tuple[np.ndarray, np.ndarray]:
+    def __call__(
+        self,
+        observation: LiberoObservation,
+        tick: int,
+        previous: np.ndarray | None,
+        origin: int | None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         _synchronize()
         start = time.perf_counter()
-        chunks = self.predictor(*args)
+        chunks = self.predictor(observation, tick, previous, origin)
         _synchronize()
         self.latencies_ms.append((time.perf_counter() - start) * 1000)
         return chunks
 
 
-def _configure_rtc(policy: Any, mode: str, stride: int) -> None:
+def _configure_rtc(policy: SmolVLAPolicy, mode: str, stride: int) -> None:
     """Install checked guided RTC for RTC modes; leave it off for every other mode."""
     if mode in RTC_MODES:
         from vla_lab.rtc.guidance import install_guided_rtc
@@ -342,13 +363,13 @@ def _configure_rtc(policy: Any, mode: str, stride: int) -> None:
 
 def run_mode_episode(
     *,
-    config: dict[str, Any],
-    identity: dict[str, Any],
-    policy: Any,
-    preprocessor: Any,
-    postprocessor: Any,
-    environment: Any,
-) -> dict[str, Any]:
+    config: dict[str, JSONValue],
+    identity: dict[str, JSONValue],
+    policy: SmolVLAPolicy,
+    preprocessor: ObservationProcessor,
+    postprocessor: ActionProcessor,
+    environment: EpisodeEnvironment[LiberoObservation],
+) -> dict[str, JSONValue]:
     """Run one mode on one state with a fresh policy reset and timed requests."""
     from vla_lab.runtime.experiment import EpisodeRunner
     from vla_lab.runtime.smolvla_chunks import SmolVLAChunkPredictor
@@ -400,7 +421,7 @@ def run_latency_experiment(
     output_dir: str | Path,
     modes: Sequence[str] | None = None,
     state_ids: Sequence[int] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Run every missing development episode, saving each one as soon as it finishes."""
     config = load_latency_config(config_path, configs_root)
     chosen_modes = list(modes) if modes is not None else list(config["modes"])

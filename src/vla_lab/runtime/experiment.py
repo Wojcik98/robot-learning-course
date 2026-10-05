@@ -4,27 +4,25 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Literal
 
 import numpy as np
 
 from vla_lab.contracts import ActionChunk, ActionSchema
 from vla_lab.runtime.virtual_scheduler import CONTROL_PERIOD_MS, TickRecord, VirtualScheduler
+from vla_lab.teaching.interfaces import EpisodeEnvironment, LiberoObservation
 
 Mode = Literal["synchronous", "naive_async", "temporal_ensemble", "rtc_hard", "rtc_soft"]
 MODES = ("synchronous", "naive_async", "temporal_ensemble", "rtc_hard", "rtc_soft")
 RTC_MODES = ("rtc_hard", "rtc_soft")
 BOUNDARY_ACTIONS = 6
 
-Predictor = Callable[[Any, int, "np.ndarray | None", "int | None"], tuple[np.ndarray, np.ndarray]]
+Predictor = Callable[
+    [LiberoObservation, int, np.ndarray | None, int | None], tuple[np.ndarray, np.ndarray]
+]
 
 
-class Env(Protocol):
-    """The environment calls that the runner needs."""
-
-    def reset(self, seed: int) -> tuple[Any, dict]: ...
-
-    def step(self, action: np.ndarray) -> tuple[Any, float, bool, bool, dict]: ...
+Env = EpisodeEnvironment[LiberoObservation]
 
 
 @dataclass(frozen=True)

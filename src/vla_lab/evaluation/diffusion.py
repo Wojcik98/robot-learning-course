@@ -9,7 +9,6 @@ import random
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
@@ -18,6 +17,7 @@ import yaml
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.states import evaluate_states, selected_state_ids
 from vla_lab.sim.episode import EpisodeResult
+from vla_lab.types import JSONValue
 
 
 def evaluate_diffusion_reference(
@@ -30,7 +30,7 @@ def evaluate_diffusion_reference(
     seed: int = 20260930,
     inference_steps: int | None = None,
     run_one: Callable[[int], EpisodeResult] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Run one attempt per development state with a fixed noise and reset seed."""
     source = Path(checkpoint).expanduser().resolve()
     manifest = json.loads((source / "manifest.json").read_text())
@@ -75,11 +75,13 @@ def evaluate_diffusion_reference(
         policy.eval()
         generate_actions = policy.diffusion.generate_actions
 
-        def timed_generate_actions(*args: Any, **kwargs: Any) -> Any:
+        def timed_generate_actions(
+            batch: dict[str, torch.Tensor], noise: torch.Tensor | None = None
+        ) -> torch.Tensor:
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
             start = time.perf_counter()
-            actions = generate_actions(*args, **kwargs)
+            actions = generate_actions(batch, noise=noise)
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
             sample_times_ms.append((time.perf_counter() - start) * 1000)

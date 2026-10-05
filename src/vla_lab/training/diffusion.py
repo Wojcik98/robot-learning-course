@@ -16,7 +16,7 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -26,6 +26,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from vla_lab.evaluation.states import selected_state_ids
 from vla_lab.training.act import SAMPLER_VERSION, _batch_indices
+from vla_lab.types import JSONValue
 
 if TYPE_CHECKING:
     from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
@@ -72,7 +73,9 @@ class DiffusionTrainResult:
     output_dir: Path
 
 
-def _split_for(configs_root: Path, task_alias: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _split_for(
+    configs_root: Path, task_alias: str
+) -> tuple[dict[str, JSONValue], dict[str, JSONValue]]:
     manifest = yaml.safe_load((configs_root / "data" / "episodes.yaml").read_text())
     try:
         return manifest, manifest["tasks"][task_alias]
@@ -150,7 +153,7 @@ def load_diffusion_train_config(path: str | Path, configs_root: str | Path) -> D
 # --- Data windows -----------------------------------------------------------------------------
 
 
-def validate_horizons(config: Any) -> None:
+def validate_horizons(config: DiffusionConfig) -> None:
     """Reject prediction and execution lengths that the policy cannot use."""
     if config.n_obs_steps < 1:
         raise ValueError("n_obs_steps must be positive")
@@ -178,7 +181,7 @@ def diffusion_delta_timestamps(config: DiffusionConfig, fps: int) -> dict[str, l
     return deltas
 
 
-def executed_action_slice(config: Any) -> tuple[int, int]:
+def executed_action_slice(config: DiffusionConfig) -> tuple[int, int]:
     """Give the part of the action window that the policy executes.
 
     Index `n_obs_steps - 1` of the window is the action for the current frame.
@@ -238,7 +241,7 @@ def validate_window_batch(batch: Mapping[str, torch.Tensor], config: DiffusionCo
 
 
 def _frozen_diffusion_dataset(
-    config: DiffusionConfig, split: Mapping[str, Any], revision: str, data_root: Path
+    config: DiffusionConfig, split: Mapping[str, JSONValue], revision: str, data_root: Path
 ) -> Dataset:
     """Open the frozen training episodes with the policy windows. Never download."""
     hub_cache = data_root / "hf" / "hub"
@@ -371,7 +374,7 @@ def save_diffusion_bundle(
 
 def load_diffusion_bundle(
     source: str | Path,
-) -> tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, dict[str, Any]]:
+) -> tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, dict[str, JSONValue]]:
     """Load saved weights, processors, and the manifest from one directory.
 
     The saved weights replace the backbone, so loading needs no cached ImageNet file.

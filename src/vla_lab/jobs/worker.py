@@ -10,8 +10,10 @@ import threading
 import time
 from pathlib import Path
 
+from vla_lab.types import JSONValue
 
-def _status(path: Path, **fields: object) -> None:
+
+def _status(path: Path, **fields: JSONValue) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps({"updated_at": time.time(), **fields}, sort_keys=True) + "\n")
     os.replace(temporary, path)

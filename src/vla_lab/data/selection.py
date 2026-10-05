@@ -7,13 +7,14 @@ from collections import defaultdict
 from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import yaml
+from numpy.typing import ArrayLike
 
 from vla_lab.data.splits import partition_sha256, split_episodes
 from vla_lab.data.stats import TrainingStats
+from vla_lab.types import JSONValue
 
 
 def _selected_rows(
@@ -24,7 +25,7 @@ def _selected_rows(
     dataset = _frozen_training_dataset(
         task_alias, configs_root, data_root, episode_ids=selected_ids
     )
-    values: dict[int, dict[str, list[Any]]] = defaultdict(
+    values: dict[int, dict[str, list[ArrayLike]]] = defaultdict(
         lambda: {"observation.state": [], "action": []}
     )
     for row in dataset.hf_dataset:
@@ -43,7 +44,7 @@ def _selected_rows(
 
 def _modality_stats(
     episode_rows: Mapping[int, Mapping[str, np.ndarray]], selected_ids: list[int], key: str
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     arrays = {episode_id: np.asarray(episode_rows[episode_id][key]) for episode_id in selected_ids}
     fitted = TrainingStats.fit(arrays)
     joined = np.concatenate(list(arrays.values()), axis=0)

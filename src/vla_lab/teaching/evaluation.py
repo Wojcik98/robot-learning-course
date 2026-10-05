@@ -4,9 +4,24 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import ParamSpec, TypeVar
+
+from torch import Tensor
+
+from vla_lab.sim.episode import EpisodeResult
+from vla_lab.teaching.interfaces import JSONValue, TensorBatch
+from vla_lab.teaching.records import (
+    CaseResult,
+    LatencySummary,
+    PairedSummary,
+    TimingAttempt,
+    TimingReport,
+)
+
+Params = ParamSpec("Params")
+ResultT = TypeVar("ResultT")
 
 
 def development_cases(stage: str) -> list[int]:
@@ -30,8 +45,8 @@ def final_cases(*, data_unit_complete: bool, recipes_frozen: bool) -> list[int]:
 
 
 def validate_case_results(
-    results: Sequence[Mapping[str, Any]], *, expected_case_ids: Sequence[int]
-) -> list[Mapping[str, Any]]:
+    results: Sequence[CaseResult], *, expected_case_ids: Sequence[str | int]
+) -> list[CaseResult]:
     """Check exact case coverage and retain every failed attempt in order."""
     expected = list(expected_case_ids)
     actual = [row["case_id"] for row in results]
@@ -48,11 +63,11 @@ def validate_case_results(
 
 
 def paired_summary(
-    left: Sequence[Mapping[str, Any]],
-    right: Sequence[Mapping[str, Any]],
+    left: Sequence[CaseResult],
+    right: Sequence[CaseResult],
     *,
-    expected_case_ids: Sequence[int],
-) -> dict[str, Any]:
+    expected_case_ids: Sequence[str | int],
+) -> PairedSummary:
     """Summarize paired successes, failures, and disagreements without omissions."""
     a = validate_case_results(left, expected_case_ids=expected_case_ids)
     b = validate_case_results(right, expected_case_ids=expected_case_ids)
@@ -78,8 +93,18 @@ def paired_summary(
         action_steps = {row["action_steps"] for row in rows}
         if len(action_steps) != 1:
             raise ValueError(f"{label} results mix action execution lengths")
+
+    def identity(row: CaseResult) -> tuple[int, int, str, str | None, str | None]:
+        return (
+            row["state_id"],
+            row["reset_seed"],
+            row["task_id"],
+            row.get("partition"),
+            row.get("prompt"),
+        )
+
     for case_id in ids:
-        if any(by_a[case_id][key] != by_b[case_id][key] for key in identity_fields):
+        if identity(by_a[case_id]) != identity(by_b[case_id]):
             raise ValueError(
                 "paired rows differ in task, state, seed, prompt, partition, or action length"
             )
@@ -114,7 +139,7 @@ def evaluate_frozen_method_timed(
     configs_root: str,
     data_root: str,
     output_dir: str,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue | TimingReport]:
     """Run one frozen method and record synchronized policy-call latency.
 
     The checkpoint is loaded through the comparison module's hash and lineage
@@ -152,7 +177,12 @@ def evaluate_frozen_method_timed(
     if inference_hook is None:
         raise ValueError(f"{method} has no known action-generation hook for timing")
 
-    def synchronized_call(callback: Any, samples: list[float], *args: Any, **kwargs: Any) -> Any:
+    def synchronized_call(
+        callback: Callable[Params, ResultT],
+        samples: list[float],
+        *args: Params.args,
+        **kwargs: Params.kwargs,
+    ) -> ResultT:
         if device.type == "cuda":
             torch.cuda.synchronize(device)
         started = time.perf_counter()
@@ -162,18 +192,19 @@ def evaluate_frozen_method_timed(
         samples.append(time.perf_counter() - started)
         return result
 
-    def timed_generation(*args: Any, **kwargs: Any) -> Any:
-        return synchronized_call(inference_hook, inference_times[current_state], *args, **kwargs)
+    def timed_generation(batch: TensorBatch) -> Tensor:
+        return synchronized_call(inference_hook, inference_times[current_state], batch)
 
     setattr(policy, inference_hook_name, timed_generation)
 
-    def timed_select_action(*args: Any, **kwargs: Any) -> Any:
-        return synchronized_call(select_action, api_times[current_state], *args, **kwargs)
+    def timed_select_action(batch: TensorBatch) -> Tensor:
+        return synchronized_call(select_action, api_times[current_state], batch)
 
-    policy.select_action = timed_select_action
+    selection_hook_name = "select_action"
+    setattr(policy, selection_hook_name, timed_select_action)
     current_state = -1
 
-    def run_one(state_id: int) -> Any:
+    def run_one(state_id: int) -> EpisodeResult:
         nonlocal current_state
         current_state = state_id
         api_times[state_id] = []
@@ -206,9 +237,9 @@ def evaluate_frozen_method_timed(
             run_one=run_one,
         )
     finally:
-        policy.select_action = select_action
+        setattr(policy, selection_hook_name, select_action)
         setattr(policy, inference_hook_name, inference_hook)
-    timing_rows = []
+    timing_rows: list[TimingAttempt] = []
     for state_id in config["state_ids"]:
         api_samples = api_times.get(int(state_id), [])
         inference_samples = inference_times.get(int(state_id), [])
@@ -227,7 +258,7 @@ def evaluate_frozen_method_timed(
                 "timing_available": bool(api_samples or inference_samples),
             }
         )
-    timing = {
+    timing: TimingReport = {
         "scope": {
             "action_selection_api": "policy.select_action wall time; includes queued action retrieval; CUDA synchronized when applicable",
             "action_generation": f"policy.{inference_hook_name} wall time; model action generation only; CUDA synchronized when applicable",
@@ -246,7 +277,7 @@ def evaluate_frozen_method_timed(
     return {"summary": summary, "timing": timing}
 
 
-def summarize_latency_samples(samples: Sequence[float]) -> dict[str, float | int | None]:
+def summarize_latency_samples(samples: Sequence[float]) -> LatencySummary:
     """Report count, mean, p95, and maximum; empty samples remain unavailable."""
     import numpy as np
 

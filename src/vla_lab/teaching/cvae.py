@@ -31,7 +31,7 @@ class ConditionalEncoder(nn.Module):
         latent_dim: int,
         hidden_dim: int = 128,
         mask_dim: int = 0,
-    ):
+    ) -> None:
         super().__init__()
         if min(condition_dim, target_dim, latent_dim, hidden_dim) <= 0:
             raise ValueError("all dimensions must be positive")
@@ -59,7 +59,9 @@ class ConditionalEncoder(nn.Module):
 class ConditionalDecoder(nn.Module):
     """Predict a target from its condition and latent code."""
 
-    def __init__(self, condition_dim: int, latent_dim: int, target_dim: int, hidden_dim: int = 128):
+    def __init__(
+        self, condition_dim: int, latent_dim: int, target_dim: int, hidden_dim: int = 128
+    ) -> None:
         super().__init__()
         if min(condition_dim, target_dim, latent_dim, hidden_dim) <= 0:
             raise ValueError("all dimensions must be positive")
@@ -93,7 +95,7 @@ class ConditionalVAE(nn.Module):
         hidden_dim: int = 128,
         *,
         target_shape: tuple[int, ...] | None = None,
-    ):
+    ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.target_shape = target_shape

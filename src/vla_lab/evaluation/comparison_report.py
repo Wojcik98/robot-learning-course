@@ -7,13 +7,13 @@ import hashlib
 import json
 import statistics
 from pathlib import Path
-from typing import Any
 
 from vla_lab.evaluation.comparison import METHODS, load_comparison_config
 from vla_lab.evaluation.paired import paired_report, wilson_interval
+from vla_lab.types import JSONValue
 
 
-def _rows(path: Path) -> list[dict[str, Any]]:
+def _rows(path: Path) -> list[dict[str, JSONValue]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
@@ -23,15 +23,15 @@ def build_three_method_report(
     configs_root: str | Path,
     result_dirs: dict[str, str | Path],
     output: str | Path,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Reject incomplete results and save counts, intervals, and paired differences."""
     config_file = Path(config_path)
     config = load_comparison_config(config_file, configs_root)
     if set(result_dirs) != set(METHODS):
         raise ValueError("Report needs one result directory for each frozen method")
     config_hash = hashlib.sha256(config_file.read_bytes()).hexdigest()
-    all_rows: dict[str, list[dict[str, Any]]] = {}
-    methods: dict[str, dict[str, Any]] = {}
+    all_rows: dict[str, list[dict[str, JSONValue]]] = {}
+    methods: dict[str, dict[str, JSONValue]] = {}
     for method in METHODS:
         root = Path(result_dirs[method])
         summary = json.loads((root / "summary.json").read_text())

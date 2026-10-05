@@ -6,8 +6,16 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import TypedDict
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+
+class StatsPayload(TypedDict):
+    mean: list[float]
+    std: list[float]
+    sha256: str
 
 
 def _canonical_payload(mean: list[float], std: list[float]) -> bytes:
@@ -18,16 +26,16 @@ def _canonical_payload(mean: list[float], std: list[float]) -> bytes:
 class TrainingStats:
     """Per-feature mean and standard deviation from training samples."""
 
-    mean: np.ndarray
-    std: np.ndarray
+    mean: NDArray[np.float64]
+    std: NDArray[np.float64]
     sha256: str
 
     @classmethod
-    def fit(
+    def fit[EpisodeId](
         cls,
-        training_episodes: Mapping[object, object],
+        training_episodes: Mapping[EpisodeId, ArrayLike],
         *,
-        validation_episodes: Mapping[object, object] | None = None,
+        validation_episodes: Mapping[EpisodeId, ArrayLike] | None = None,
     ) -> TrainingStats:
         """Fit population statistics; validation samples do not enter the fit."""
         del validation_episodes
@@ -50,20 +58,20 @@ class TrainingStats:
         digest = hashlib.sha256(_canonical_payload(mean.tolist(), std.tolist())).hexdigest()
         return cls(mean=mean, std=std, sha256=digest)
 
-    def normalize(self, values: object) -> np.ndarray:
+    def normalize(self, values: ArrayLike) -> NDArray[np.float64]:
         """Normalize values with these training statistics."""
         return (np.asarray(values, dtype=np.float64) - self.mean) / self.std
 
-    def denormalize(self, values: object) -> np.ndarray:
+    def denormalize(self, values: ArrayLike) -> NDArray[np.float64]:
         """Convert normalized values back to the input scale."""
         return np.asarray(values, dtype=np.float64) * self.std + self.mean
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> StatsPayload:
         """Return checkpoint-safe statistics and their hash."""
         return {"mean": self.mean.tolist(), "std": self.std.tolist(), "sha256": self.sha256}
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, object]) -> TrainingStats:
+    def from_dict(cls, payload: StatsPayload) -> TrainingStats:
         """Load checkpoint statistics and verify their content hash."""
         mean = np.asarray(payload["mean"], dtype=np.float64)
         std = np.asarray(payload["std"], dtype=np.float64)

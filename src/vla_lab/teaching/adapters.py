@@ -5,11 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+from vla_lab.teaching.interfaces import RobotState
 
 
 def camera_hwc_to_chw(
-    image: object, *, channel_order: str = "rgb", rotate_180: bool = True
-) -> np.ndarray:
+    image: ArrayLike, *, channel_order: str = "rgb", rotate_180: bool = True
+) -> NDArray[np.float32]:
     """Convert one HWC uint8 camera frame to float32 CHW in [0, 1].
 
     ``channel_order`` describes the incoming frame. Use ``bgr`` to reverse its
@@ -30,7 +33,7 @@ def camera_hwc_to_chw(
     return np.ascontiguousarray(frame.transpose(2, 0, 1), dtype=np.float32) / 255.0
 
 
-def assemble_libero_state(robot_state: Mapping[str, object]) -> np.ndarray:
+def assemble_libero_state(robot_state: RobotState) -> NDArray[np.float32]:
     """Build the pinned eight-value LIBERO state from raw position fields.
 
     The quaternion order is x, y, z, w. The returned vector is position,
@@ -64,11 +67,11 @@ def assemble_libero_state(robot_state: Mapping[str, object]) -> np.ndarray:
 
 def pack_observation(
     *,
-    cameras: Mapping[str, object],
-    state: object,
+    cameras: Mapping[str, ArrayLike],
+    state: ArrayLike,
     camera_order: tuple[str, ...],
     channel_order: str = "rgb",
-) -> dict[str, np.ndarray]:
+) -> dict[str, NDArray[np.float32]]:
     """Build the model image mapping and an eight-value state vector."""
     if len(camera_order) != 2 or len(camera_order) != len(set(camera_order)):
         raise ValueError("camera_order must name the two pinned cameras exactly once")
@@ -85,7 +88,7 @@ def pack_observation(
     return {**images, "observation.state": vector.copy()}
 
 
-def normalize_features(values: object, mean: object, std: object) -> np.ndarray:
+def normalize_features(values: ArrayLike, mean: ArrayLike, std: ArrayLike) -> NDArray[np.float32]:
     """Normalize the final feature axis using training-only statistics."""
     array = np.asarray(values, dtype=np.float32)
     center = np.asarray(mean, dtype=np.float32)
@@ -99,7 +102,7 @@ def normalize_features(values: object, mean: object, std: object) -> np.ndarray:
     return (array - center) / scale
 
 
-def denormalize_features(values: object, mean: object, std: object) -> np.ndarray:
+def denormalize_features(values: ArrayLike, mean: ArrayLike, std: ArrayLike) -> NDArray[np.float32]:
     """Convert normalized model predictions back to physical feature units."""
     array = np.asarray(values, dtype=np.float32)
     center = np.asarray(mean, dtype=np.float32)
@@ -113,7 +116,9 @@ def denormalize_features(values: object, mean: object, std: object) -> np.ndarra
     return array * scale + center
 
 
-def controller_action(prediction: object, *, lower: float = -1.0, upper: float = 1.0) -> np.ndarray:
+def controller_action(
+    prediction: ArrayLike, *, lower: float = -1.0, upper: float = 1.0
+) -> NDArray[np.float32]:
     """Clip one seven-value action that is already in controller units."""
     action = np.asarray(prediction, dtype=np.float32)
     if action.shape != (7,) or not np.isfinite(action).all():

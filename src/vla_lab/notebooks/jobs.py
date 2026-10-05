@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from vla_lab.jobs.manager import JobManager
+from vla_lab.types import JSONValue
 
 
 def manager(workspace: str | Path = ".") -> JobManager:
@@ -16,20 +16,20 @@ def manager(workspace: str | Path = ".") -> JobManager:
 
 def submit(
     *,
-    config: dict[str, Any],
+    config: dict[str, JSONValue],
     purpose: str,
     seed: int,
     command: list[str],
     workspace: str | Path = ".",
     repeat: bool = False,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Submit once; a repeated cell returns its prior run."""
     return manager(workspace).submit(
         config=config, purpose=purpose, seed=seed, command=command, repeat=repeat
     )
 
 
-def status(run_id: str, workspace: str | Path = ".") -> dict[str, Any]:
+def status(run_id: str, workspace: str | Path = ".") -> dict[str, JSONValue]:
     """Read one run after the notebook kernel restarts."""
     return manager(workspace).status(run_id)
 
@@ -39,7 +39,7 @@ def logs(run_id: str, workspace: str | Path = ".", *, lines: int = 40) -> str:
     return manager(workspace).log_tail(run_id, lines=lines)
 
 
-def cancel(run_id: str, workspace: str | Path = ".") -> dict[str, Any]:
+def cancel(run_id: str, workspace: str | Path = ".") -> dict[str, JSONValue]:
     """Stop the verified worker process group."""
     return manager(workspace).cancel(run_id)
 

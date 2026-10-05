@@ -5,10 +5,11 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
-from typing import Any
 
 import yaml
 from huggingface_hub import snapshot_download
+
+from vla_lab.types import JSONValue
 
 
 def dataset_patterns(scope: str) -> list[str]:
@@ -39,7 +40,7 @@ def fetch_local_data(
     *,
     scope: str,
     offline: bool = False,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Download pinned public assets without moving the user's login store."""
     root = Path(workspace).expanduser().resolve()
     data = Path(data_root).expanduser().resolve()

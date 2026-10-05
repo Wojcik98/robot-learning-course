@@ -7,9 +7,10 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any
 
 import yaml
+
+from vla_lab.types import JSONValue
 
 
 def _sha256(path: Path) -> str:
@@ -20,12 +21,12 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def read_act_manifest(workspace: Path) -> dict[str, Any]:
+def read_act_manifest(workspace: Path) -> dict[str, JSONValue]:
     """Read the pinned reference bundle paths and file hashes."""
     return yaml.safe_load((workspace / "manifests" / "act_references.yaml").read_text())
 
 
-def _entries(workspace: Path, manifest: dict[str, Any]) -> list[tuple[str, Path, str]]:
+def _entries(workspace: Path, manifest: dict[str, JSONValue]) -> list[tuple[str, Path, str]]:
     entries = []
     for task, reference in manifest["tasks"].items():
         for filename, digest in reference["checkpoint_files_sha256"].items():
@@ -35,7 +36,7 @@ def _entries(workspace: Path, manifest: dict[str, Any]) -> list[tuple[str, Path,
     return entries
 
 
-def pack_act_references(workspace: Path, archive: Path) -> dict[str, Any]:
+def pack_act_references(workspace: Path, archive: Path) -> dict[str, JSONValue]:
     """Write the seven required files for each verified ACT checkpoint."""
     manifest = read_act_manifest(workspace)
     entries = _entries(workspace, manifest)
@@ -58,7 +59,7 @@ def pack_act_references(workspace: Path, archive: Path) -> dict[str, Any]:
     return {"archive": str(archive.resolve()), "sha256": _sha256(archive), "files": len(entries)}
 
 
-def install_act_references(workspace: Path, archive: Path) -> dict[str, Any]:
+def install_act_references(workspace: Path, archive: Path) -> dict[str, JSONValue]:
     """Verify every archive member before it installs either checkpoint."""
     manifest = read_act_manifest(workspace)
     entries = _entries(workspace, manifest)

@@ -7,11 +7,11 @@ import hashlib
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from vla_lab.data.recording import RecordedEpisode
+from vla_lab.types import JSONValue
 
 
 def _sha256(path: Path) -> str:
@@ -28,7 +28,7 @@ def build_keyboard_manifest(
     task_alias: str,
     configs_root: str | Path,
     output: str | Path,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Treat selected files as accepted and reserve all unused development states."""
     if not 5 <= len(recording_paths) <= 10:
         raise ValueError("Keyboard recovery needs 5 to 10 accepted recordings")
@@ -42,7 +42,7 @@ def build_keyboard_manifest(
         raise ValueError(f"Unknown task alias: {task_alias}") from error
     used: set[int] = set()
     episode_ids: set[str] = set()
-    recordings: list[dict[str, Any]] = []
+    recordings: list[dict[str, JSONValue]] = []
     for value in recording_paths:
         path = Path(value)
         episode = RecordedEpisode.load(path)

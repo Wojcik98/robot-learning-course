@@ -28,6 +28,7 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, TypedDict, Unpack
 
 import torch
 import torchvision
@@ -41,7 +42,24 @@ from vla_lab.teaching.attention import (
     TransformerEncoder,
     sinusoidal_positions,
 )
+from vla_lab.teaching.blocks import (
+    ACTDecoderParts,
+    ACTEncoderParts,
+    ACTLatentParts,
+    ACTPosteriorParts,
+    DecodeFunction,
+    EncoderTokensFunction,
+    LatentFunction,
+    PosteriorFunction,
+    SharedAttentionHooks,
+)
 from vla_lab.teaching.cvae import reparameterize
+
+if TYPE_CHECKING:
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    from lerobot.policies.act import ACTConfig
+    from lerobot.policies.act.modeling_act import ACT
+
 
 IMAGE_KEYS = ("observation.images.image", "observation.images.image2")
 STATE_KEY = "observation.state"
@@ -70,14 +88,17 @@ class ACTSettings:
     vision_backbone: str = "resnet18"
 
     @classmethod
-    def from_lerobot(cls, config) -> ACTSettings:
+    def from_lerobot(cls, config: ACTConfig) -> ACTSettings:
         if not config.use_vae:
             raise ValueError("the learner ACT always has a posterior encoder (use_vae=True)")
         if config.env_state_feature is not None or config.robot_state_feature is None:
             raise ValueError("the learner ACT needs a robot state and no environment state")
+        action_feature = config.action_feature
+        if action_feature is None:
+            raise ValueError("ACT requires an action feature")
         return cls(
             state_dim=config.robot_state_feature.shape[0],
-            action_dim=config.action_feature.shape[0],
+            action_dim=action_feature.shape[0],
             image_keys=tuple(config.image_features),
             chunk_size=config.chunk_size,
             dim_model=config.dim_model,
@@ -148,7 +169,7 @@ def camera_position_embedding_2d(height: int, width: int, dim: int) -> Tensor:
 
 
 def encode_posterior(
-    model: nn.Module, state: Tensor, actions: Tensor, action_is_pad: Tensor
+    model: ACTPosteriorParts, state: Tensor, actions: Tensor, action_is_pad: Tensor
 ) -> tuple[Tensor, Tensor]:
     """BERT-style posterior ``q(z | state, actions)``. Returns ``(mu, logvar)``, each ``(B, L)``.
 
@@ -173,7 +194,7 @@ def encode_posterior(
 
 
 def select_latent(
-    model: nn.Module, batch: Mapping[str, Tensor], noise: Tensor | None = None
+    model: ACTLatentParts, batch: Mapping[str, Tensor], noise: Tensor | None = None
 ) -> tuple[Tensor, Tensor | None, Tensor | None]:
     """Choose the latent. Returns ``(latent (B, L), mu, logvar)``.
 
@@ -193,7 +214,7 @@ def select_latent(
 
 
 def build_encoder_tokens(
-    model: nn.Module, latent: Tensor, state: Tensor, feature_maps: list[Tensor]
+    model: ACTEncoderParts, latent: Tensor, state: Tensor, feature_maps: list[Tensor]
 ) -> tuple[Tensor, Tensor]:
     """Tokens and positions for the Transformer encoder.
 
@@ -216,7 +237,7 @@ def build_encoder_tokens(
     return torch.cat(tokens, dim=1), torch.cat(positions, dim=1)
 
 
-def decode_actions(model: nn.Module, encoder_out: Tensor, pos: Tensor) -> Tensor:
+def decode_actions(model: ACTDecoderParts, encoder_out: Tensor, pos: Tensor) -> Tensor:
     """Action queries cross-attend to the encoder output. Returns ``(B, T, A)``.
 
     The decoder input is ``T = settings.chunk_size`` zero vectors of width ``D``. Their only
@@ -240,14 +261,25 @@ class ACTHooks:
     """The five replaceable functions of unit 8B."""
 
     camera_positions: Callable[[int, int, int], Tensor] = camera_position_embedding_2d
-    posterior: Callable[..., tuple[Tensor, Tensor]] = encode_posterior
-    latent: Callable[..., tuple[Tensor, Tensor | None, Tensor | None]] = select_latent
-    encoder_tokens: Callable[..., tuple[Tensor, Tensor]] = build_encoder_tokens
-    decode: Callable[..., Tensor] = decode_actions
+    posterior: PosteriorFunction = encode_posterior
+    latent: LatentFunction = select_latent
+    encoder_tokens: EncoderTokensFunction = build_encoder_tokens
+    decode: DecodeFunction = decode_actions
+
+
+class TransformerShape(TypedDict):
+    d_model: int
+    n_heads: int
+    d_ff: int
+    dropout: float
+    activation: str
+    pre_norm: bool
 
 
 class ACTModel(nn.Module):
     """ACT with the pinned structure: posterior encoder, encoder, decoder, action head."""
+
+    vae_pos_embed: Tensor
 
     def __init__(
         self,
@@ -255,13 +287,13 @@ class ACTModel(nn.Module):
         backbone: nn.Module,
         backbone_channels: int,
         hooks: ACTHooks | None = None,
-        **block_hooks: Callable,
-    ):
+        **block_hooks: Unpack[SharedAttentionHooks],
+    ) -> None:
         super().__init__()
         s = settings
         self.settings = s
         self.hooks = hooks or ACTHooks()
-        shape = {
+        shape: TransformerShape = {
             "d_model": s.dim_model,
             "n_heads": s.n_heads,
             "d_ff": s.dim_feedforward,
@@ -294,7 +326,7 @@ class ACTModel(nn.Module):
         *,
         backbone_weights: str | None = None,
         hooks: ACTHooks | None = None,
-        **block_hooks: Callable,
+        **block_hooks: Unpack[SharedAttentionHooks],
     ) -> ACTModel:
         backbone, channels = make_act_backbone(settings.vision_backbone, weights=backbone_weights)
         return cls(settings, backbone, channels, hooks, **block_hooks)
@@ -327,7 +359,7 @@ def open_libero_dataset(
     delta_timestamps: Mapping[str, list[float]],
     *,
     episodes: Sequence[int] | None = None,
-):
+) -> LeRobotDataset:
     """Open whole episodes of the frozen ``train`` or ``validation`` split from local files.
 
     Never downloads (offline mode is forced). ``delta_timestamps`` are in seconds at the dataset's
@@ -472,7 +504,7 @@ def _rename(name: str) -> str:
     return name
 
 
-def load_lerobot_act(learner: ACTModel, lerobot_act: nn.Module) -> dict[str, int]:
+def load_lerobot_act(learner: ACTModel, lerobot_act: ACT) -> dict[str, int]:
     """Copy the weights of a LeRobot ``ACT`` into ``learner`` and return tensor counts.
 
     Uses ``strict=True``: a missing or extra tensor raises. After the call the learner holds
@@ -483,7 +515,7 @@ def load_lerobot_act(learner: ACTModel, lerobot_act: nn.Module) -> dict[str, int
     return {"tensors": len(converted), "parameters": sum(p.numel() for p in learner.parameters())}
 
 
-def act_from_lerobot(lerobot_act: nn.Module, **block_hooks) -> ACTModel:
+def act_from_lerobot(lerobot_act: ACT, **block_hooks: Unpack[SharedAttentionHooks]) -> ACTModel:
     """Build a learner with the LeRobot model's sizes and copy its weights."""
     settings = ACTSettings.from_lerobot(lerobot_act.config)
     backbone, channels = make_act_backbone(settings.vision_backbone)
@@ -492,9 +524,11 @@ def act_from_lerobot(lerobot_act: nn.Module, **block_hooks) -> ACTModel:
     return learner
 
 
-def lerobot_batch(learner_batch: Mapping[str, Tensor], settings: ACTSettings) -> dict:
+def lerobot_batch(
+    learner_batch: Mapping[str, Tensor], settings: ACTSettings
+) -> dict[str, Tensor | list[Tensor]]:
     """Add the image list the raw LeRobot ``ACT.forward`` expects."""
-    batch = dict(learner_batch)
+    batch: dict[str, Tensor | list[Tensor]] = dict(learner_batch)
     batch["observation.images"] = [learner_batch[key] for key in settings.image_keys]
     return batch
 
@@ -509,7 +543,7 @@ def _zero_dropout(module: nn.Module) -> None:
 
 @torch.no_grad()
 def verify_act_parity(
-    learner: ACTModel, lerobot_act: nn.Module, batch: Mapping[str, Tensor], *, seed: int = 0
+    learner: ACTModel, lerobot_act: ACT, batch: Mapping[str, Tensor], *, seed: int = 0
 ) -> dict[str, float]:
     """Largest absolute differences between the learner and LeRobot ``ACT`` on one batch.
 

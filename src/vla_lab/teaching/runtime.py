@@ -4,10 +4,27 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import cast
 
 import numpy as np
 import torch
+
+from vla_lab.teaching.interfaces import (
+    ActionT,
+    ActionValue,
+    BatchT,
+    EpisodeEnvironment,
+    LiberoObservation,
+    ObservationProcessor,
+    ObservationT,
+    PolicyT,
+    ProcessorObservation,
+    ResettableEnvironment,
+    ResettablePolicy,
+    TensorBatch,
+)
+
+type RawObservationValue = np.ndarray | dict[str, "RawObservationValue"] | int | float | bool | None
 
 
 @dataclass(frozen=True)
@@ -23,11 +40,11 @@ class RolloutResult:
 
 
 def prepare_libero_observation(
-    observation: dict[str, Any],
-    preprocessor: Any,
+    observation: LiberoObservation,
+    preprocessor: ObservationProcessor,
     *,
     task_prompt: str | None = None,
-) -> Any:
+) -> TensorBatch:
     """Apply the pinned observation path to one direct LIBERO observation.
 
     LIBERO returns unbatched NumPy images and state. This helper adds a batch
@@ -37,22 +54,30 @@ def prepare_libero_observation(
     from lerobot.envs.utils import preprocess_observation
     from lerobot.processor import LiberoProcessorStep
 
-    def add_batch_axis(value: Any) -> Any:
+    def add_batch_axis(value: RawObservationValue) -> RawObservationValue:
         if isinstance(value, dict):
             return {key: add_batch_axis(item) for key, item in value.items()}
         if isinstance(value, np.ndarray):
             return np.expand_dims(value, axis=0)
         return value
 
+    # The library annotation omits the nested robot state.
+    preprocess = cast(Callable[[RawObservationValue], ProcessorObservation], preprocess_observation)
     prepared = LiberoProcessorStep().observation(
-        preprocess_observation(add_batch_axis(observation))
+        preprocess(add_batch_axis(cast(dict[str, RawObservationValue], observation)))
     )
     if task_prompt is not None:
         prepared["task"] = task_prompt
-    return preprocessor(prepared)
+    processed_batch = preprocessor(cast(ProcessorObservation, prepared))
+    return {key: value for key, value in processed_batch.items() if isinstance(value, torch.Tensor)}
 
 
-def reset_environment(environment: Any, policy: Any, *, seed: int | None = None) -> Any:
+def reset_environment(
+    environment: ResettableEnvironment[ObservationT],
+    policy: ResettablePolicy,
+    *,
+    seed: int | None = None,
+) -> ObservationT:
     """Reset the environment, then clear the policy's action queue.
 
     The environment follows the Gymnasium ``(observation, info)`` reset API.
@@ -66,7 +91,7 @@ def reset_environment(environment: Any, policy: Any, *, seed: int | None = None)
     return observation
 
 
-def select_chunk_action(action_chunk: torch.Tensor | np.ndarray, offset: int) -> Any:
+def select_chunk_action(action_chunk: ActionT, offset: int) -> ActionT:
     """Select one action from a one-environment chunk with shape ``[1, T, D]``.
 
     ``offset`` is a zero-based index. The return value has shape ``[D]`` and
@@ -82,16 +107,16 @@ def select_chunk_action(action_chunk: torch.Tensor | np.ndarray, offset: int) ->
 
 
 def run_chunked_episode(
-    environment: Any,
-    policy: Any,
-    prepare_observation: Callable[[Any], Any],
-    predict_chunk: Callable[[Any, Any], torch.Tensor | np.ndarray],
-    action_to_controller: Callable[[Any], Any],
+    environment: EpisodeEnvironment[ObservationT],
+    policy: PolicyT,
+    prepare_observation: Callable[[ObservationT], BatchT],
+    predict_chunk: Callable[[PolicyT, BatchT], ActionT],
+    action_to_controller: Callable[[ActionT], ActionValue],
     *,
     max_steps: int,
     execute_steps: int,
     seed: int | None = None,
-    on_observation: Callable[[Any], None] | None = None,
+    on_observation: Callable[[ObservationT], None] | None = None,
 ) -> RolloutResult:
     """Run policy action chunks through environment observations and steps.
 

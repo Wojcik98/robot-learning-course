@@ -7,11 +7,18 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from numbers import Integral
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import BinaryIO, ClassVar, Protocol, cast, overload
 
 import numpy as np
 
 from vla_lab.contracts import ActionSchema
+from vla_lab.teaching.interfaces import (
+    EpisodeEnvironment,
+    RawObservation,
+    RawObservationValue,
+    RecordedObservation,
+)
+from vla_lab.teaching.records import RecordingDefect
 
 CONTROL_PERIOD_MS = 50
 _TRANSLATION_STEP = 0.25
@@ -51,7 +58,19 @@ class KeyboardActionMapper:
         return np.clip(action, schema.lower, schema.upper).astype(np.float32, copy=False)
 
 
-def _copy_observation(value: Any) -> Any:
+class ArrayArchiveWriter(Protocol):
+    def __call__(self, file: BinaryIO, **arrays: np.ndarray) -> None: ...
+
+
+@overload
+def _copy_observation(value: Mapping[str, RawObservationValue]) -> RecordedObservation: ...
+
+
+@overload
+def _copy_observation(value: RawObservationValue) -> RecordedObservation | np.ndarray: ...
+
+
+def _copy_observation(value: RawObservationValue) -> RecordedObservation | np.ndarray:
     """Copy numeric leaves from a simulator observation without Python objects."""
     if isinstance(value, Mapping):
         if not value or any(not isinstance(key, str) for key in value):
@@ -66,7 +85,7 @@ def _copy_observation(value: Any) -> Any:
 
 
 def _flatten_observation(
-    observation: Mapping[str, Any], prefix: tuple[str, ...] = ()
+    observation: Mapping[str, RawObservationValue], prefix: tuple[str, ...] = ()
 ) -> dict[tuple[str, ...], np.ndarray]:
     leaves: dict[tuple[str, ...], np.ndarray] = {}
     for key, value in observation.items():
@@ -78,8 +97,8 @@ def _flatten_observation(
     return leaves
 
 
-def _nest_observation(leaves: Mapping[tuple[str, ...], np.ndarray]) -> dict[str, Any]:
-    root: dict[str, Any] = {}
+def _nest_observation(leaves: Mapping[tuple[str, ...], np.ndarray]) -> RecordedObservation:
+    root: RecordedObservation = {}
     for path, value in leaves.items():
         node = root
         for key in path[:-1]:
@@ -102,8 +121,8 @@ class RecordedEpisode:
     actions: np.ndarray
     action_ticks: np.ndarray
     observation_ticks: np.ndarray
-    observations: tuple[dict[str, Any], ...]
-    defect: dict[str, Any] | None = None
+    observations: tuple[RecordedObservation, ...]
+    defect: RecordingDefect | None = None
     reset_seed: int | None = None
     controller_period_ms: int = CONTROL_PERIOD_MS
     schema: ActionSchema = field(default_factory=ActionSchema.libero_relative)
@@ -191,7 +210,8 @@ class RecordedEpisode:
                 [_flatten_observation(item)[path_tuple] for item in self.observations]
             )
         with target.open("wb") as stream:
-            np.savez_compressed(stream, **values)
+            # These keys are array names, not NumPy control arguments.
+            cast(ArrayArchiveWriter, np.savez_compressed)(stream, **values)
         return target
 
     @classmethod
@@ -226,8 +246,8 @@ class RecordedEpisode:
 
 
 def record_episode(
-    environment: Any,
-    keys_at_tick: Callable[[int, Mapping[str, Any]], Iterable[str]],
+    environment: EpisodeEnvironment[RawObservation],
+    keys_at_tick: Callable[[int, Mapping[str, RawObservationValue]], Iterable[str]],
     *,
     task_id: str,
     max_steps: int = 300,
@@ -247,8 +267,8 @@ def record_episode(
 
 
 def record_action_episode(
-    environment: Any,
-    action_at_tick: Callable[[int, Mapping[str, Any]], np.ndarray],
+    environment: EpisodeEnvironment[RawObservation],
+    action_at_tick: Callable[[int, Mapping[str, RawObservationValue]], np.ndarray],
     *,
     task_id: str,
     max_steps: int = 300,
@@ -291,7 +311,9 @@ def record_action_episode(
     )
 
 
-def replay_episode(environment: Any, episode: RecordedEpisode) -> tuple[dict[str, Any], ...]:
+def replay_episode(
+    environment: EpisodeEnvironment[RawObservation], episode: RecordedEpisode
+) -> tuple[RecordedObservation, ...]:
     """Replay saved applied actions and return observations at every control tick."""
     reset = (
         environment.reset(seed=episode.reset_seed)

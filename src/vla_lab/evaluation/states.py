@@ -7,13 +7,13 @@ import json
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.errors import EvaluationRunError
 from vla_lab.sim.episode import PolicyActionError
+from vla_lab.types import JSONValue
 
 
 def selected_state_ids(
@@ -52,8 +52,8 @@ def evaluate_states(
     output_dir: str | Path,
     run_one: Callable[[int], EpisodeOutcome],
     allow_final: bool = False,
-    error_metrics: Callable[[int], dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+    error_metrics: Callable[[int], dict[str, JSONValue]] | None = None,
+) -> dict[str, JSONValue]:
     """Run each selected state once and save success and failure rows."""
     selected = selected_state_ids(
         configs_root, task_id, partition, state_ids, allow_final=allow_final
@@ -143,7 +143,7 @@ def evaluate_act_states(
     data_root: str | Path,
     output_dir: str | Path,
     state_ids: Sequence[int],
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Run ACT on explicit development states and save each live video."""
     from vla_lab.evaluation.demo import run_act_demo
 

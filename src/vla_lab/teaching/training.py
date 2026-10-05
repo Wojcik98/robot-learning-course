@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from collections.abc import Iterable, Mapping
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 
-LossCallback = Callable[..., tuple[Tensor, Mapping[str, Tensor | float]]]
+from vla_lab.teaching.interfaces import ACTPredictionModel, LossCallback, ModelT
 
 
 def masked_action_l1(prediction: Tensor, target: Tensor, is_pad: Tensor) -> Tensor:
@@ -30,7 +29,7 @@ def diagonal_gaussian_kl(mu: Tensor, logvar: Tensor) -> Tensor:
 
 
 def act_loss_fn(
-    model: nn.Module,
+    model: ACTPredictionModel,
     batch: Mapping[str, Tensor],
     *,
     noise: Tensor | None = None,
@@ -48,6 +47,8 @@ def act_loss_fn(
     if not isinstance(latent, (tuple, list)) or len(latent) != 2:
         raise TypeError("ACT latent output must be (mu, logvar)")
     mu, logvar = latent
+    if mu is None or logvar is None:
+        raise ValueError("ACT training requires latent mean and variance")
     action_loss = masked_action_l1(prediction, batch["action"], batch["action_is_pad"])
     kl_loss = diagonal_gaussian_kl(mu, logvar)
     total = action_loss + float(kl_weight) * kl_loss
@@ -55,10 +56,10 @@ def act_loss_fn(
 
 
 def optimizer_update(
-    model: nn.Module,
-    batch: Mapping[str, Any],
+    model: ModelT,
+    batch: Mapping[str, Tensor],
     optimizer: torch.optim.Optimizer,
-    loss_fn: LossCallback,
+    loss_fn: LossCallback[ModelT],
     *,
     noise: Tensor | None = None,
     time: Tensor | None = None,
@@ -86,10 +87,10 @@ def optimizer_update(
 
 
 def train_loop(
-    model: nn.Module,
-    batches: Iterable[Mapping[str, Any]],
+    model: ModelT,
+    batches: Iterable[Mapping[str, Tensor]],
     optimizer: torch.optim.Optimizer,
-    loss_fn: LossCallback,
+    loss_fn: LossCallback[ModelT],
     *,
     steps: int,
     max_grad_norm: float | None = None,

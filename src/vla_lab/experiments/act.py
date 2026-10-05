@@ -8,11 +8,11 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from vla_lab.evaluation.states import selected_state_ids
+from vla_lab.types import JSONValue
 
 
 @dataclass(frozen=True)
@@ -88,7 +88,7 @@ def load_act_suite_config(path: str | Path, configs_root: str | Path) -> ActSuit
     )
 
 
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
+def _write_json(path: Path, payload: dict[str, JSONValue]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
@@ -98,7 +98,7 @@ def run_act_suite(
     configs_root: str | Path,
     data_root: str | Path,
     output_dir: str | Path,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Train and evaluate each ACT variant on the same development states."""
     from vla_lab.data.inspection import audit_task_split
     from vla_lab.data.selection import prepare_act_selection

@@ -21,12 +21,24 @@ from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Protocol, TypedDict, Unpack, cast
 
 import numpy as np
 import torch
 import yaml
 from torch import Tensor, nn
+
+from vla_lab.teaching.blocks import FilmForward, FilmParts, UNetForward, UNetParts
+from vla_lab.teaching.interfaces import DiffusionTrainingModel, NoiseScheduler
+
+if TYPE_CHECKING:
+    from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
+    from lerobot.policies.diffusion.modeling_diffusion import (
+        DiffusionConditionalResidualBlock1d,
+        DiffusionConditionalUnet1d,
+    )
+    from lerobot.processor import PolicyProcessorPipeline
+
 
 # --- Unit 9: forward process and training objective ---------------------------------------------
 
@@ -95,7 +107,7 @@ def masked_epsilon_loss(prediction: Tensor, target: Tensor, is_pad: Tensor) -> T
 
 
 def epsilon_loss_fn(
-    model: nn.Module,
+    model: DiffusionTrainingModel,
     batch: Mapping[str, Tensor],
     *,
     noise: Tensor | None = None,
@@ -139,17 +151,21 @@ class DDPMSchedule:
         return cls(betas=betas, alpha_bar=cumulative_fn(betas))
 
     @classmethod
-    def cosine(cls, num_steps: int = 100, **kwargs) -> DDPMSchedule:
+    def cosine(cls, num_steps: int = 100, **kwargs: Callable[[Tensor], Tensor]) -> DDPMSchedule:
         return cls.from_betas(cosine_betas(num_steps), **kwargs)
 
     @classmethod
     def linear(
-        cls, num_steps: int = 100, start: float = 1e-4, end: float = 0.02, **kwargs
+        cls,
+        num_steps: int = 100,
+        start: float = 1e-4,
+        end: float = 0.02,
+        **kwargs: Callable[[Tensor], Tensor],
     ) -> DDPMSchedule:
         return cls.from_betas(torch.linspace(start, end, num_steps, dtype=torch.float32), **kwargs)
 
     @classmethod
-    def from_scheduler(cls, scheduler: Any) -> DDPMSchedule:
+    def from_scheduler(cls, scheduler: NoiseScheduler) -> DDPMSchedule:
         """Read the tables of a ``diffusers`` ``DDPMScheduler`` (for comparisons)."""
         return cls(betas=scheduler.betas.clone(), alpha_bar=scheduler.alphas_cumprod.clone())
 
@@ -165,16 +181,18 @@ class DiffusionDenoiser(nn.Module):
         self,
         unet: nn.Module,
         schedule: DDPMSchedule,
-        condition_fn: Callable[[Mapping], Tensor | None],
+        condition_fn: Callable[[Mapping[str, Tensor]], Tensor | None],
         extra: nn.Module | None = None,
-    ):
+    ) -> None:
         super().__init__()
         self.unet = unet
         self.schedule = schedule
         self.condition_fn = condition_fn
         self.extra = extra  # holds trainable modules used by condition_fn, if any
 
-    def forward(self, noisy_actions: Tensor, timesteps: Tensor, batch: Mapping) -> Tensor:
+    def forward(
+        self, noisy_actions: Tensor, timesteps: Tensor, batch: Mapping[str, Tensor]
+    ) -> Tensor:
         return self.unet(noisy_actions, timesteps, global_cond=self.condition_fn(batch))
 
 
@@ -202,7 +220,7 @@ def sinusoidal_timestep_embedding(timesteps: Tensor, dim: int) -> Tensor:
 class SinusoidalTimestepEmbedding(nn.Module):
     def __init__(
         self, dim: int, fn: Callable[[Tensor, int], Tensor] = sinusoidal_timestep_embedding
-    ):
+    ) -> None:
         super().__init__()
         self.dim = dim
         self.fn = fn
@@ -214,7 +232,9 @@ class SinusoidalTimestepEmbedding(nn.Module):
 class Conv1dBlock(nn.Module):
     """Supplied: ``Conv1d -> GroupNorm -> Mish`` with "same" padding for odd kernels."""
 
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, n_groups: int = 8):
+    def __init__(
+        self, in_channels: int, out_channels: int, kernel_size: int, n_groups: int = 8
+    ) -> None:
         super().__init__()
         self.block = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size // 2),
@@ -226,7 +246,7 @@ class Conv1dBlock(nn.Module):
         return self.block(x)
 
 
-def film_residual_forward(block: nn.Module, x: Tensor, cond: Tensor) -> Tensor:
+def film_residual_forward(block: FilmParts, x: Tensor, cond: Tensor) -> Tensor:
     """FiLM-conditioned residual block (Perez et al. 2018, used in Diffusion Policy).
 
     ``x (B, C_in, T)``, ``cond (B, cond_dim)``, returns ``(B, C_out, T)``. Steps:
@@ -257,8 +277,8 @@ class ConditionalResidualBlock1d(nn.Module):
         kernel_size: int = 5,
         n_groups: int = 8,
         use_film_scale_modulation: bool = True,
-        forward_fn: Callable[..., Tensor] = film_residual_forward,
-    ):
+        forward_fn: FilmForward = film_residual_forward,
+    ) -> None:
         super().__init__()
         self.out_channels = out_channels
         self.use_film_scale_modulation = use_film_scale_modulation
@@ -281,7 +301,13 @@ class ConditionalResidualBlock1d(nn.Module):
 # --- Unit 10B: temporal U-Net -------------------------------------------------------------------
 
 
-def unet_channel_plan(action_dim: int, down_dims: Sequence[int]) -> dict[str, list[tuple]]:
+class UNetChannelPlan(TypedDict):
+    down: list[tuple[int, int, bool]]
+    mid: list[tuple[int, int]]
+    up: list[tuple[int, int, bool]]
+
+
+def unet_channel_plan(action_dim: int, down_dims: Sequence[int]) -> UNetChannelPlan:
     """Channel plan of the pinned conditional 1D U-Net.
 
     Returns ``{"down": [...], "mid": [...], "up": [...]}``. Each ``down`` entry is
@@ -302,7 +328,7 @@ def unet_channel_plan(action_dim: int, down_dims: Sequence[int]) -> dict[str, li
 
 
 def unet_forward(
-    unet: nn.Module, x: Tensor, timestep: Tensor, global_cond: Tensor | None = None
+    unet: UNetParts, x: Tensor, timestep: Tensor, global_cond: Tensor | None = None
 ) -> Tensor:
     """Conditional U-Net forward pass with skip connections.
 
@@ -319,13 +345,15 @@ def unet_forward(
     if global_cond is not None:
         cond = torch.cat([cond, global_cond], dim=-1)
     skips = []
-    for res1, res2, downsample in unet.down_blocks:
+    for stage in unet.down_blocks:
+        res1, res2, downsample = cast(nn.ModuleList, stage)
         x = res2(res1(x, cond), cond)
         skips.append(x)
         x = downsample(x)
     for block in unet.mid_blocks:
         x = block(x, cond)
-    for res1, res2, upsample in unet.up_blocks:
+    for stage in unet.up_blocks:
+        res1, res2, upsample = cast(nn.ModuleList, stage)
         x = torch.cat((x, skips.pop()), dim=1)
         x = res2(res1(x, cond), cond)
         x = upsample(x)
@@ -345,11 +373,11 @@ class ConditionalUnet1D(nn.Module):
         n_groups: int = 8,
         step_embed_dim: int = 128,
         use_film_scale_modulation: bool = True,
-        plan_fn: Callable[[int, Sequence[int]], dict] = unet_channel_plan,
-        forward_fn: Callable[..., Tensor] = unet_forward,
-        block_forward_fn: Callable[..., Tensor] = film_residual_forward,
+        plan_fn: Callable[[int, Sequence[int]], UNetChannelPlan] = unet_channel_plan,
+        forward_fn: UNetForward = unet_forward,
+        block_forward_fn: FilmForward = film_residual_forward,
         embedding_fn: Callable[[Tensor, int], Tensor] = sinusoidal_timestep_embedding,
-    ):
+    ) -> None:
         super().__init__()
         self.action_dim, self.down_dims = action_dim, tuple(down_dims)
         self.forward_fn = forward_fn
@@ -418,13 +446,20 @@ def convert_lerobot_unet_state_dict(source: Mapping[str, Tensor]) -> dict[str, T
     return converted
 
 
+class UNetHooks(TypedDict, total=False):
+    plan_fn: Callable[[int, Sequence[int]], UNetChannelPlan]
+    forward_fn: UNetForward
+    block_forward_fn: FilmForward
+    embedding_fn: Callable[[Tensor, int], Tensor]
+
+
 def unet_from_lerobot(
-    lerobot_unet: nn.Module,
+    lerobot_unet: DiffusionConditionalUnet1d,
     *,
     converter: Callable[
         [Mapping[str, Tensor]], dict[str, Tensor]
     ] = convert_lerobot_unet_state_dict,
-    **hooks: Callable,
+    **hooks: Unpack[UNetHooks],
 ) -> ConditionalUnet1D:
     """Build a learner U-Net with the LeRobot sizes and copy its weights (``strict=True``).
 
@@ -432,12 +467,15 @@ def unet_from_lerobot(
     ``hooks`` are passed to ``ConditionalUnet1D`` (``plan_fn``, ``forward_fn``, ``block_forward_fn``, ...).
     """
     config = lerobot_unet.config
-    global_cond_dim = (
-        lerobot_unet.down_modules[0][0].cond_encoder[1].in_features
-        - config.diffusion_step_embed_dim
-    )
+    first_stage = cast(nn.ModuleList, lerobot_unet.down_modules[0])
+    first_block = cast("DiffusionConditionalResidualBlock1d", first_stage[0])
+    conditioning = cast(nn.Linear, first_block.cond_encoder[1])
+    feature = config.action_feature
+    if feature is None:
+        raise ValueError("Diffusion Policy requires an action feature")
+    global_cond_dim = conditioning.in_features - config.diffusion_step_embed_dim
     learner = ConditionalUnet1D(
-        action_dim=config.action_feature.shape[0],
+        action_dim=feature.shape[0],
         global_cond_dim=global_cond_dim,
         down_dims=config.down_dims,
         kernel_size=config.kernel_size,
@@ -453,7 +491,7 @@ def unet_from_lerobot(
 @torch.no_grad()
 def verify_unet_parity(
     learner: ConditionalUnet1D,
-    lerobot_unet: nn.Module,
+    lerobot_unet: DiffusionConditionalUnet1d,
     x: Tensor,
     timestep: Tensor,
     global_cond: Tensor | None,
@@ -709,7 +747,9 @@ def take_batch(windows: Mapping[str, Tensor], indices: Sequence[int] | Tensor) -
 # --- Real policy integration -------------------------------------------------------------------
 
 
-def load_prepared_diffusion(checkpoint: str | Path, *, device: str = "cpu"):
+def load_prepared_diffusion(
+    checkpoint: str | Path, *, device: str = "cpu"
+) -> tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]:
     """Load a prepared diffusion bundle (policy and processors) on ``device``. Never downloads.
 
     The weights are checked against ``manifest.json`` (SHA-256 of ``model.safetensors``). The pinned
@@ -748,7 +788,7 @@ class LeRobotDenoiser(nn.Module):
     per camera key. All policy parameters are visible to the optimizer through ``self.policy``.
     """
 
-    def __init__(self, policy: nn.Module, unet: nn.Module | None = None):
+    def __init__(self, policy: DiffusionPolicy, unet: nn.Module | None = None) -> None:
         super().__init__()
         self.policy = policy
         self.unet = unet if unet is not None else policy.diffusion.unet
@@ -765,7 +805,7 @@ class LeRobotDenoiser(nn.Module):
         return self.unet(noisy_actions, timesteps, global_cond=self.global_condition(batch))
 
 
-def stack_observation(policy: nn.Module, batch: Mapping[str, Tensor]) -> dict[str, Tensor]:
+def stack_observation(policy: DiffusionPolicy, batch: Mapping[str, Tensor]) -> dict[str, Tensor]:
     """Add ``observation.images`` ``(B, n_obs, n_cam, C, H, W)`` like ``DiffusionPolicy.forward``."""
     keys = list(policy.config.image_features)
     stacked = dict(batch)
@@ -775,6 +815,18 @@ def stack_observation(policy: nn.Module, batch: Mapping[str, Tensor]) -> dict[st
     if keys:
         stacked["observation.images"] = torch.stack([stacked[key] for key in keys], dim=-4)
     return stacked
+
+
+class DiffusionSampler(Protocol):
+    def __call__(
+        self,
+        denoise: Callable[[Tensor, Tensor], Tensor],
+        initial_noise: Tensor,
+        schedule: DDPMSchedule,
+        num_inference_steps: int,
+        step_noises: Sequence[Tensor],
+        clip_range: float | None = 1.0,
+    ) -> Tensor: ...
 
 
 class CallbackDiffusionPolicy:
@@ -791,17 +843,17 @@ class CallbackDiffusionPolicy:
 
     def __init__(
         self,
-        policy: nn.Module,
-        sampler: Callable[..., Tensor] = sample_actions,
+        policy: DiffusionPolicy,
+        sampler: DiffusionSampler = sample_actions,
         slicer: Callable[[Tensor, int, int], Tensor] = executed_action_slice,
         *,
         num_inference_steps: int | None = None,
         seed: int = 0,
         unet: nn.Module | None = None,
-    ):
+    ) -> None:
         self.policy = policy
         self.sampler, self.slicer = sampler, slicer
-        config = policy.config
+        config = cast("DiffusionConfig", policy.config)
         self.num_inference_steps = (
             num_inference_steps or config.num_inference_steps or config.num_train_timesteps
         )
@@ -815,7 +867,7 @@ class CallbackDiffusionPolicy:
 
     def reset(self) -> None:
         """Clear the observation history, the action queue and the chunk counter."""
-        config = self.policy.config
+        config = cast("DiffusionConfig", self.policy.config)
         self._observations: dict[str, deque] = {
             "observation.state": deque(maxlen=config.n_obs_steps),
             "observation.images": deque(maxlen=config.n_obs_steps),
@@ -832,7 +884,9 @@ class CallbackDiffusionPolicy:
         ):
             queue = self._observations[name]
             queue.append(value)
-            while len(queue) < queue.maxlen:  # first step: repeat the first observation
+            while (
+                len(queue) < self.policy.config.n_obs_steps
+            ):  # first step: repeat the first observation
                 queue.append(value)
 
     @torch.no_grad()
@@ -846,7 +900,7 @@ class CallbackDiffusionPolicy:
     ) -> Tensor:
         """Sample a full window ``(B, horizon, A)`` for stacked observations (history on dim 1)."""
         self.policy.eval()
-        cond = self.policy.diffusion._prepare_global_conditioning(observation)
+        cond = self.policy.diffusion._prepare_global_conditioning(dict(observation))
         return self.sampler(
             lambda x, t: self.unet(x, t, global_cond=cond),
             initial_noise,
@@ -860,7 +914,7 @@ class CallbackDiffusionPolicy:
     def select_action(self, batch: Mapping[str, Tensor]) -> Tensor:
         import time
 
-        config = self.policy.config
+        config = cast("DiffusionConfig", self.policy.config)
         self._push(batch)
         if not self._actions:
             observation = {
@@ -870,7 +924,10 @@ class CallbackDiffusionPolicy:
             generator = torch.Generator(device=state.device).manual_seed(
                 self.seed + self.chunks_made
             )
-            shape = (state.shape[0], config.horizon, config.action_feature.shape[0])
+            feature = config.action_feature
+            if feature is None:
+                raise ValueError("Diffusion Policy requires an action feature")
+            shape = (state.shape[0], config.horizon, feature.shape[0])
             initial = torch.randn(
                 shape, generator=generator, device=state.device, dtype=state.dtype
             )

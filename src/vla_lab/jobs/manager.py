@@ -15,16 +15,17 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+
+from vla_lab.types import JSONValue
 
 
-def _atomic_json(path: Path, data: dict[str, Any]) -> None:
+def _atomic_json(path: Path, data: dict[str, JSONValue]) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     os.replace(temporary, path)
 
 
-def _read_json(path: Path) -> dict[str, Any]:
+def _read_json(path: Path) -> dict[str, JSONValue]:
     return json.loads(path.read_text())
 
 
@@ -55,7 +56,7 @@ def _index_lock(root: Path) -> Iterator[None]:
             fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
-def _job_key(config: dict[str, Any], purpose: str, seed: int, command: list[str]) -> str:
+def _job_key(config: dict[str, JSONValue], purpose: str, seed: int, command: list[str]) -> str:
     content = json.dumps(
         {"config": config, "purpose": purpose, "seed": seed, "command": command},
         sort_keys=True,
@@ -82,12 +83,12 @@ class JobManager:
     def submit(
         self,
         *,
-        config: dict[str, Any],
+        config: dict[str, JSONValue],
         purpose: str,
         seed: int,
         command: list[str],
         repeat: bool = False,
-    ) -> dict[str, Any]:
+    ) -> dict[str, JSONValue]:
         """Start one detached run or return the matching prior run."""
         if not purpose.strip() or not command or not all(command):
             raise ValueError("Job needs a purpose and a command argument list")
@@ -131,7 +132,7 @@ class JobManager:
             _atomic_json(run_dir / "identity.json", identity)
             return self.status(run_id)
 
-    def status(self, run_id: str) -> dict[str, Any]:
+    def status(self, run_id: str) -> dict[str, JSONValue]:
         """Read the latest status and verify the recorded worker identity."""
         run_dir = self._run_dir(run_id)
         identity = _read_json(run_dir / "identity.json")
@@ -148,7 +149,7 @@ class JobManager:
             "log": str(run_dir / "job.log"),
         }
 
-    def cancel(self, run_id: str, *, timeout_s: float = 5.0) -> dict[str, Any]:
+    def cancel(self, run_id: str, *, timeout_s: float = 5.0) -> dict[str, JSONValue]:
         """Stop a verified worker process group and mark its run cancelled."""
         run_dir = self._run_dir(run_id)
         identity = _read_json(run_dir / "identity.json")

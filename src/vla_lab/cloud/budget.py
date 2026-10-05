@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import asdict, dataclass
-from typing import Any
+
+from vla_lab.types import JSONValue
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,7 @@ def plan_cloud_job(
     estimated_work_s: float,
     now: float | None = None,
     limits: CloudLimits | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JSONValue]:
     """Calculate a deadline after the quote and billing checks pass."""
     if limits is None:
         limits = CloudLimits()
