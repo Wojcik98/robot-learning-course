@@ -1,7 +1,5 @@
 """Small validated packets shared by policies, the simulator, and timing labs."""
 
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass
 
@@ -94,7 +92,7 @@ class ActionSchema:
             raise ValueError("Action schema bounds are invalid")
 
     @staticmethod
-    def libero_relative() -> ActionSchema:
+    def libero_relative() -> "ActionSchema":
         """Declare the pinned LIBERO 20 Hz relative action convention."""
         return ActionSchema(
             frame="LIBERO end-effector controller",

@@ -1,13 +1,14 @@
 """Small runtime pieces used by the policy execution lessons."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
+from time import perf_counter
 from typing import cast
 
 import numpy as np
 import torch
+from lerobot.envs.utils import preprocess_observation
+from lerobot.processor import LiberoProcessorStep
 
 from vla_lab.teaching.interfaces import (
     ActionT,
@@ -23,6 +24,7 @@ from vla_lab.teaching.interfaces import (
     ResettablePolicy,
     TensorBatch,
 )
+from vla_lab.timing import LIBERO_CONTROL_HZ, require_libero_rate
 
 type RawObservationValue = np.ndarray | dict[str, "RawObservationValue"] | int | float | bool | None
 
@@ -37,6 +39,13 @@ class RolloutResult:
     clipped_values: int
     termination_reason: str
     actions: tuple[tuple[float, ...], ...]
+    control_hz: int = LIBERO_CONTROL_HZ
+    inference_wall_s: float = 0.0
+
+    @property
+    def simulated_duration_s(self) -> float:
+        """Return policy control time; reset settling time is excluded."""
+        return self.steps / self.control_hz
 
 
 def prepare_libero_observation(
@@ -51,8 +60,6 @@ def prepare_libero_observation(
     axis, applies LeRobot's LIBERO field mapping, adds an optional task prompt,
     and runs the saved model preprocessor.
     """
-    from lerobot.envs.utils import preprocess_observation
-    from lerobot.processor import LiberoProcessorStep
 
     def add_batch_axis(value: RawObservationValue) -> RawObservationValue:
         if isinstance(value, dict):
@@ -117,6 +124,7 @@ def run_chunked_episode(
     execute_steps: int,
     seed: int | None = None,
     on_observation: Callable[[ObservationT], None] | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> RolloutResult:
     """Run policy action chunks through environment observations and steps.
 
@@ -124,11 +132,13 @@ def run_chunked_episode(
     action callbacks own model-specific image/state processing. The controller
     receives one finite seven-value action, clipped to ``[-1, 1]``.
     """
+    require_libero_rate(control_hz)
     if max_steps < 1 or execute_steps < 1:
         raise ValueError("max_steps and execute_steps must be positive")
     observation = reset_environment(environment, policy, seed=seed)
     if on_observation is not None:
         on_observation(observation)
+    inference_wall_s = 0.0
     calls = 0
     clipped = 0
     success = False
@@ -137,8 +147,12 @@ def run_chunked_episode(
     steps = 0
     while steps < max_steps:
         batch = prepare_observation(observation)
+        prediction_started = perf_counter()
         with torch.no_grad():
             chunk = predict_chunk(policy, batch)
+        if isinstance(chunk, torch.Tensor) and chunk.is_cuda:
+            torch.cuda.synchronize(chunk.device)
+        inference_wall_s += perf_counter() - prediction_started
         calls += 1
         if not isinstance(chunk, (torch.Tensor, np.ndarray)):
             raise TypeError("predict_chunk must return a Tensor or NumPy array")
@@ -175,4 +189,6 @@ def run_chunked_episode(
         clipped_values=clipped,
         termination_reason=reason,
         actions=tuple(action_log),
+        control_hz=control_hz,
+        inference_wall_s=inference_wall_s,
     )

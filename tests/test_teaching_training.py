@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+from vla_lab.teaching import training
 from vla_lab.teaching.training import (
     act_loss_fn,
     diagonal_gaussian_kl,
@@ -128,3 +129,13 @@ def test_optimizer_update_clips_gradients_before_step():
 
     optimizer_update(model, {"x": torch.ones(1, 1)}, optimizer, callback, max_grad_norm=0.25)
     torch.testing.assert_close(model.weight, torch.tensor([[-0.25]]))
+
+
+def test_training_deadline_stops_before_another_update(monkeypatch):
+    model = TinyACT()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    clock = iter([10.0, 10.0, 10.5, 11.0])
+    monkeypatch.setattr(training, "monotonic", lambda: next(clock), raising=False)
+    history = train_loop(model, [batch()], optimizer, act_loss_fn, steps=100, max_seconds=1.0)
+    assert len(history) == 2
+    assert all(torch.isfinite(torch.tensor(row["loss"])) for row in history)

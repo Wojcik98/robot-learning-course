@@ -4,8 +4,6 @@ This module sets up the data windows, the training loop, and the checkpoint bund
 It does not run a simulator.
 """
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -21,10 +19,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 import yaml
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.optim.schedulers import DiffuserSchedulerConfig
+from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
+from lerobot.processor import load_pretrained_policy_processors
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate
 
 from vla_lab.evaluation.states import selected_state_ids
+from vla_lab.policy.diffusion import make_diffusion_config, make_diffusion_processors
+from vla_lab.timing import frame_offset_seconds
 from vla_lab.training.act import SAMPLER_VERSION, _batch_indices
 from vla_lab.types import JSONValue
 
@@ -85,7 +89,6 @@ def _split_for(
 
 def load_diffusion_train_config(path: str | Path, configs_root: str | Path) -> DiffusionTrainConfig:
     """Read the settings. Reject a recipe that differs from the policy settings."""
-    from vla_lab.policy.diffusion import make_diffusion_config
 
     content = Path(path).read_bytes()
     payload = yaml.safe_load(content)
@@ -153,7 +156,7 @@ def load_diffusion_train_config(path: str | Path, configs_root: str | Path) -> D
 # --- Data windows -----------------------------------------------------------------------------
 
 
-def validate_horizons(config: DiffusionConfig) -> None:
+def validate_horizons(config: "DiffusionConfig") -> None:
     """Reject prediction and execution lengths that the policy cannot use."""
     if config.n_obs_steps < 1:
         raise ValueError("n_obs_steps must be positive")
@@ -168,20 +171,21 @@ def validate_horizons(config: DiffusionConfig) -> None:
         )
 
 
-def diffusion_delta_timestamps(config: DiffusionConfig, fps: int) -> dict[str, list[float]]:
-    """Give each window offset in seconds.
+def diffusion_delta_timestamps(config: "DiffusionConfig", fps: int) -> dict[str, list[float]]:
+    """Map frame offsets to storage timestamp labels for LeRobot lookup.
 
     The observations end at the current frame. The action window starts one step before it,
     because it covers the same span as the observations and then the future.
+    The storage FPS does not set control timing or action repetition.
     """
     validate_horizons(config)
-    observation = [index / fps for index in config.observation_delta_indices]
+    observation = frame_offset_seconds(config.observation_delta_indices, fps)
     deltas = {key: list(observation) for key in (*IMAGE_KEYS, STATE_KEY)}
-    deltas[ACTION_KEY] = [index / fps for index in config.action_delta_indices]
+    deltas[ACTION_KEY] = frame_offset_seconds(config.action_delta_indices, fps)
     return deltas
 
 
-def executed_action_slice(config: DiffusionConfig) -> tuple[int, int]:
+def executed_action_slice(config: "DiffusionConfig") -> tuple[int, int]:
     """Give the part of the action window that the policy executes.
 
     Index `n_obs_steps - 1` of the window is the action for the current frame.
@@ -213,7 +217,7 @@ def eligible_frame_indices(
     return kept
 
 
-def validate_window_batch(batch: Mapping[str, torch.Tensor], config: DiffusionConfig) -> None:
+def validate_window_batch(batch: Mapping[str, torch.Tensor], config: "DiffusionConfig") -> None:
     """Check the shape and values of one batch before training uses it."""
     state_shape = config.robot_state_feature.shape
     action_shape = config.action_feature.shape
@@ -241,7 +245,7 @@ def validate_window_batch(batch: Mapping[str, torch.Tensor], config: DiffusionCo
 
 
 def _frozen_diffusion_dataset(
-    config: DiffusionConfig, split: Mapping[str, JSONValue], revision: str, data_root: Path
+    config: "DiffusionConfig", split: Mapping[str, JSONValue], revision: str, data_root: Path
 ) -> Dataset:
     """Open the frozen training episodes with the policy windows. Never download."""
     hub_cache = data_root / "hf" / "hub"
@@ -251,8 +255,6 @@ def _frozen_diffusion_dataset(
     os.environ.setdefault("HF_HUB_CACHE", str(hub_cache))
     os.environ.setdefault("HF_DATASETS_CACHE", str(datasets_cache))
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
-
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     dataset = LeRobotDataset(
         "lerobot/libero",
@@ -294,7 +296,9 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _normalizer_extrema(preprocessor: PolicyProcessorPipeline) -> dict[str, dict[str, list[float]]]:
+def _normalizer_extrema(
+    preprocessor: "PolicyProcessorPipeline",
+) -> dict[str, dict[str, list[float]]]:
     for step in preprocessor.steps:
         if type(step).__name__ == "NormalizerProcessorStep":
             return {
@@ -305,9 +309,9 @@ def _normalizer_extrema(preprocessor: PolicyProcessorPipeline) -> dict[str, dict
 
 
 def save_diffusion_bundle(
-    policy: DiffusionPolicy,
-    preprocessor: PolicyProcessorPipeline,
-    postprocessor: PolicyProcessorPipeline,
+    policy: "DiffusionPolicy",
+    preprocessor: "PolicyProcessorPipeline",
+    postprocessor: "PolicyProcessorPipeline",
     destination: str | Path,
     task_alias: str,
     configs_root: str | Path,
@@ -374,13 +378,13 @@ def save_diffusion_bundle(
 
 def load_diffusion_bundle(
     source: str | Path,
-) -> tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, dict[str, JSONValue]]:
+) -> (
+    "tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, dict[str, JSONValue]]"
+):
     """Load saved weights, processors, and the manifest from one directory.
 
     The saved weights replace the backbone, so loading needs no cached ImageNet file.
     """
-    from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
-    from lerobot.processor import load_pretrained_policy_processors
 
     root = Path(source)
     manifest_path = root / "manifest.json"
@@ -464,7 +468,7 @@ def train_diffusion_reference(
     config_sha256: str | None = None,
     dataset: Dataset | None = None,
     sample_indices: Sequence[int] | None = None,
-    policy: DiffusionPolicy | None = None,
+    policy: "DiffusionPolicy | None" = None,
 ) -> DiffusionTrainResult:
     """Train Diffusion Policy and save local checkpoints with the frozen processors."""
     if min(steps, batch_size, checkpoint_every) < 1:
@@ -479,11 +483,6 @@ def train_diffusion_reference(
 
     data = Path(data_root).expanduser().resolve()
     os.environ.setdefault("TORCH_HOME", str(data / "torch"))
-
-    from lerobot.optim.schedulers import DiffuserSchedulerConfig
-    from lerobot.policies.diffusion import DiffusionPolicy
-
-    from vla_lab.policy.diffusion import make_diffusion_config, make_diffusion_processors
 
     random.seed(seed)
     np.random.seed(seed)

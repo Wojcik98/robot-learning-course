@@ -1,11 +1,17 @@
 """Check the Diffusion Policy operations against diffusers' DDPM and the pinned LeRobot network."""
 
+import copy
+import json
+import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import torch
+import yaml
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from lerobot.configs import FeatureType, PolicyFeature
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
 from lerobot.policies.diffusion.modeling_diffusion import (
     DiffusionConditionalResidualBlock1d,
@@ -26,9 +32,11 @@ from vla_lab.teaching.diffusion import (
     ddpm_reverse_step,
     epsilon_loss_fn,
     executed_action_slice,
+    film_residual_forward,
     flat_state_condition,
     forward_noise,
     inference_timesteps,
+    load_prepared_diffusion,
     load_state_action_windows,
     make_step_noises,
     masked_epsilon_loss,
@@ -39,6 +47,7 @@ from vla_lab.teaching.diffusion import (
     stack_observation,
     take_batch,
     unet_channel_plan,
+    unet_forward,
     unet_from_lerobot,
     verify_unet_parity,
 )
@@ -200,7 +209,6 @@ def test_epsilon_loss_fn_uses_explicit_noise_and_time_and_keeps_the_graph(policy
 
 
 def test_epsilon_loss_fn_draws_only_missing_random_inputs():
-    from types import SimpleNamespace
 
     class TinyDenoiser(torch.nn.Module):
         def __init__(self):
@@ -251,7 +259,6 @@ def test_epsilon_loss_fn_draws_only_missing_random_inputs():
 
 
 def test_one_update_changes_unet_weights_through_the_training_callback(policy):
-    import copy
 
     model = LeRobotDenoiser(copy.deepcopy(policy)).train()
     before = model.unet.final_conv[1].weight.detach().clone()
@@ -306,7 +313,7 @@ def test_channel_plan_matches_the_pinned_network(down_dims):
         assert (res1.conv1.block[0].in_channels, res1.conv1.block[0].out_channels) == (i, o)
         assert res2.conv2.block[0].out_channels == o
         assert isinstance(downsample, torch.nn.Conv1d) == down
-    for (i, o, up), (res1, res2, upsample) in zip(plan["up"], unet.up_modules, strict=True):
+    for (i, o, up), (res1, _res2, upsample) in zip(plan["up"], unet.up_modules, strict=True):
         assert (res1.conv1.block[0].in_channels, res1.conv1.block[0].out_channels) == (i, o)
         assert isinstance(upsample, torch.nn.ConvTranspose1d) == up
     assert len(plan["mid"]) == len(unet.mid_modules)
@@ -344,13 +351,11 @@ def test_unet_hooks_are_used_by_the_real_forward_path():
     calls = []
 
     def forward(unet, x, timestep, cond=None):
-        from vla_lab.teaching.diffusion import unet_forward
 
         calls.append("unet")
         return unet_forward(unet, x, timestep, cond)
 
     def block(block_, x, cond):
-        from vla_lab.teaching.diffusion import film_residual_forward
 
         calls.append("block")
         return film_residual_forward(block_, x, cond)
@@ -608,11 +613,13 @@ def test_real_windows_follow_the_pinned_alignment_and_split():
         train["observation.state"][first][:, 0], train["observation.state"][first][:, 1]
     )
     last_of_episode = {}
-    for index, (e, f) in enumerate(zip(train["episode"].tolist(), train["frame"].tolist())):
+    for e, f in zip(train["episode"].tolist(), train["frame"].tolist(), strict=True):
         last_of_episode[e] = max(last_of_episode.get(e, -1), f)
     index = next(
         i
-        for i, (e, f) in enumerate(zip(train["episode"].tolist(), train["frame"].tolist()))
+        for i, (e, f) in enumerate(
+            zip(train["episode"].tolist(), train["frame"].tolist(), strict=True)
+        )
         if f == last_of_episode[e]
     )
     assert train["action_is_pad"][index][-1], "the last kept frame still has padded future actions"
@@ -658,14 +665,9 @@ def test_prepared_checkpoint_unet_and_sampler_reproduce_in_the_learner():
 
 @pytest.mark.skipif(not DATA.exists(), reason="local LIBERO metadata missing")
 def test_real_windows_equal_the_lerobot_dataset_windows_after_undoing_the_scaling():
-    import json
-    import os
-
-    import yaml
 
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     manifest = yaml.safe_load((ROOT / "configs/data/episodes.yaml").read_text())
     stats = json.loads((ROOT / "configs/data/stats/bowl_plate.json").read_text())["modalities"]
@@ -731,7 +733,6 @@ def test_real_windows_with_a_longer_history_and_actions_from_the_current_frame()
     not (CHECKPOINT / "model.safetensors").is_file(), reason="local diffusion checkpoint missing"
 )
 def test_prepared_bundle_loads_on_cpu_and_the_learner_loss_equals_the_pinned_loss(tmp_path):
-    from vla_lab.teaching.diffusion import load_prepared_diffusion
 
     policy, _preprocessor, _ = load_prepared_diffusion(CHECKPOINT, device="cpu")
     assert next(policy.parameters()).device.type == "cpu" and not policy.training

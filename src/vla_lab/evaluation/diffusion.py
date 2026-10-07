@@ -1,7 +1,5 @@
 """Evaluate a saved Diffusion Policy on frozen development states."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -16,7 +14,8 @@ import yaml
 
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.states import evaluate_states, selected_state_ids
-from vla_lab.sim.episode import EpisodeResult
+from vla_lab.sim.episode import EpisodeResult, open_libero_task, run_policy_episode
+from vla_lab.training.diffusion import load_diffusion_bundle
 from vla_lab.types import JSONValue
 
 
@@ -62,9 +61,6 @@ def evaluate_diffusion_reference(
         raise ValueError("Diffusion inference steps must be from 1 to 100")
     sample_times_ms: list[float] = []
     if run_one is None:
-        from vla_lab.sim.episode import open_libero_task, run_policy_episode
-        from vla_lab.training.diffusion import load_diffusion_bundle
-
         policy, preprocessor, postprocessor, loaded = load_diffusion_bundle(source)
         if loaded != manifest:
             raise ValueError("Diffusion manifest changed while the policy was loaded")
@@ -118,6 +114,9 @@ def evaluate_diffusion_reference(
         result = run_one(state_id)
         metrics = {
             "steps": result.steps,
+            "control_hz": result.control_hz,
+            "simulated_duration_s": result.simulated_duration_s,
+            "inference_wall_s": result.inference_wall_s,
             "clipped_values": result.clipped_values,
             "seed": episode_seed,
             "sampler_calls": len(sample_times_ms),

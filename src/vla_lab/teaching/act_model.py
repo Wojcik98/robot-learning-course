@@ -16,14 +16,14 @@ Three kinds of weights must stay distinct:
 * *learner trained weights*: weights produced by your own updates;
 * *prepared policy results*: numbers saved from the LeRobot policy, not from this module.
 
-The hooks in ``ACTHooks`` are the five functions of course unit 8B. Each default is the
+The hooks in ``ACTHooks`` are the five functions used to assemble ACT. Each default is the
 reference answer. A learner function with the same signature can replace it.
 """
 
-from __future__ import annotations
-
 import copy
+import json
 import math
+import os
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -31,11 +31,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict, Unpack
 
 import torch
+import torch.nn.functional as F
 import torchvision
+import yaml
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from torch import Tensor, nn
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.ops.misc import FrozenBatchNorm2d
 
+from vla_lab.data.stats import TrainingStats
 from vla_lab.teaching.attention import (
     MultiHeadAttention,
     TransformerDecoder,
@@ -54,6 +58,7 @@ from vla_lab.teaching.blocks import (
     SharedAttentionHooks,
 )
 from vla_lab.teaching.cvae import reparameterize
+from vla_lab.timing import frame_offset_seconds
 
 if TYPE_CHECKING:
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -88,7 +93,7 @@ class ACTSettings:
     vision_backbone: str = "resnet18"
 
     @classmethod
-    def from_lerobot(cls, config: ACTConfig) -> ACTSettings:
+    def from_lerobot(cls, config: "ACTConfig") -> "ACTSettings":
         if not config.use_vae:
             raise ValueError("the learner ACT always has a posterior encoder (use_vae=True)")
         if config.env_state_feature is not None or config.robot_state_feature is None:
@@ -141,7 +146,7 @@ def make_act_backbone(
     ), model.fc.in_features
 
 
-# --- Unit 8B reference functions ----------------------------------------------------------------
+# --- ACT assembly functions ----------------------------------------------------------------
 
 
 def camera_position_embedding_2d(height: int, width: int, dim: int) -> Tensor:
@@ -258,7 +263,7 @@ def decode_actions(model: ACTDecoderParts, encoder_out: Tensor, pos: Tensor) -> 
 
 @dataclass
 class ACTHooks:
-    """The five replaceable functions of unit 8B."""
+    """The five replaceable functions used to assemble ACT."""
 
     camera_positions: Callable[[int, int, int], Tensor] = camera_position_embedding_2d
     posterior: PosteriorFunction = encode_posterior
@@ -327,7 +332,7 @@ class ACTModel(nn.Module):
         backbone_weights: str | None = None,
         hooks: ACTHooks | None = None,
         **block_hooks: Unpack[SharedAttentionHooks],
-    ) -> ACTModel:
+    ) -> "ACTModel":
         backbone, channels = make_act_backbone(settings.vision_backbone, weights=backbone_weights)
         return cls(settings, backbone, channels, hooks, **block_hooks)
 
@@ -359,15 +364,12 @@ def open_libero_dataset(
     delta_timestamps: Mapping[str, list[float]],
     *,
     episodes: Sequence[int] | None = None,
-) -> LeRobotDataset:
+) -> "LeRobotDataset":
     """Open whole episodes of the frozen ``train`` or ``validation`` split from local files.
 
     Never downloads (offline mode is forced). ``delta_timestamps`` are in seconds at the dataset's
-    10 Hz; the 20 Hz simulator controller is a separate rate and nothing is resampled here.
+    10 FPS storage label; the 20 Hz simulator controller is a separate rate and nothing is resampled here.
     """
-    import os
-
-    import yaml
 
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
@@ -377,7 +379,6 @@ def open_libero_dataset(
         if not set(episodes) <= set(ids):
             raise ValueError(f"episodes must come from the {split} split")
         ids = list(episodes)
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     return LeRobotDataset(
         "lerobot/libero",
@@ -406,18 +407,13 @@ def load_act_samples(
     standardized with the *training* mean and standard deviation (as the pinned ACT recipe
     does), and ``action_is_pad`` for chunks that run past the episode end.
     """
-    import json
-
-    import torch.nn.functional as F
-
-    from vla_lab.data.stats import TrainingStats
 
     dataset = open_libero_dataset(
         configs_root,
         data_root,
         task_alias,
         split,
-        {"action": [i / 10 for i in range(chunk_size)]},
+        {"action": frame_offset_seconds(list(range(chunk_size)))},
     )
     stats = json.loads((Path(configs_root) / "data" / "stats" / f"{task_alias}.json").read_text())[
         "modalities"
@@ -504,7 +500,7 @@ def _rename(name: str) -> str:
     return name
 
 
-def load_lerobot_act(learner: ACTModel, lerobot_act: ACT) -> dict[str, int]:
+def load_lerobot_act(learner: ACTModel, lerobot_act: "ACT") -> dict[str, int]:
     """Copy the weights of a LeRobot ``ACT`` into ``learner`` and return tensor counts.
 
     Uses ``strict=True``: a missing or extra tensor raises. After the call the learner holds
@@ -515,7 +511,7 @@ def load_lerobot_act(learner: ACTModel, lerobot_act: ACT) -> dict[str, int]:
     return {"tensors": len(converted), "parameters": sum(p.numel() for p in learner.parameters())}
 
 
-def act_from_lerobot(lerobot_act: ACT, **block_hooks: Unpack[SharedAttentionHooks]) -> ACTModel:
+def act_from_lerobot(lerobot_act: "ACT", **block_hooks: Unpack[SharedAttentionHooks]) -> ACTModel:
     """Build a learner with the LeRobot model's sizes and copy its weights."""
     settings = ACTSettings.from_lerobot(lerobot_act.config)
     backbone, channels = make_act_backbone(settings.vision_backbone)
@@ -543,7 +539,7 @@ def _zero_dropout(module: nn.Module) -> None:
 
 @torch.no_grad()
 def verify_act_parity(
-    learner: ACTModel, lerobot_act: ACT, batch: Mapping[str, Tensor], *, seed: int = 0
+    learner: ACTModel, lerobot_act: "ACT", batch: Mapping[str, Tensor], *, seed: int = 0
 ) -> dict[str, float]:
     """Largest absolute differences between the learner and LeRobot ``ACT`` on one batch.
 

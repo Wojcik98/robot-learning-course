@@ -2,8 +2,10 @@
 
 import json
 
+import pytest
 import torch
 import yaml
+from torch import Tensor
 
 from vla_lab.evaluation import comparison
 from vla_lab.sim.episode import EpisodeResult
@@ -11,15 +13,21 @@ from vla_lab.teaching import evaluation
 
 
 class SmallPolicy(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, *, positional_hook: bool = False) -> None:
         super().__init__()
         self.weight = torch.nn.Parameter(torch.tensor(2.0))
+        self.positional_hook = positional_hook
 
-    def predict_action_chunk(self, value):
-        return value * self.weight
+    def predict_action_chunk(self, value: Tensor, *, noise: Tensor) -> Tensor:
+        return value * self.weight + noise
 
-    def select_action(self, value):
-        return self.predict_action_chunk(value)
+    def _get_action_chunk(self, value: Tensor, noise: Tensor) -> Tensor:
+        return value * self.weight + noise
+
+    def select_action(self, value: Tensor) -> Tensor:
+        if self.positional_hook:
+            return self._get_action_chunk(value, torch.tensor(1.0))
+        return self.predict_action_chunk(value, noise=torch.tensor(1.0))
 
 
 class Environment:
@@ -30,7 +38,13 @@ class Environment:
         self.closed = True
 
 
-def test_timed_frozen_evaluation_keeps_failures_and_restores_hooks(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("method", "positional_hook"),
+    (("act", False), ("smolvla_learner", True)),
+)
+def test_timed_frozen_evaluation_forwards_hook_arguments_and_restores_hooks(
+    tmp_path, monkeypatch, method: str, positional_hook: bool
+):
     configs = tmp_path / "configs"
     (configs / "data").mkdir(parents=True)
     (configs / "eval").mkdir()
@@ -66,7 +80,7 @@ def test_timed_frozen_evaluation_keeps_failures_and_restores_hooks(tmp_path, mon
         "n_action_steps": 1,
     }
     config = {
-        "policies": {"act": recipe},
+        "policies": {method: recipe},
         "task_alias": "bowl_plate",
         "state_ids": [20, 21],
         "base_seed": 20260930,
@@ -79,9 +93,10 @@ def test_timed_frozen_evaluation_keeps_failures_and_restores_hooks(tmp_path, mon
     config_path = tmp_path / "comparison.yaml"
     config_path.write_text(yaml.safe_dump(config))
     monkeypatch.setattr(comparison, "load_comparison_config", lambda *_args: config)
-    policy = SmallPolicy()
+    policy = SmallPolicy(positional_hook=positional_hook)
     original_select = policy.select_action
-    original_generation = policy.predict_action_chunk
+    hook_name = "_get_action_chunk" if positional_hook else "predict_action_chunk"
+    original_generation = getattr(policy, hook_name)
     loader_calls = []
 
     def load_method(method, selected_recipe, task_alias, split_hash, revision):
@@ -98,24 +113,24 @@ def test_timed_frozen_evaluation_keeps_failures_and_restores_hooks(tmp_path, mon
 
     def run_episode(_environment, active_policy, _pre, _post, _task, state_id, *_args, **_kwargs):
         result = active_policy.select_action(torch.tensor(3.0))
-        assert result.item() == 6.0
+        assert result.item() == 7.0
         if state_id == 21:
             raise RuntimeError("synthetic infrastructure fault")
         return EpisodeResult("bowl_plate", state_id, True, 1, 0, "success")
 
-    monkeypatch.setattr("vla_lab.sim.episode.open_libero_task", open_task)
-    monkeypatch.setattr("vla_lab.sim.episode.run_policy_episode", run_episode)
+    monkeypatch.setattr("vla_lab.teaching.evaluation.open_libero_task", open_task)
+    monkeypatch.setattr("vla_lab.teaching.evaluation.run_policy_episode", run_episode)
     output = tmp_path / "results"
 
     result = evaluation.evaluate_frozen_method_timed(
-        method="act",
+        method=method,
         config_path=str(config_path),
         configs_root=str(configs),
         data_root=str(tmp_path / "data"),
         output_dir=str(output),
     )
 
-    assert loader_calls == [("act", recipe, "bowl_plate", "split-hash", "dataset-r1")]
+    assert loader_calls == [(method, recipe, "bowl_plate", "split-hash", "dataset-r1")]
     assert result["summary"]["attempts"] == 2
     assert result["summary"]["successes"] == 1
     assert result["summary"]["infrastructure_errors"] == 1
@@ -126,7 +141,7 @@ def test_timed_frozen_evaluation_keeps_failures_and_restores_hooks(tmp_path, mon
     assert rows[1]["metrics"]["seed"] == 20260951
     assert all(env.closed for env in environments)
     assert policy.select_action.__func__ is original_select.__func__
-    assert policy.predict_action_chunk.__func__ is original_generation.__func__
+    assert getattr(policy, hook_name).__func__ is original_generation.__func__
     timing_path = output / "inference-timing.json"
     assert timing_path.is_file()
     assert json.loads(timing_path.read_text())["action_generation"]["count"] == 2

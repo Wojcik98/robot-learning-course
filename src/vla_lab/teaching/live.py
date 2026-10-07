@@ -1,6 +1,4 @@
-"""Opt-in helpers for small, local examples with the frozen ACT data split."""
-
-from __future__ import annotations
+"""Local model and data loaders for the frozen ACT data split."""
 
 import hashlib
 import os
@@ -11,8 +9,13 @@ from typing import TYPE_CHECKING, cast
 
 import torch
 import yaml
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.utils.constants import OBS_IMAGES
 from torch.utils.data._utils.collate import default_collate
 
+from vla_lab.evaluation.comparison import _load_method
+from vla_lab.policy.act import make_act_config, make_act_processors
+from vla_lab.policy.smolvla import load_published_smolvla
 from vla_lab.teaching.interfaces import (
     ActionProcessor,
     ACTOutput,
@@ -22,6 +25,7 @@ from vla_lab.teaching.interfaces import (
     TensorBatch,
 )
 from vla_lab.teaching.records import ActBatchMetadata
+from vla_lab.timing import frame_offset_seconds
 
 if TYPE_CHECKING:
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -64,7 +68,7 @@ def find_workspace(start: str | Path | None = None) -> Path:
 
 def load_prepared_policy(
     method: str, workspace: str | Path | None = None, *, task_alias: str = "bowl_plate"
-) -> tuple[PreparedPolicy, ObservationProcessor, ActionProcessor, dict[str, JSONValue]]:
+) -> "tuple[PreparedPolicy, ObservationProcessor, ActionProcessor, dict[str, JSONValue]]":
     """Load one hash-checked local ACT, SmolVLA, or Diffusion checkpoint.
 
     This helper reads the saved comparison recipe and checks the model, data
@@ -91,7 +95,6 @@ def load_prepared_policy(
         vlm_hash = _sha256_file(vlm_dir / "model.safetensors")
         if vlm_hash != learner_start["model_sha256"]:
             raise ValueError("SmolVLM weights differ from the local manifest")
-        from vla_lab.policy.smolvla import load_published_smolvla
 
         policy, preprocessor, postprocessor = load_published_smolvla(
             model_dir,
@@ -108,7 +111,6 @@ def load_prepared_policy(
             "checkpoint": str(model_dir),
         }
         return policy, preprocessor, postprocessor, recipe
-    from vla_lab.evaluation.comparison import _load_method
 
     configs = root / "configs"
     comparison = yaml.safe_load((configs / "experiments" / "comparison.yaml").read_text())
@@ -137,19 +139,18 @@ def load_prepared_policy(
 class _ACTRawModel(torch.nn.Module):
     """Expose ACT's predictions without running the policy's built-in loss."""
 
-    def __init__(self, policy: ACTPolicy) -> None:
+    def __init__(self, policy: "ACTPolicy") -> None:
         super().__init__()
         self.policy = policy
 
     def forward(self, batch: Mapping[str, torch.Tensor]) -> ACTOutput:
-        from lerobot.utils.constants import OBS_IMAGES
 
         model_input: dict[str, torch.Tensor | list[torch.Tensor]] = dict(batch)
         model_input[OBS_IMAGES] = [batch[key] for key in self.policy.config.image_features]
         return self.policy.model(model_input)
 
 
-def make_act_raw_model(policy: ACTPolicy) -> _ACTRawModel:
+def make_act_raw_model(policy: "ACTPolicy") -> _ACTRawModel:
     """Return ACT raw predictions so learner loss code can drive its update.
 
     The wrapper shares the policy parameters. Supply ``policy.get_optim_params()``
@@ -188,7 +189,7 @@ def load_act_batches(
     ``[B, T, 7]``, ``action_is_pad`` is boolean ``[B, T]``, the two RGB images
     are ``[B, 3, 256, 256]``, and state is ``[B, 8]``. All tensors stay on CPU.
     The function uses episode IDs and normalization statistics from the frozen
-    manifests. It sets Hugging Face offline mode before importing LeRobot.
+    manifests. Set Hugging Face cache paths in the launch environment before importing this module.
     """
     if batch_size < 1 or chunk_size < 1 or train_batches < 1 or validation_batches < 1:
         raise ValueError("batch size, chunk size, and batch counts must be positive")
@@ -214,10 +215,6 @@ def load_act_batches(
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
 
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
-
-    from vla_lab.policy.act import make_act_config, make_act_processors
-
     train_ids = list(task["train_episode_ids"])
     validation_ids = list(task["validation_episode_ids"])
     if not train_ids or not validation_ids or set(train_ids) & set(validation_ids):
@@ -225,13 +222,13 @@ def load_act_batches(
     required_train_rows = train_batches * batch_size
     required_validation_rows = validation_batches * batch_size
 
-    def open_dataset(episodes: list[int]) -> LeRobotDataset:
+    def open_dataset(episodes: list[int]) -> "LeRobotDataset":
         return LeRobotDataset(
             "lerobot/libero",
             root=cache,
             episodes=episodes,
             revision=split_manifest["dataset_revision"],
-            delta_timestamps={"action": [index / 10 for index in range(chunk_size)]},
+            delta_timestamps={"action": frame_offset_seconds(list(range(chunk_size)))},
             video_backend="torchcodec",
         )
 

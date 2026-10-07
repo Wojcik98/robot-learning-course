@@ -1,0 +1,614 @@
+{
+  "checks": {
+    "browser": [
+      "normalization slider and rendered equations",
+      "attention mask slider",
+      "diffusion noise slider",
+      "Euler integration slider",
+      "chunk timeline slider",
+      "three embedded 20 Hz videos decoded; ACT and SmolVLA playback checked"
+    ],
+    "documentation_links": {
+      "broken": 0,
+      "checked": 94
+    },
+    "provider_stop_adapter": "PTY and literal-name regression passed; live deadline stop not exercised",
+    "pytest": {
+      "failed": 0,
+      "passed": 599,
+      "skipped": 1
+    },
+    "quick_notebooks": {
+      "completed": 24,
+      "count": 45,
+      "expected_stubs": 21,
+      "final_changed_notebooks": true,
+      "ok": true
+    },
+    "ruff": "passed",
+    "typing": {
+      "invalid_interface_examples_rejected": 5,
+      "notebooks": 45,
+      "source_files": 27
+    }
+  },
+  "cloud_experiments": [
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "live-act",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 0.0,
+        "peak_reserved_mib": 0.0
+      },
+      "notebook": "tutorials/01-playground/01-playground-reference.ipynb",
+      "notebook_elapsed_seconds": 9.023978294000244,
+      "notebook_sha256": "33d6d4e9b4aad7f0840bd57a9acd5fe3a065f2a4dc6b8933bbded1becb350c0b",
+      "report": "01-playground-live-act.json",
+      "report_sha256": "8b09e0f09315a38a1bbfeed878829031c363ca518e93aa71acbbf9af04e3401d",
+      "status": "passed",
+      "wall_seconds": 23.65,
+      "workload": "Required 01-playground live-act on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "live-diffusion",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 0.0,
+        "peak_reserved_mib": 0.0
+      },
+      "notebook": "tutorials/01-playground/01-playground-reference.ipynb",
+      "notebook_elapsed_seconds": 6.045570509999834,
+      "notebook_sha256": "33d6d4e9b4aad7f0840bd57a9acd5fe3a065f2a4dc6b8933bbded1becb350c0b",
+      "report": "01-playground-live-diffusion.json",
+      "report_sha256": "5a8a4c109db1c6156b8cc01b58738a34cc4bcdd39c26651ac31d69e93b36c94e",
+      "status": "passed",
+      "wall_seconds": 9.21,
+      "workload": "Required 01-playground live-diffusion on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "live-smolvla",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 1508.28369140625,
+        "peak_reserved_mib": 1552.0
+      },
+      "notebook": "tutorials/01-playground/01-playground-reference.ipynb",
+      "notebook_elapsed_seconds": 44.27344083299977,
+      "notebook_sha256": "33d6d4e9b4aad7f0840bd57a9acd5fe3a065f2a4dc6b8933bbded1becb350c0b",
+      "report": "01-playground-live-smolvla.json",
+      "report_sha256": "26ba996a645cc44d267c3bf484fee3a576eaa3751568d26bcc511b30b0677654",
+      "status": "passed",
+      "wall_seconds": 47.72,
+      "workload": "Required 01-playground live-smolvla on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "libero-episode",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 129.470703125,
+        "peak_reserved_mib": 142.0
+      },
+      "notebook": "tutorials/02-act-execution/02-act-execution-reference.ipynb",
+      "notebook_elapsed_seconds": 88.46557147399994,
+      "notebook_sha256": "ff352508efd7c08e128513ab329734f62568585b384496eb0d536969c4d168ad",
+      "report": "02-execution.json",
+      "report_sha256": "00ce666aeced80592000c2b66507fb270fd26c72b25337f7edc04c8dad87c1c1",
+      "status": "passed",
+      "wall_seconds": 109.22,
+      "workload": "Required ACT learner loop in LIBERO on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": null,
+      "experiment": "act-train-evaluate",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 518.59033203125,
+        "peak_reserved_mib": 624.0
+      },
+      "notebook": "tutorials/04-act-training/04-act-training-reference.ipynb",
+      "notebook_elapsed_seconds": 84.32896516900018,
+      "notebook_sha256": "fe092f9aea48f9cfb7b9bea8e215e9e649b76c6a23e9ca63937da4dc13a03fbf",
+      "report": "04-act-training-act-train-evaluate.json",
+      "report_sha256": "a7b4985a9add7363e3fd84a090e4f9ef73160af5635580a47e73f9dd515651e4",
+      "status": "passed",
+      "wall_seconds": 90.06,
+      "workload": "Required 04-act-training act-train-evaluate on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "act-train-evaluate",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 518.59033203125,
+        "peak_reserved_mib": 624.0
+      },
+      "notebook": "tutorials/04-act-training/04-act-training-reference.ipynb",
+      "notebook_elapsed_seconds": 81.10050184699958,
+      "notebook_sha256": "2538e4e4eaae8728f0afb11648a7b284967508b2e9750c213fd9367db9b3bde7",
+      "report": "04-act-training-batch-order.json",
+      "report_sha256": "030872ed01df7628648e1754ae98c9d1c903a28f66da74349d98475db2292f8e",
+      "status": "passed",
+      "wall_seconds": 86.06,
+      "workload": "Corrected 04-act-training experiment on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": null,
+      "experiment": "act-train-evaluate",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 518.59033203125,
+        "peak_reserved_mib": 624.0
+      },
+      "notebook": "tutorials/04-act-training/04-act-training-reference.ipynb",
+      "notebook_elapsed_seconds": 84.12209330099995,
+      "notebook_sha256": "4c42b66fd8b925ecf794d0d7c5ccc13482b46c16b56262251d4d0dc537de8e7b",
+      "report": "04-act-training.json",
+      "report_sha256": "b0fe084ec77cb43815998e8a967a532d58f1cb9f14225ee2268f570c2020ef1c",
+      "status": "passed",
+      "wall_seconds": 89.06,
+      "workload": "Required 04-act-training experiment on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "act-adapt-evaluate",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 688.23291015625,
+        "peak_reserved_mib": 834.0
+      },
+      "notebook": "tutorials/09-act-adaptation/09-act-adaptation-reference.ipynb",
+      "notebook_elapsed_seconds": 97.79096497599949,
+      "notebook_sha256": "9541c97aedcf52afdf8d01a9e7797133d37a24fc86f5789b2261b1b6842186a3",
+      "report": "09-act-adaptation-batch-order.json",
+      "report_sha256": "8382535b8cdf6d8b570c09e4b7b55851603c1d570cb3e8bc6b8871800053c61b",
+      "status": "passed",
+      "wall_seconds": 103.06,
+      "workload": "Corrected 09-act-adaptation experiment on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": null,
+      "experiment": "act-adapt-evaluate",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 688.23291015625,
+        "peak_reserved_mib": 834.0
+      },
+      "notebook": "tutorials/09-act-adaptation/09-act-adaptation-reference.ipynb",
+      "notebook_elapsed_seconds": 94.47081428600006,
+      "notebook_sha256": "a9e113a9554238e8929f28f33e7139159f41ca1d1ed27c4bbf40c70f55f09b42",
+      "report": "09-act-adaptation.json",
+      "report_sha256": "caa7bcd403dc752948e73c7ca123754329e592017120182c20e05c0b560bd6c0",
+      "status": "passed",
+      "wall_seconds": 99.09,
+      "workload": "Required 09-act-adaptation experiment on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "diffusion-execution-rollout",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 185.62841796875,
+        "peak_reserved_mib": 208.0
+      },
+      "notebook": "tutorials/10-diffusion-execution/10-diffusion-execution-reference.ipynb",
+      "notebook_elapsed_seconds": 11.167941627000005,
+      "notebook_sha256": "6894d93edbc9125d7a170ec5c707df2f69a5ed90777e415380c8dc6c57a7eb5e",
+      "report": "10-execution.json",
+      "report_sha256": "5adc60bcecbf7f2e8dba2915fb57f8c5bfb0c73c3aacddbedb6bb1db7333bad9",
+      "status": "passed",
+      "wall_seconds": 16.71,
+      "workload": "Required Diffusion learner queue in LIBERO on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "diffusion-training",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 1010.88232421875,
+        "peak_reserved_mib": 1178.0
+      },
+      "notebook": "tutorials/11-diffusion-training/11-diffusion-training-reference.ipynb",
+      "notebook_elapsed_seconds": 226.21804948599993,
+      "notebook_sha256": "2c5e854daf53e8306b4d5cfd2facff6993cebc59620b16cd4139fb4e37c422e7",
+      "report": "11-diffusion-training.json",
+      "report_sha256": "53e9a3f7b1c7a72ce1547f2c16569cd2e8a350349f86afc05a5f18c9cf63ab00",
+      "status": "passed",
+      "wall_seconds": 229.76,
+      "workload": "Required 11-diffusion-training experiment on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "diffusion-real-policy",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 185.62841796875,
+        "peak_reserved_mib": 208.0
+      },
+      "notebook": "tutorials/14-diffusion-sampling/14-diffusion-sampling-reference.ipynb",
+      "notebook_elapsed_seconds": 10.728730828000153,
+      "notebook_sha256": "5db6ade7feb04851e425f55f42ad556613d6bd2bcab1a3f74724e1f078330107",
+      "report": "14-diffusion-sampling-diffusion-real-policy.json",
+      "report_sha256": "3873ebd29d4f6e1067a215807e58a265561db63341004835efd00ca6df5a4eba",
+      "status": "passed",
+      "wall_seconds": 15.04,
+      "workload": "Required 14-diffusion-sampling diffusion-real-policy on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "diffusion-adapted-evaluation",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 998.0654296875,
+        "peak_reserved_mib": 1172.0
+      },
+      "notebook": "tutorials/15-diffusion-adaptation/15-diffusion-adaptation-reference.ipynb",
+      "notebook_elapsed_seconds": 263.30854808799995,
+      "notebook_sha256": "4e78b3bf15d5aa986bd0d7b9aafe3a98e65d1e7289cd2c20880f9e0e78d9ad2b",
+      "report": "15-diffusion-adaptation-rerun.json",
+      "report_sha256": "3c65bef7dcf7db72b1988d9c15c75b176161966207414e1ea1bb5d331a18ce89",
+      "status": "passed",
+      "wall_seconds": 266.74,
+      "workload": "Corrected 15-diffusion-adaptation experiment on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": "ValueError",
+      "notebook": "tutorials/15-diffusion-adaptation/15-diffusion-adaptation-reference.ipynb",
+      "notebook_sha256": "1b5b422198571d5f6a6118d30ef25c08f998d745e71923087625f741dce24294",
+      "report": "15-diffusion-adaptation.json",
+      "report_sha256": "92d48a9522a56558bb458d97e79e4ac16957868e6306abe0887aa8bce53d7539",
+      "status": "failed",
+      "wall_seconds": 53.05
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "execution",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 1509.79248046875,
+        "peak_reserved_mib": 1554.0
+      },
+      "notebook": "tutorials/16-smolvla-execution/16-smolvla-execution-reference.ipynb",
+      "notebook_elapsed_seconds": 36.24385000699999,
+      "notebook_sha256": "5a92033d722cfa8edde793908e1087e29654a969cbaf3379655b4548524775e4",
+      "report": "16-execution.json",
+      "report_sha256": "9bda5338f73b5ae523ce1db5826b85ec35ca5b033f7b51ab822d2a291de0da2d",
+      "status": "passed",
+      "wall_seconds": 41.74,
+      "workload": "Required SmolVLA execution in LIBERO on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "training",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 3943.3212890625,
+        "peak_reserved_mib": 4254.0
+      },
+      "notebook": "tutorials/17-smolvla-training/17-smolvla-training-reference.ipynb",
+      "notebook_elapsed_seconds": 185.18258834499989,
+      "notebook_sha256": "7c00e1a129750b9983dc3c89f1f669f68120cb9bb626155ba396e45a461f9b7d",
+      "report": "17-smolvla-training.json",
+      "report_sha256": "7ea421c035e7bb618ef61fb2b66be9e1853dafc9e90f68221dc4a15d048d0d99",
+      "status": "passed",
+      "wall_seconds": 188.82,
+      "workload": "Required 17-smolvla-training experiment on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": "AttributeError",
+      "notebook": "tutorials/18-smolvla-conditioning/18-smolvla-conditioning-reference.ipynb",
+      "notebook_sha256": "cdeb5ad90c3cd64e3b348c4b7c75400796a0164ba7398de32d70ae95e61632db",
+      "report": "18-smolvla-conditioning-conditioning.json",
+      "report_sha256": "7cbe95806adcaafb260b3eeecf30cd180065a2e421d9a2c625c33d31e523c90f",
+      "status": "failed",
+      "wall_seconds": 28.65
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "conditioning",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 2088.02197265625,
+        "peak_reserved_mib": 2128.0
+      },
+      "notebook": "tutorials/18-smolvla-conditioning/18-smolvla-conditioning-reference.ipynb",
+      "notebook_elapsed_seconds": 25.28701735499999,
+      "notebook_sha256": "941fa4ff1ff060c7d1dc981ab23fc5673d2420176efda728cd4c47ec204b3fde",
+      "report": "18-smolvla-conditioning-rerun.json",
+      "report_sha256": "baaa8dff09a38bcca136f525b077646e7a004ee5208749f9545ea3c335f07dfc",
+      "status": "passed",
+      "wall_seconds": 31.96,
+      "workload": "Corrected 18-smolvla-conditioning experiment on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": "AssertionError",
+      "notebook": "tutorials/19-smolvla-flow/19-smolvla-flow-reference.ipynb",
+      "notebook_sha256": "cd33c2fa31570c6ae4da5486d048a42437eefdc54acfcbf6386ce6e71d135162",
+      "report": "19-smolvla-flow-flow.json",
+      "report_sha256": "fc842df62e08321ba0a4ec0a19e99926d279b78d84f2a15dfaaabcbbd793f988",
+      "status": "failed",
+      "wall_seconds": 30.26
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "flow",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 1508.29443359375,
+        "peak_reserved_mib": 1552.0
+      },
+      "notebook": "tutorials/19-smolvla-flow/19-smolvla-flow-reference.ipynb",
+      "notebook_elapsed_seconds": 26.362321760000214,
+      "notebook_sha256": "983d928706818e466c6908ffd2f55c89231cfb7b9faafe7457d8ac9653061d00",
+      "report": "19-smolvla-flow-rerun.json",
+      "report_sha256": "3f10c0408e7375481de3799204b24401987cbdec3f859b21f2915c998d03f005",
+      "status": "passed",
+      "wall_seconds": 29.69,
+      "workload": "Corrected 19-smolvla-flow experiment on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "adaptation",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 3883.248046875,
+        "peak_reserved_mib": 4102.0
+      },
+      "notebook": "tutorials/20-smolvla-adaptation/20-smolvla-adaptation-reference.ipynb",
+      "notebook_elapsed_seconds": 528.1003479620001,
+      "notebook_sha256": "fa6dddc6811f942095eeca778cab25e8e818ec8b0fb6ea04c08c44b1acaaddd4",
+      "report": "20-smolvla-adaptation.json",
+      "report_sha256": "90766339e269c20e99a638983c087461fd4d7454078a2e1bf8e12acbdd69e09a",
+      "status": "passed",
+      "wall_seconds": 531.75,
+      "workload": "Required 20-smolvla-adaptation experiment on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "data-quality-display",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 519.24609375,
+        "peak_reserved_mib": 620.0
+      },
+      "notebook": "tutorials/21-data-quality/21-data-quality-reference.ipynb",
+      "notebook_elapsed_seconds": 169.06185606100007,
+      "notebook_sha256": "c328a789788f6ecd56217f01313b4ae642a02c204d9ee6c0b89f64db63373892",
+      "report": "21-data-quality-data-quality-display.json",
+      "report_sha256": "386e0342c23b20c31360a18c01624e62b3722feca88f4b6c5914acba941b3269",
+      "status": "passed",
+      "wall_seconds": 172.61,
+      "workload": "Required 21-data-quality data-quality-display on L40S"
+    },
+    {
+      "acceptance": "superseded",
+      "execution_error": null,
+      "experiment": "comparison-report",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 180.3076171875,
+        "peak_reserved_mib": 186.0
+      },
+      "notebook": "tutorials/22-comparison/22-comparison-reference.ipynb",
+      "notebook_elapsed_seconds": 1070.9238760049998,
+      "notebook_sha256": "7999c9b63e35dfcb6d2a5f0fb3cfe96c777586b108f1fdd31bc8c5d742aacaaa",
+      "report": "22-comparison-comparison-report.json",
+      "report_sha256": "93a889ee7563f53f49d9d681cfbf5e8eaf62653cd0b1c6b6a86dbb7ae9a4532e",
+      "status": "infrastructure-errors",
+      "wall_seconds": 1075.32,
+      "workload": "Required 22-comparison comparison-report on L40S"
+    },
+    {
+      "acceptance": "current",
+      "execution_error": null,
+      "experiment": "comparison-report",
+      "gpu": {
+        "device_name": "NVIDIA L40S",
+        "peak_allocated_mib": 2882.171875,
+        "peak_reserved_mib": 3112.0
+      },
+      "notebook": "tutorials/22-comparison/22-comparison-reference.ipynb",
+      "notebook_elapsed_seconds": 1407.531402175,
+      "notebook_sha256": "f9f0b08697e69e5a3c46b08180605c895972b73f4b22800830a183b72252d694",
+      "report": "22-comparison-timing-fix.json",
+      "report_sha256": "c6f1970a70bb8fb5381a4efd5b58f53d152dadf238fdb88adff3e7d290f32ab0",
+      "status": "passed",
+      "wall_seconds": 1415.4,
+      "workload": "Corrected 22-comparison experiment on L40S"
+    }
+  ],
+  "cloud_session": {
+    "actual_invoice_usd": null,
+    "allocated_at_unix_s": 1791240848.7549763,
+    "authorized_job_cap_usd": 5,
+    "cleanup_notes": "Non-TTY CLI stop/delete calls returned success without provider action. A terminal-backed delete request completed. The stop adapter now uses a PTY; its regression checks terminal use and literal argument forwarding. A live watchdog deadline stop remains unverified.",
+    "deletion_verified_at_unix_s": 1791247796.1384463,
+    "deletion_verified_at_utc": "2026-10-06T00:49:56.138446+00:00",
+    "elapsed_seconds_upper_bound": 6947.383470058441,
+    "export": {
+      "archive": ".local-data/course-work/course-validation.tar.zst",
+      "bytes": 5687199150,
+      "extracted_to": ".local-data/course-work/cloud-export",
+      "members": 856,
+      "model_hash_checks": {
+        "act": {
+          "bytes": 62321012,
+          "path": ".local-data/course-work/cloud-export/.local-data/course-results/comparison-20261006-000449-855b4017/adapt/act/checkpoint-001200/model.safetensors",
+          "sha256": "de75f466802bcba0c4029e176f9103a0f92bd0d209962b5333f5ff4ac1b7c761"
+        },
+        "diffusion": {
+          "bytes": 162794820,
+          "path": ".local-data/course-work/cloud-export/.local-data/course-results/comparison-20261006-000449-855b4017/adapt/diffusion/checkpoint-003000/model.safetensors",
+          "sha256": "485c04cdeaf9bc5bd215c12d3bd1b02a9eb84ed499e51b9c937114c6059cb52e"
+        },
+        "smolvla_learner": {
+          "bytes": 1197789256,
+          "path": ".local-data/course-work/cloud-export/.local-data/course-results/comparison-20261006-000449-855b4017/adapt/smolvla_learner/checkpoint-006000/model.safetensors",
+          "sha256": "7c6f7422be6eb26f62e69e079eeb7e30a93372abf134d3fc3599ff1ba403d50c"
+        }
+      },
+      "required_files_present": true,
+      "sha256": "454247d2c5d5645261597baab9af654be996916b78fff513e698740dffc26fc7",
+      "verified_at_unix_s": 1791247369.1438928
+    },
+    "instance_id": "5n7mxywnj",
+    "instance_name": "vla-course-48gb-20261006",
+    "provider_deleted": true,
+    "provider_observation": {
+      "workspaces": null
+    },
+    "provider_response_sha256": "6c6d6a77534924a774a82a0ba9f5c618ddbbd2e9d2e3459ccc1f8f1cd12c0ed8",
+    "quote_based_estimate_usd": 3.618647604579495,
+    "quoted_hourly_usd": 1.8751133333333332
+  },
+  "control_hz": 20,
+  "driver": "580.173.02",
+  "gpu": "NVIDIA L40S",
+  "gpu_memory_mib": 46068,
+  "local_full_checks": [
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/03-act-data/03-act-data-reference.ipynb",
+      "profile": "full",
+      "seconds": 9.07,
+      "selected_experiments": [
+        "act-data-local"
+      ],
+      "skipped_experiments": [],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/05-act-cvae/05-act-cvae-reference.ipynb",
+      "profile": "full",
+      "seconds": 9.59,
+      "selected_experiments": [
+        "experiment-latent-size-and-kl-weight-30-45-min"
+      ],
+      "skipped_experiments": [],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/06-act-attention/06-act-attention-reference.ipynb",
+      "profile": "full",
+      "seconds": 13.93,
+      "selected_experiments": [
+        "experiment-where-does-the-padding-mask-matter-30",
+        "optional-your-layers-on-the-real-act-posterior-e"
+      ],
+      "skipped_experiments": [],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/07-act-decoder/07-act-decoder-reference.ipynb",
+      "profile": "full",
+      "seconds": 16.88,
+      "selected_experiments": [
+        "experiment-what-does-the-decoder-read-30-60-min",
+        "optional-your-decoder-layer-with-real-act-weight"
+      ],
+      "skipped_experiments": [],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/08-act-assembly/08-act-assembly-reference.ipynb",
+      "profile": "full",
+      "seconds": 136.08,
+      "selected_experiments": [
+        "experiment",
+        "experiment-which-inputs-does-your-act-need-30-60",
+        "prepared-checkpoint-real-size-parity-before-any-"
+      ],
+      "skipped_experiments": [],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/02-act-execution/02-act-execution-reference.ipynb",
+      "profile": "full",
+      "seconds": 16.5,
+      "selected_experiments": [
+        "libero-episode",
+        "libero-one-step"
+      ],
+      "skipped_experiments": [
+        "libero-chunk-comparison"
+      ],
+      "status": "passed"
+    },
+    {
+      "errors": [],
+      "execution": "passed",
+      "execution_cell_id": null,
+      "execution_error": null,
+      "execution_message": null,
+      "path": "tutorials/02-act-execution/02-act-execution-reference.ipynb",
+      "profile": "full",
+      "seconds": 25.42,
+      "selected_experiments": [
+        "libero-chunk-comparison",
+        "libero-one-step"
+      ],
+      "skipped_experiments": [
+        "libero-episode"
+      ],
+      "status": "passed"
+    }
+  ],
+  "measurement_note": "Use per-phase resource records for multi-phase runs measured before the peak-reset fix. The final comparison rerun retains whole-notebook peaks across resets.",
+  "scope": "Course execution and resource checks. Small development-state runs do not establish general policy quality.",
+  "source_storage_fps_label": 10,
+  "uv_lock_sha256": "8ea96f301065783aa631c68a73d9b4ceaff4a4546662b0cfd2c01c1eb6e99051"
+}

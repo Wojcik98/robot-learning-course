@@ -1,10 +1,12 @@
 """Evaluate frozen policy recipes on the reserved LIBERO final states."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
+from vla_lab.policy.bundle import load_act_bundle
+from vla_lab.policy.smolvla_learner import load_learner_bundle
+from vla_lab.sim.episode import open_libero_task, run_policy_episode
 from vla_lab.teaching.records import ComparisonConfig, PolicyRecipe
+from vla_lab.training.diffusion import load_diffusion_bundle
 
 if TYPE_CHECKING:
     from lerobot.policies.act import ACTPolicy
@@ -83,7 +85,7 @@ def load_comparison_config(path: str | Path, configs_root: str | Path) -> Compar
 
 def _load_method(
     method: str, recipe: PolicyRecipe, task_alias: str, split_hash: str, revision: str
-) -> tuple[ACTPolicy | DiffusionPolicy | SmolVLAPolicy, ObservationProcessor, ActionProcessor]:
+) -> "tuple[ACTPolicy | DiffusionPolicy | SmolVLAPolicy, ObservationProcessor, ActionProcessor]":
     """Load one policy after its saved model and training split pass checks."""
     source = Path(recipe["checkpoint"])
     if _sha256(source / "model.safetensors") != recipe["model_sha256"]:
@@ -105,14 +107,10 @@ def _load_method(
         ):
             raise ValueError(f"Frozen {method} training run differs from its recipe")
     if method == "act":
-        from vla_lab.policy.bundle import load_act_bundle
-
         if manifest["chunk_size"] != recipe["chunk_size"]:
             raise ValueError("Frozen ACT chunk size differs from its checkpoint")
         policy, preprocessor, postprocessor, _ = load_act_bundle(source)
     elif method == "smolvla_learner":
-        from vla_lab.policy.smolvla_learner import load_learner_bundle
-
         if (
             manifest["stage"] != "c2"
             or manifest["step"] != recipe["robot_training_steps"]
@@ -124,8 +122,6 @@ def _load_method(
             source, Path(recipe["vlm_dir"])
         )
     elif method == "diffusion":
-        from vla_lab.training.diffusion import load_diffusion_bundle
-
         if (
             manifest["n_obs_steps"] != recipe["n_obs_steps"]
             or manifest["horizon"] != recipe["horizon"]
@@ -166,8 +162,6 @@ def evaluate_frozen_method(
     configs = Path(configs_root)
     seed = int(config["base_seed"])
     if run_one is None:
-        from vla_lab.sim.episode import open_libero_task, run_policy_episode
-
         policy, preprocessor, postprocessor = _load_method(
             method,
             recipe,
@@ -218,6 +212,9 @@ def evaluate_frozen_method(
             termination_reason=result.termination_reason,
             metrics={
                 "steps": result.steps,
+                "control_hz": result.control_hz,
+                "simulated_duration_s": result.simulated_duration_s,
+                "inference_wall_s": result.inference_wall_s,
                 "clipped_values": result.clipped_values,
                 "seed": episode_seed,
             },

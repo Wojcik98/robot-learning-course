@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """Check course types, notebook signatures, and rejected policy interfaces."""
 
-from __future__ import annotations
-
 import ast
 import builtins
 import json
@@ -28,6 +26,11 @@ def check_signatures(code: str, label: str) -> dict[str, str]:
     """Require typed function arguments and returns without Any."""
     signatures = {}
     for node in ast.walk(ast.parse(code)):
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            raise ValueError(f"{label}: future imports are prohibited")
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if any(isinstance(child, (ast.Import, ast.ImportFrom)) for child in ast.walk(node)):
+                raise ValueError(f"{label}: imports must be at module or cell scope")
         if isinstance(node, ast.Name) and node.id == "Any":
             raise ValueError(f"{label}: Any is not permitted")
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -123,7 +126,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="vla-notebook-types-") as temporary:
         paths = []
         for path in notebooks:
-            if path.parent.name == "02-run-policy":
+            if path.parent.name == "02-act-execution":
                 exported = Path(temporary) / (path.stem.replace("-", "_") + ".py")
                 exported.write_text(notebook_code(path))
                 paths.append(str(exported))

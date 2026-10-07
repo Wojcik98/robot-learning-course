@@ -1,7 +1,5 @@
 """Evaluate exact simulator state IDs and keep every attempt in the result."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import time
@@ -11,6 +9,7 @@ from pathlib import Path
 import yaml
 
 from vla_lab.contracts import EpisodeOutcome
+from vla_lab.evaluation.demo import run_act_demo
 from vla_lab.evaluation.errors import EvaluationRunError
 from vla_lab.sim.episode import PolicyActionError
 from vla_lab.types import JSONValue
@@ -145,7 +144,6 @@ def evaluate_act_states(
     state_ids: Sequence[int],
 ) -> dict[str, JSONValue]:
     """Run ACT on explicit development states and save each live video."""
-    from vla_lab.evaluation.demo import run_act_demo
 
     source = Path(checkpoint)
     bundle = json.loads((source / "manifest.json").read_text())

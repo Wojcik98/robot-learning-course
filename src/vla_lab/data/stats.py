@@ -1,7 +1,5 @@
 """Fit and store statistics from training episodes only."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 from collections.abc import Mapping
@@ -36,7 +34,7 @@ class TrainingStats:
         training_episodes: Mapping[EpisodeId, ArrayLike],
         *,
         validation_episodes: Mapping[EpisodeId, ArrayLike] | None = None,
-    ) -> TrainingStats:
+    ) -> "TrainingStats":
         """Fit population statistics; validation samples do not enter the fit."""
         del validation_episodes
         if not training_episodes:
@@ -71,7 +69,7 @@ class TrainingStats:
         return {"mean": self.mean.tolist(), "std": self.std.tolist(), "sha256": self.sha256}
 
     @classmethod
-    def from_dict(cls, payload: StatsPayload) -> TrainingStats:
+    def from_dict(cls, payload: StatsPayload) -> "TrainingStats":
         """Load checkpoint statistics and verify their content hash."""
         mean = np.asarray(payload["mean"], dtype=np.float64)
         std = np.asarray(payload["std"], dtype=np.float64)

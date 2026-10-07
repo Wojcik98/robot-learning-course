@@ -1,7 +1,5 @@
 """Record one bounded keyboard episode from a development state."""
 
-from __future__ import annotations
-
 import argparse
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -9,10 +7,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar, Protocol
 
+import cv2
 import numpy as np
 import yaml
 
 from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode, record_episode
+from vla_lab.sim.episode import open_libero_task
 from vla_lab.teaching.interfaces import EpisodeEnvironment, LiberoObservation, ManagedEnvironment
 from vla_lab.types import JSONValue
 
@@ -119,7 +119,6 @@ class OpenCVKeyboardInterface:
     """Show a camera and an action panel for each 50 ms controller tick."""
 
     def __init__(self, window_name: str = "VLA keyboard recording") -> None:
-        import cv2
 
         self._cv2 = cv2
         self._window_name = window_name
@@ -273,7 +272,6 @@ def main(argv: list[str] | None = None) -> int:
 
     # Validate the partition before importing or opening the simulator.
     validate_development_state(args.task, args.state, args.configs_root)
-    from vla_lab.sim.episode import open_libero_task
 
     interface = OpenCVKeyboardInterface()
     try:

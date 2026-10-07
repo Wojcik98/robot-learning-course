@@ -1,10 +1,12 @@
 """Compare runtime modes on development states with one SmolVLA checkpoint."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
-from vla_lab.runtime.experiment import Predictor
+from vla_lab.policy.smolvla_learner import load_learner_bundle
+from vla_lab.rtc.guidance import install_guided_rtc
+from vla_lab.runtime.experiment import EpisodeRunner, Predictor
+from vla_lab.runtime.smolvla_chunks import SmolVLAChunkPredictor
+from vla_lab.sim.episode import open_libero_task
 from vla_lab.teaching.interfaces import (
     ActionProcessor,
     EpisodeEnvironment,
@@ -349,11 +351,9 @@ class TimedPredictor:
         return chunks
 
 
-def _configure_rtc(policy: SmolVLAPolicy, mode: str, stride: int) -> None:
+def _configure_rtc(policy: "SmolVLAPolicy", mode: str, stride: int) -> None:
     """Install checked guided RTC for RTC modes; leave it off for every other mode."""
     if mode in RTC_MODES:
-        from vla_lab.rtc.guidance import install_guided_rtc
-
         install_guided_rtc(policy, execution_horizon=stride, mask_mode=mode.removeprefix("rtc_"))
     else:
         policy.config.rtc_config = None
@@ -365,14 +365,12 @@ def run_mode_episode(
     *,
     config: dict[str, JSONValue],
     identity: dict[str, JSONValue],
-    policy: SmolVLAPolicy,
+    policy: "SmolVLAPolicy",
     preprocessor: ObservationProcessor,
     postprocessor: ActionProcessor,
     environment: EpisodeEnvironment[LiberoObservation],
 ) -> dict[str, JSONValue]:
     """Run one mode on one state with a fresh policy reset and timed requests."""
-    from vla_lab.runtime.experiment import EpisodeRunner
-    from vla_lab.runtime.smolvla_chunks import SmolVLAChunkPredictor
 
     runtime, mode = config["runtime"], identity["mode"]
     _configure_rtc(policy, mode, runtime["stride"])
@@ -451,9 +449,6 @@ def run_latency_experiment(
             else:
                 saved_results.append(saved)
     if pending:
-        from vla_lab.policy.smolvla_learner import load_learner_bundle
-        from vla_lab.sim.episode import open_libero_task
-
         verify_model_source(config)
         learner = config["learner"]
         policy, preprocessor, postprocessor, _ = load_learner_bundle(

@@ -1,9 +1,12 @@
-from __future__ import annotations
+from pathlib import Path
 
 import pytest
 import torch
+import yaml
+from lerobot.utils.constants import OBS_IMAGES
 from torch import nn
 
+from vla_lab.teaching import live
 from vla_lab.teaching.live import find_workspace, load_act_batches, make_act_raw_model
 
 
@@ -34,7 +37,6 @@ def test_batch_loader_fails_closed_when_local_dataset_is_missing(tmp_path):
 
 
 def test_raw_act_bridge_calls_model_without_policy_loss_and_keeps_gradients():
-    from lerobot.utils.constants import OBS_IMAGES
 
     class FakeModel(nn.Module):
         def __init__(self):
@@ -65,7 +67,6 @@ def test_raw_act_bridge_calls_model_without_policy_loss_and_keeps_gradients():
 
 
 def test_published_smolvla_manifest_has_every_loader_field():
-    import yaml
 
     root = find_workspace()
     manifest = yaml.safe_load((root / "manifests" / "smolvla_reference.yaml").read_text())
@@ -82,12 +83,6 @@ def test_published_smolvla_manifest_has_every_loader_field():
 def test_published_smolvla_loader_reads_both_local_paths_from_reference_manifest(
     tmp_path, monkeypatch
 ):
-    from pathlib import Path
-
-    import yaml
-
-    from vla_lab.policy import smolvla
-    from vla_lab.teaching import live
 
     (tmp_path / "manifests").mkdir()
     reference = {
@@ -136,7 +131,7 @@ def test_published_smolvla_loader_reads_both_local_paths_from_reference_manifest
 
     monkeypatch.setattr(live, "_sha256_file", fake_hash)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-    monkeypatch.setattr(smolvla, "load_published_smolvla", fake_loader)
+    monkeypatch.setattr(live, "load_published_smolvla", fake_loader)
 
     result = live.load_prepared_policy("smolvla_published", tmp_path)
 

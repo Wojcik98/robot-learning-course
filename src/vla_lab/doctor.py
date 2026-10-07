@@ -1,7 +1,5 @@
 """Check the local files and runtime needed for the first ACT lab."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import shutil
@@ -11,6 +9,7 @@ import torch
 import yaml
 from torchcodec.decoders import VideoDecoder
 
+from vla_lab.sim.episode import open_libero_task
 from vla_lab.types import JSONValue
 
 
@@ -89,7 +88,6 @@ def check_local_runtime(workspace: Path, data_root: Path) -> list[dict[str, str 
 
 def check_live_renderer(workspace: Path, data_root: Path) -> dict[str, str | bool]:
     """Reset one development state and inspect a rendered camera image."""
-    from vla_lab.sim.episode import open_libero_task
 
     environment = None
     try:

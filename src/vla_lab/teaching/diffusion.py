@@ -13,10 +13,10 @@ same signature can be passed through the hooks (``ConditionalUnet1D(forward_fn=.
 ``CallbackDiffusionPolicy(sampler=...)``, ...), so the real path calls the learner code.
 """
 
-from __future__ import annotations
-
+import hashlib
 import json
 import math
+import time
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -24,8 +24,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict, Unpack, cast
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
 import torch
 import yaml
+from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
+from lerobot.processor import load_pretrained_policy_processors
 from torch import Tensor, nn
 
 from vla_lab.teaching.blocks import FilmForward, FilmParts, UNetForward, UNetParts
@@ -40,7 +45,7 @@ if TYPE_CHECKING:
     from lerobot.processor import PolicyProcessorPipeline
 
 
-# --- Unit 9: forward process and training objective ---------------------------------------------
+# --- Forward process and training objective ---------------------------------------------
 
 
 def cosine_betas(num_steps: int, max_beta: float = 0.999) -> Tensor:
@@ -147,11 +152,11 @@ class DDPMSchedule:
     @classmethod
     def from_betas(
         cls, betas: Tensor, cumulative_fn: Callable[[Tensor], Tensor] = cumulative_alphas
-    ) -> DDPMSchedule:
+    ) -> "DDPMSchedule":
         return cls(betas=betas, alpha_bar=cumulative_fn(betas))
 
     @classmethod
-    def cosine(cls, num_steps: int = 100, **kwargs: Callable[[Tensor], Tensor]) -> DDPMSchedule:
+    def cosine(cls, num_steps: int = 100, **kwargs: Callable[[Tensor], Tensor]) -> "DDPMSchedule":
         return cls.from_betas(cosine_betas(num_steps), **kwargs)
 
     @classmethod
@@ -161,11 +166,11 @@ class DDPMSchedule:
         start: float = 1e-4,
         end: float = 0.02,
         **kwargs: Callable[[Tensor], Tensor],
-    ) -> DDPMSchedule:
+    ) -> "DDPMSchedule":
         return cls.from_betas(torch.linspace(start, end, num_steps, dtype=torch.float32), **kwargs)
 
     @classmethod
-    def from_scheduler(cls, scheduler: NoiseScheduler) -> DDPMSchedule:
+    def from_scheduler(cls, scheduler: NoiseScheduler) -> "DDPMSchedule":
         """Read the tables of a ``diffusers`` ``DDPMScheduler`` (for comparisons)."""
         return cls(betas=scheduler.betas.clone(), alpha_bar=scheduler.alphas_cumprod.clone())
 
@@ -201,7 +206,7 @@ def flat_state_condition(batch: Mapping[str, Tensor]) -> Tensor:
     return batch["observation.state"].flatten(1)
 
 
-# --- Unit 10A: timestep embedding and FiLM residual block ---------------------------------------
+# --- Timestep embedding and FiLM residual block ---------------------------------------
 
 
 def sinusoidal_timestep_embedding(timesteps: Tensor, dim: int) -> Tensor:
@@ -298,7 +303,7 @@ class ConditionalResidualBlock1d(nn.Module):
         return self.forward_fn(self, x, cond)
 
 
-# --- Unit 10B: temporal U-Net -------------------------------------------------------------------
+# --- Temporal U-Net -------------------------------------------------------------------
 
 
 class UNetChannelPlan(TypedDict):
@@ -454,7 +459,7 @@ class UNetHooks(TypedDict, total=False):
 
 
 def unet_from_lerobot(
-    lerobot_unet: DiffusionConditionalUnet1d,
+    lerobot_unet: "DiffusionConditionalUnet1d",
     *,
     converter: Callable[
         [Mapping[str, Tensor]], dict[str, Tensor]
@@ -491,7 +496,7 @@ def unet_from_lerobot(
 @torch.no_grad()
 def verify_unet_parity(
     learner: ConditionalUnet1D,
-    lerobot_unet: DiffusionConditionalUnet1d,
+    lerobot_unet: "DiffusionConditionalUnet1d",
     x: Tensor,
     timestep: Tensor,
     global_cond: Tensor | None,
@@ -504,7 +509,7 @@ def verify_unet_parity(
     )
 
 
-# --- Unit 11: reverse process and sampling ------------------------------------------------------
+# --- Reverse process and sampling ------------------------------------------------------
 
 
 def inference_timesteps(num_train_timesteps: int, num_inference_steps: int) -> list[int]:
@@ -640,9 +645,6 @@ def _episode_arrays(
     data_root: Path, episode_ids: Sequence[int]
 ) -> dict[int, tuple[np.ndarray, np.ndarray]]:
     """Read ``(state, action)`` arrays per episode from the local parquet files. Never downloads."""
-    import pyarrow as pa
-    import pyarrow.compute as pc
-    import pyarrow.parquet as pq
 
     root = Path(data_root) / "hub" / "lerobot-libero"
     if not (root / "meta" / "episodes").is_dir():
@@ -691,7 +693,7 @@ def load_state_action_windows(
     Indices outside the episode repeat the nearest frame and set ``action_is_pad``. As in the
     pinned recipe the last ``horizon - n_action_steps - n_obs_steps + 1`` frames (default 7 for
     16/8/2) are not used as current frames. Values are min-max scaled to ``[-1, 1]`` with the
-    training extrema from ``configs/data/stats``. Source frames are 10 Hz; nothing is resampled
+    training extrema from ``configs/data/stats``. Source timestamps use a 10 FPS storage label; nothing is resampled
     to the 20 Hz simulator controller.
 
     ``action_start`` moves the first action of the window relative to the current frame. The
@@ -749,17 +751,13 @@ def take_batch(windows: Mapping[str, Tensor], indices: Sequence[int] | Tensor) -
 
 def load_prepared_diffusion(
     checkpoint: str | Path, *, device: str = "cpu"
-) -> tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]:
+) -> "tuple[DiffusionPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]":
     """Load a prepared diffusion bundle (policy and processors) on ``device``. Never downloads.
 
     The weights are checked against ``manifest.json`` (SHA-256 of ``model.safetensors``). The pinned
     ImageNet backbone file is not needed because the saved weights replace it. Returns
     ``(policy, preprocessor, postprocessor)``; the policy is in evaluation mode.
     """
-    import hashlib
-
-    from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
-    from lerobot.processor import load_pretrained_policy_processors
 
     root = Path(checkpoint)
     manifest = json.loads((root / "manifest.json").read_text())
@@ -788,7 +786,7 @@ class LeRobotDenoiser(nn.Module):
     per camera key. All policy parameters are visible to the optimizer through ``self.policy``.
     """
 
-    def __init__(self, policy: DiffusionPolicy, unet: nn.Module | None = None) -> None:
+    def __init__(self, policy: "DiffusionPolicy", unet: nn.Module | None = None) -> None:
         super().__init__()
         self.policy = policy
         self.unet = unet if unet is not None else policy.diffusion.unet
@@ -805,7 +803,7 @@ class LeRobotDenoiser(nn.Module):
         return self.unet(noisy_actions, timesteps, global_cond=self.global_condition(batch))
 
 
-def stack_observation(policy: DiffusionPolicy, batch: Mapping[str, Tensor]) -> dict[str, Tensor]:
+def stack_observation(policy: "DiffusionPolicy", batch: Mapping[str, Tensor]) -> dict[str, Tensor]:
     """Add ``observation.images`` ``(B, n_obs, n_cam, C, H, W)`` like ``DiffusionPolicy.forward``."""
     keys = list(policy.config.image_features)
     stacked = dict(batch)
@@ -843,7 +841,7 @@ class CallbackDiffusionPolicy:
 
     def __init__(
         self,
-        policy: DiffusionPolicy,
+        policy: "DiffusionPolicy",
         sampler: DiffusionSampler = sample_actions,
         slicer: Callable[[Tensor, int, int], Tensor] = executed_action_slice,
         *,
@@ -912,7 +910,6 @@ class CallbackDiffusionPolicy:
 
     @torch.no_grad()
     def select_action(self, batch: Mapping[str, Tensor]) -> Tensor:
-        import time
 
         config = cast("DiffusionConfig", self.policy.config)
         self._push(batch)

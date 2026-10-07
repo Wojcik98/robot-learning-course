@@ -1,7 +1,5 @@
 """Train the pinned SmolVLA learner in two recorded stages."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -18,6 +16,14 @@ import yaml
 from torch.utils.data._utils.collate import default_collate
 
 from vla_lab.experiments.smolvla import load_smolvla_train_config
+from vla_lab.policy.smolvla_learner import (
+    _sha256,
+    audit_learner_parameter_groups,
+    build_learner_policy,
+    load_learner_bundle,
+    make_learner_processors,
+    save_learner_bundle,
+)
 from vla_lab.training.act import SAMPLER_VERSION, _batch_indices, _frozen_training_dataset
 
 
@@ -168,15 +174,6 @@ def train_smolvla_stage(
         (data / "hf" / name).mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("HF_HUB_CACHE", str(data / "hf" / "hub"))
     os.environ.setdefault("HF_DATASETS_CACHE", str(data / "hf" / "datasets"))
-
-    from vla_lab.policy.smolvla_learner import (
-        _sha256,
-        audit_learner_parameter_groups,
-        build_learner_policy,
-        load_learner_bundle,
-        make_learner_processors,
-        save_learner_bundle,
-    )
 
     if _sha256(vlm / "model.safetensors") != vlm_sha256:
         raise ValueError("Pinned VLM weights differ from the declared source hash")

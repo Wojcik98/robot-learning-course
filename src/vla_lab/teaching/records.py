@@ -1,7 +1,5 @@
 """Field types for data and result records used by the course."""
 
-from __future__ import annotations
-
 from typing import NotRequired, TypedDict
 
 import numpy as np
@@ -157,9 +155,9 @@ class AlignedTransition[ObservationT](TypedDict):
 class TransitionAlignment(TypedDict):
     aligned: bool
     offset_ticks: list[int]
-    action_hz: int
-    recorded_dataset_hz: int
-    dataset_stride_ticks: int
+    control_hz: int
+    source_storage_fps: int
+    simulated_duration_s: float
 
 
 class SimulationTask(TypedDict):

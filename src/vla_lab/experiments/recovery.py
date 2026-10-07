@@ -1,7 +1,5 @@
 """Continue ACT on accepted recordings and keep assessment states separate."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -10,7 +8,11 @@ from pathlib import Path
 import yaml
 
 from vla_lab.data.recording import CONTROL_PERIOD_MS, RecordedEpisode
-from vla_lab.teaching.interfaces import ResampleRowsFunction, TransitionRowsFunction, WindowFunction
+from vla_lab.data.recovery_dataset import RecoveryDataset
+from vla_lab.policy.bundle import load_act_bundle
+from vla_lab.teaching.interfaces import TransitionRowsFunction, WindowFunction
+from vla_lab.timing import LIBERO_CONTROL_HZ, SOURCE_STORAGE_FPS, require_libero_rate
+from vla_lab.training.act import train_act_reference
 from vla_lab.types import JSONValue
 
 _ACT_CHUNK_SIZE = 20
@@ -24,18 +26,18 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _timing_provenance(training_transition_hz: int) -> dict[str, JSONValue]:
+def _timing_provenance(control_hz: int = LIBERO_CONTROL_HZ) -> dict[str, JSONValue]:
     """Describe recording, training, chunk, and controller timing separately."""
     recording_hz = 1000 // CONTROL_PERIOD_MS
-    if training_transition_hz < 1 or recording_hz % training_transition_hz:
-        raise ValueError("training_transition_hz must be a positive divisor of the recording rate")
+    require_libero_rate(control_hz)
     return {
         "recorded_controller_period_ms": CONTROL_PERIOD_MS,
         "recorded_control_hz": recording_hz,
-        "training_transition_hz": training_transition_hz,
-        "training_resample_stride": recording_hz // training_transition_hz,
+        "training_transition_hz": control_hz,
+        "source_storage_fps": SOURCE_STORAGE_FPS,
+        "saved_transition_stride": 1,
         "act_action_chunk_steps": _ACT_CHUNK_SIZE,
-        "act_action_chunk_duration_s": _ACT_CHUNK_SIZE / training_transition_hz,
+        "act_action_chunk_duration_s": _ACT_CHUNK_SIZE / control_hz,
         "controller_action_hz": recording_hz,
         "controller_behavior": "apply one action per 20 Hz controller tick",
     }
@@ -108,21 +110,12 @@ def continue_act_with_recovery(
     steps: int = 200,
     seed: int = 20261001,
     transition_rows_fn: TransitionRowsFunction | None = None,
-    resample_rows_fn: ResampleRowsFunction | None = None,
-    training_transition_hz: int | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
     window_fn: WindowFunction | None = None,
 ) -> dict[str, JSONValue]:
     """Train a bounded ACT continuation with a new optimizer and saved processor."""
-    from vla_lab.data.recovery_dataset import RecoveryDataset
-    from vla_lab.policy.bundle import load_act_bundle
-    from vla_lab.training.act import train_act_reference
 
-    if resample_rows_fn is not None and training_transition_hz is None:
-        raise ValueError("Set training_transition_hz when resample_rows_fn changes the data rate")
-    effective_training_hz = (
-        1000 // CONTROL_PERIOD_MS if training_transition_hz is None else training_transition_hz
-    )
-    timing = _timing_provenance(effective_training_hz)
+    timing = _timing_provenance(control_hz)
 
     manifest_file = Path(manifest_path)
     config_root = Path(configs_root)
@@ -149,7 +142,6 @@ def continue_act_with_recovery(
         task_id=task_alias,
         expected_reset_seeds={item["reset_seed"] for item in record["recordings"]},
         transition_rows_fn=transition_rows_fn,
-        resample_rows_fn=resample_rows_fn,
         window_fn=window_fn,
     )
     result = train_act_reference(

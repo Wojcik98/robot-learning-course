@@ -1,17 +1,18 @@
 """Run one ACT episode with the pinned LIBERO observation path."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import cast
 
 import numpy as np
 import torch
 import yaml
+from lerobot.envs.libero import LiberoEnv
 from lerobot.envs.utils import preprocess_observation
 from lerobot.processor import LiberoProcessorStep
+from libero.libero import benchmark
 from numpy.typing import NDArray
 
 from vla_lab.teaching.interfaces import (
@@ -26,6 +27,7 @@ from vla_lab.teaching.interfaces import (
     RawObservationValue,
 )
 from vla_lab.teaching.records import SimulationTask
+from vla_lab.timing import LIBERO_CONTROL_HZ, require_libero_rate
 
 from .setup import prepare_local_libero, select_local_assets
 
@@ -40,6 +42,13 @@ class EpisodeResult:
     steps: int
     clipped_values: int
     termination_reason: str = "unknown"
+    control_hz: int = LIBERO_CONTROL_HZ
+    inference_wall_s: float = 0.0
+
+    @property
+    def simulated_duration_s(self) -> float:
+        """Return policy control time; reset settling time is excluded."""
+        return self.steps / self.control_hz
 
 
 class PolicyActionError(ValueError):
@@ -70,16 +79,20 @@ def _single_env_batch(observation: LiberoObservation) -> dict[str, RawObservatio
 
 
 def open_libero_task(
-    task_alias: str, state_id: int, configs_root: str | Path, data_root: str | Path
+    task_alias: str,
+    state_id: int,
+    configs_root: str | Path,
+    data_root: str | Path,
+    *,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> ManagedEnvironment[LiberoObservation]:
     """Open one pinned LIBERO task at one initial state."""
+    require_libero_rate(control_hz)
     task = _task_split(task_alias, configs_root)
     if state_id < 0 or state_id >= task["state_count"]:
         raise ValueError(f"Initial state {state_id} is outside the task state range")
     prepare_local_libero(data_root)
     select_local_assets(data_root)
-    from lerobot.envs.libero import LiberoEnv
-    from libero.libero import benchmark
 
     suite = benchmark.get_benchmark_dict()[task["suite"]]()
     environment = LiberoEnv(
@@ -94,7 +107,7 @@ def open_libero_task(
         episode_index=state_id,
         n_envs=1,
         num_steps_wait=10,
-        control_freq=20,
+        control_freq=control_hz,
         control_mode="relative",
         hard_reset=True,
     )
@@ -116,8 +129,10 @@ def run_policy_episode(
     on_frame: Callable[[np.ndarray], None] | None = None,
     task_prompt: str | None = None,
     reset_seed: int | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> EpisodeResult:
     """Run one policy on a declared state partition."""
+    require_libero_rate(control_hz)
     task = _task_split(task_alias, configs_root)
     if partition not in ("development", "final"):
         raise ValueError(f"Unknown state partition: {partition}")
@@ -137,10 +152,11 @@ def run_policy_episode(
     libero_processor = LiberoProcessorStep()
     # LeRobot method annotations omit the task text kept by its processors.
     select_action = cast(Callable[[ProcessorObservation], torch.Tensor], policy.select_action)
+    inference_wall_s = 0.0
     clipped_values = 0
     success = False
     termination_reason = "timeout"
-    for step in range(1, max_steps + 1):
+    for step in range(1, max_steps + 1):  # noqa: B007 - saved in the episode result
         processed = libero_processor.observation(
             cast(
                 Callable[[dict[str, RawObservationValue]], ProcessorObservation],
@@ -150,9 +166,13 @@ def run_policy_episode(
         if task_prompt is not None:
             processed["task"] = task_prompt
         batch = preprocessor(cast(ProcessorObservation, processed))
+        prediction_started = perf_counter()
         with torch.no_grad():
             normalized_action = select_action(batch)
             physical_action = postprocessor(normalized_action)
+        if physical_action.is_cuda:
+            torch.cuda.synchronize(physical_action.device)
+        inference_wall_s += perf_counter() - prediction_started
         action: NDArray[np.float32] = np.asarray(physical_action, dtype=np.float32).reshape(-1)
         if action.shape != (7,) or not np.isfinite(action).all():
             raise PolicyActionError("Policy returned an invalid seven-value action")
@@ -167,7 +187,16 @@ def run_policy_episode(
                 "success" if success else "terminated" if terminated else "truncated"
             )
             break
-    return EpisodeResult(task_alias, state_id, success, step, clipped_values, termination_reason)
+    return EpisodeResult(
+        task_alias,
+        state_id,
+        success,
+        step,
+        clipped_values,
+        termination_reason,
+        control_hz,
+        inference_wall_s,
+    )
 
 
 def run_act_episode(
@@ -183,6 +212,7 @@ def run_act_episode(
     max_steps: int = 300,
     on_frame: Callable[[np.ndarray], None] | None = None,
     reset_seed: int | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> EpisodeResult:
     """Run ACT with the shared LIBERO observation path."""
     return run_policy_episode(
@@ -197,4 +227,5 @@ def run_act_episode(
         max_steps=max_steps,
         on_frame=on_frame,
         reset_seed=reset_seed,
+        control_hz=control_hz,
     )

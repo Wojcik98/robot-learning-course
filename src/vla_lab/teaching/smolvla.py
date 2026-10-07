@@ -1,4 +1,4 @@
-"""SmolVLA input preparation and flow-matching operations (course units 12A and 12B).
+"""SmolVLA input preparation and flow-matching operations.
 
 The pinned model (``lerobot.policies.smolvla``) is a vision-language model (VLM) with a
 separate action expert. The VLM and the expert blocks are supplied; this module exposes
@@ -16,8 +16,6 @@ This is *not* the ACT Transformer: the SmolVLA expert is a small language-model-
 whose attention reads the VLM's cached keys and values. Do not treat the two as the same block.
 """
 
-from __future__ import annotations
-
 import time as _time
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
@@ -26,8 +24,12 @@ from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
+from lerobot.policies.common.vla_utils import make_att_2d_masks
+from lerobot.processor import load_pretrained_policy_processors
 from torch import Tensor, nn
 
+from vla_lab.policy.smolvla import load_published_smolvla
+from vla_lab.policy.smolvla_learner import load_learner_bundle
 from vla_lab.teaching.interfaces import (
     FlowSampler,
     ModelT,
@@ -49,7 +51,7 @@ TOKENS_KEY = "observation.language.tokens"
 TOKEN_MASK_KEY = "observation.language.attention_mask"
 VLM_PREFIX = "model.vlm_with_expert.vlm."
 
-# --- Unit 12A: input preparation ---------------------------------------------------------------
+# --- Input preparation ---------------------------------------------------------------
 
 
 def resize_pad_normalize_image(image: Tensor, height: int, width: int) -> Tensor:
@@ -165,7 +167,7 @@ def train_mode_with_frozen_vlm(
     return policy
 
 
-# --- Unit 12B: flow matching --------------------------------------------------------------------
+# --- Flow matching --------------------------------------------------------------------
 
 
 def flow_training_pair(actions: Tensor, noise: Tensor, time: Tensor) -> tuple[Tensor, Tensor]:
@@ -221,9 +223,9 @@ class SmolVLAAdapter(nn.Module):
 
     def __init__(
         self,
-        policy: SmolVLAPolicy,
-        train_mode_fn: Callable[[SmolVLAPolicy], SmolVLAPolicy] = train_mode_with_frozen_vlm,
-        input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], VLAInputs] | None = None,
+        policy: "SmolVLAPolicy",
+        train_mode_fn: "Callable[[SmolVLAPolicy], SmolVLAPolicy]" = train_mode_with_frozen_vlm,
+        input_fn: "Callable[[SmolVLAAdapter, Mapping[str, Tensor]], VLAInputs] | None" = None,
     ) -> None:
         super().__init__()
         self.policy = policy
@@ -237,7 +239,7 @@ class SmolVLAAdapter(nn.Module):
         self.max_action_dim = self.config.max_action_dim
         self.chunk_size = self.config.chunk_size
 
-    def train(self, mode: bool = True) -> SmolVLAAdapter:
+    def train(self, mode: bool = True) -> "SmolVLAAdapter":
         """``adapter.train()`` (called by every update) uses ``train_mode_fn`` to keep the VLM frozen."""
         super().train(mode)
         if mode:
@@ -277,7 +279,6 @@ class SmolVLAAdapter(nn.Module):
     # --- raw velocity (training path) ---
     def velocity(self, inputs: VLAInputs, x_t: Tensor, time: Tensor) -> Tensor:
         """Predicted velocity ``v (B, T, max_action_dim)`` for noisy actions ``x_t`` at ``time``."""
-        from lerobot.policies.common.vla_utils import make_att_2d_masks
 
         model = self.policy.model
         prefix_embs, prefix_pad, prefix_att = model.embed_prefix(
@@ -315,9 +316,8 @@ class SmolVLAAdapter(nn.Module):
 
     # --- inference path ---
     @torch.no_grad()
-    def prefix_cache(self, inputs: VLAInputs) -> tuple[Tensor, DynamicCache | None]:
+    def prefix_cache(self, inputs: VLAInputs) -> "tuple[Tensor, DynamicCache | None]":
         """Run the image/text/state prefix once. Returns ``(prefix_pad_masks, key_value_cache)``."""
-        from lerobot.policies.common.vla_utils import make_att_2d_masks
 
         model = self.policy.model
         embs, pad, att = model.embed_prefix(
@@ -338,7 +338,7 @@ class SmolVLAAdapter(nn.Module):
 
     @torch.no_grad()
     def denoise(
-        self, cache: tuple[Tensor, DynamicCache | None], x_t: Tensor, time: Tensor
+        self, cache: "tuple[Tensor, DynamicCache | None]", x_t: Tensor, time: Tensor
     ) -> Tensor:
         """The pinned ``denoise_step``: velocity for ``x_t`` using the cached prefix."""
         pad, past = cache
@@ -414,7 +414,7 @@ class CallbackSmolVLAPolicy:
 
     def __init__(
         self,
-        policy: SmolVLAPolicy,
+        policy: "SmolVLAPolicy",
         sampler: FlowSampler = euler_sample,
         input_fn: Callable[[SmolVLAAdapter, Mapping[str, Tensor]], VLAInputs] | None = None,
         *,
@@ -463,7 +463,7 @@ class CallbackSmolVLAPolicy:
 
 def load_prepared_smolvla(
     kind: str, data_root: str | Path, *, device: str = "cpu", n_action_steps: int = 10
-) -> tuple[SmolVLAPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]:
+) -> "tuple[SmolVLAPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline]":
     """Load a prepared SmolVLA policy with its processors on ``device`` from local files only.
 
     ``kind="published"`` is the published ``smolvla-libero`` policy; ``kind="learner"`` is the
@@ -472,20 +472,15 @@ def load_prepared_smolvla(
     the policy is in evaluation mode. One call loads one 450M-parameter model; unload it
     (``del policy``) before loading another on a small GPU.
     """
-    from lerobot.processor import load_pretrained_policy_processors
 
     data = Path(data_root)
     vlm_dir = data / "models" / "smolvlm2-500m-video-instruct"
     if kind == "published":
-        from vla_lab.policy.smolvla import load_published_smolvla
-
         source = data / "models" / "smolvla-libero"
         policy, _, _ = load_published_smolvla(
             source, vlm_dir, device=device, n_action_steps=n_action_steps
         )
     elif kind == "learner":
-        from vla_lab.policy.smolvla_learner import load_learner_bundle
-
         source = data / "runs" / "smolvla-c2-5000-development" / "checkpoint-005000"
         policy, _, _, _ = load_learner_bundle(source, vlm_dir, device=device)
     else:

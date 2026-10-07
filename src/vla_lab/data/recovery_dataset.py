@@ -1,13 +1,13 @@
 """Make ACT training samples from checked recovery recordings."""
 
-from __future__ import annotations
-
 from collections.abc import Callable, Collection, Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
 import numpy as np
 import torch
+from lerobot.envs.utils import preprocess_observation
+from lerobot.processor import LiberoProcessorStep
 from torch.utils.data import Dataset
 
 from vla_lab.contracts import ActionSchema
@@ -17,7 +17,6 @@ from vla_lab.teaching.interfaces import (
     RawObservation,
     RawObservationValue,
     RecordedObservation,
-    ResampleRowsFunction,
     TransitionRowsFunction,
     WindowFunction,
 )
@@ -71,8 +70,6 @@ def _libero_observation_transform(
     observation: Mapping[str, RawObservationValue],
 ) -> dict[str, torch.Tensor]:
     """Use the same observation conversion as the ACT simulator path."""
-    from lerobot.envs.utils import preprocess_observation
-    from lerobot.processor import LiberoProcessorStep
 
     processed = LiberoProcessorStep().observation(
         cast(Callable[[RawObservation], ProcessorObservation], preprocess_observation)(
@@ -107,7 +104,6 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
             [Mapping[str, RawObservationValue]], Mapping[str, torch.Tensor]
         ] = _libero_observation_transform,
         transition_rows_fn: TransitionRowsFunction | None = None,
-        resample_rows_fn: ResampleRowsFunction | None = None,
         window_fn: WindowFunction | None = None,
     ) -> None:
         if not episode_paths:
@@ -147,7 +143,6 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
 
         self._episodes = episodes
         self._observation_transform = observation_transform
-        self._resample_rows_fn = resample_rows_fn
         self._window_fn = window_fn
         self._starts: list[tuple[int, int]] = []
         self._observations: list[Mapping[str, RawObservationValue]] = []
@@ -178,26 +173,24 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
                 action = np.asarray(row.get("action"), dtype=np.float32)
                 if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
                     raise ValueError("transition_rows_fn changed an applied action or its order")
-            selected = (
-                list(self._resample_rows_fn(transitions))
-                if self._resample_rows_fn is not None
-                else list(transitions)
-            )
-            if not selected:
-                raise ValueError("resample_rows_fn must keep at least one transition per episode")
+            selected = list(transitions)
             source_rows = {int(row["tick"]): row for row in transitions}
             selected_actions = []
             for selected_tick, selected_row in enumerate(selected):
                 tick = int(selected_row.get("tick", -1))
-                if tick not in source_rows or not _values_equal(
-                    selected_row.get("observation"), source_rows[tick].get("observation")
+                if (
+                    tick != selected_tick
+                    or tick not in source_rows
+                    or not _values_equal(
+                        selected_row.get("observation"), episode.observations[tick]
+                    )
                 ):
-                    raise ValueError("resample_rows_fn must select original aligned rows")
+                    raise ValueError("transition_rows_fn must select original aligned rows")
                 if selected_tick and tick <= int(selected[selected_tick - 1]["tick"]):
-                    raise ValueError("resample_rows_fn must preserve transition order")
+                    raise ValueError("transition_rows_fn must preserve transition order")
                 action = np.asarray(selected_row.get("action"), dtype=np.float32)
                 if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
-                    raise ValueError("resample_rows_fn changed an applied action")
+                    raise ValueError("transition_rows_fn changed an applied action")
                 selected_actions.append(action.copy())
                 self._starts.append((episode_index, selected_tick))
                 self._observations.append(selected_row["observation"])

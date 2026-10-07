@@ -1,7 +1,5 @@
 """Record keyboard actions with observations from the same simulator tick."""
 
-from __future__ import annotations
-
 import json
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -19,8 +17,9 @@ from vla_lab.teaching.interfaces import (
     RecordedObservation,
 )
 from vla_lab.teaching.records import RecordingDefect
+from vla_lab.timing import LIBERO_CONTROL_HZ, require_libero_rate
 
-CONTROL_PERIOD_MS = 50
+CONTROL_PERIOD_MS = 1000 // LIBERO_CONTROL_HZ
 _TRANSLATION_STEP = 0.25
 _ROTATION_STEP = 0.25
 
@@ -178,6 +177,11 @@ class RecordedEpisode:
         object.__setattr__(self, "observations", copied)
         object.__setattr__(self, "defect", None if self.defect is None else dict(self.defect))
 
+    @property
+    def simulated_duration_s(self) -> float:
+        """Return the duration of the saved control transitions in seconds."""
+        return len(self.actions) * self.controller_period_ms / 1000
+
     def save(self, path: str | Path) -> Path:
         """Save arrays and metadata in a pickle-free compressed NPZ file."""
         target = Path(path)
@@ -190,6 +194,8 @@ class RecordedEpisode:
             "task_id": self.task_id,
             "reset_seed": self.reset_seed,
             "controller_period_ms": self.controller_period_ms,
+            "simulated_duration_s": self.simulated_duration_s,
+            "saved_transition_hz": 1000 / self.controller_period_ms,
             "action_schema": {
                 **vars(self.schema),
                 "lower": list(self.schema.lower),
@@ -215,7 +221,7 @@ class RecordedEpisode:
         return target
 
     @classmethod
-    def load(cls, path: str | Path) -> RecordedEpisode:
+    def load(cls, path: str | Path) -> "RecordedEpisode":
         """Load and validate an NPZ episode without enabling pickle."""
         with np.load(path, allow_pickle=False) as saved:
             metadata = json.loads(str(saved["metadata"].item()))
@@ -253,6 +259,7 @@ def record_episode(
     max_steps: int = 300,
     episode_id: str,
     reset_seed: int | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> RecordedEpisode:
     """Record bounded keyboard actions with pre-action simulator observations."""
     mapper = KeyboardActionMapper()
@@ -263,6 +270,7 @@ def record_episode(
         max_steps=max_steps,
         episode_id=episode_id,
         reset_seed=reset_seed,
+        control_hz=control_hz,
     )
 
 
@@ -274,8 +282,10 @@ def record_action_episode(
     max_steps: int = 300,
     episode_id: str,
     reset_seed: int | None = None,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> RecordedEpisode:
     """Record the bounded action applied after each matching observation."""
+    require_libero_rate(control_hz)
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
     reset = environment.reset(seed=reset_seed) if reset_seed is not None else environment.reset()
@@ -308,6 +318,7 @@ def record_action_episode(
         observation_ticks=np.asarray(observation_ticks),
         observations=tuple(observations),
         reset_seed=reset_seed,
+        controller_period_ms=1000 // control_hz,
     )
 
 

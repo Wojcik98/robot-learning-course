@@ -1,8 +1,8 @@
 """Small training operations used by the VLA course notebooks."""
 
-from __future__ import annotations
-
 from collections.abc import Iterable, Mapping
+from math import isfinite
+from time import monotonic
 
 import torch
 from torch import Tensor
@@ -96,13 +96,22 @@ def train_loop(
     max_grad_norm: float | None = None,
     noise: Tensor | list[Tensor] | tuple[Tensor, ...] | None = None,
     time: Tensor | list[Tensor] | tuple[Tensor, ...] | None = None,
+    max_seconds: float | None = None,
 ) -> list[dict[str, float]]:
-    """Run fixed updates, cycling through batches and optional explicit random inputs."""
+    """Run updates, cycling through batches and optional explicit random inputs.
+
+    ``max_seconds`` is an optional positive wall-time budget in seconds. Check
+    it before each update. Finish an update already in progress, then return
+    the completed history so the caller can save the model. This cooperative
+    limit can overrun by the duration of one update; it is not a process timer.
+    """
     batch_list = list(batches)
     if not batch_list:
         raise ValueError("batches must contain at least one batch")
     if steps < 0:
         raise ValueError("steps must be non-negative")
+    if max_seconds is not None and (not isfinite(max_seconds) or max_seconds <= 0):
+        raise ValueError("max_seconds must be finite and positive")
     for name, values in (("noise", noise), ("time", time)):
         if isinstance(values, (list, tuple)) and not values:
             raise ValueError(f"{name} sequence must not be empty")
@@ -115,7 +124,10 @@ def train_loop(
         return value
 
     history = []
+    deadline = None if max_seconds is None else monotonic() + max_seconds
     for index in range(steps):
+        if deadline is not None and monotonic() >= deadline:
+            break
         batch = batch_list[index % len(batch_list)]
         history.append(
             optimizer_update(

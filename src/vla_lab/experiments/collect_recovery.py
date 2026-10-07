@@ -1,7 +1,5 @@
 """Save policy-generated recovery examples on development states only."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -12,8 +10,12 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
+from lerobot.envs.utils import preprocess_observation
+from lerobot.processor import LiberoProcessorStep
 
 from vla_lab.data.recording import record_action_episode
+from vla_lab.policy.bundle import load_act_bundle
+from vla_lab.sim.episode import _single_env_batch, open_libero_task
 from vla_lab.teaching.interfaces import EpisodeEnvironment, LiberoObservation
 from vla_lab.types import JSONValue
 
@@ -68,11 +70,6 @@ def collect_reference_recovery(
     target_successes: int = 5,
 ) -> dict[str, JSONValue]:
     """Record a bounded set of successful ACT rollouts as labelled examples."""
-    from lerobot.envs.utils import preprocess_observation
-    from lerobot.processor import LiberoProcessorStep
-
-    from vla_lab.policy.bundle import load_act_bundle
-    from vla_lab.sim.episode import _single_env_batch, open_libero_task
 
     configs = Path(configs_root)
     candidates = candidate_development_states(

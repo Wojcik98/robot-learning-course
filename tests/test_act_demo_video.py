@@ -77,7 +77,9 @@ def test_policy_error_keeps_partial_video_and_run_record(
         "vla_lab.evaluation.demo.load_act_bundle",
         lambda _: (FakePolicy(), None, None, {"task_alias": "bowl_plate"}),
     )
-    monkeypatch.setattr("vla_lab.evaluation.demo.open_libero_task", lambda *args: FakeEnvironment())
+    monkeypatch.setattr(
+        "vla_lab.evaluation.demo.open_libero_task", lambda *args, **kwargs: FakeEnvironment()
+    )
     monkeypatch.setattr("vla_lab.evaluation.demo.run_act_episode", fail_after_frame)
     with pytest.raises(EvaluationRunError) as caught:
         run_act_demo(
@@ -119,7 +121,9 @@ def test_success_run_record_keeps_termination_reason(
         "vla_lab.evaluation.demo.load_act_bundle",
         lambda _: (FakePolicy(), None, None, {"task_alias": "bowl_plate"}),
     )
-    monkeypatch.setattr("vla_lab.evaluation.demo.open_libero_task", lambda *args: FakeEnvironment())
+    monkeypatch.setattr(
+        "vla_lab.evaluation.demo.open_libero_task", lambda *args, **kwargs: FakeEnvironment()
+    )
     monkeypatch.setattr("vla_lab.evaluation.demo.run_act_episode", succeed)
     record = run_act_demo(
         task_alias="bowl_plate",

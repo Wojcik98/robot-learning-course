@@ -1,7 +1,5 @@
 """Prepare a nested ACT demonstration set with its own statistics."""
 
-from __future__ import annotations
-
 import json
 from collections import defaultdict
 from collections.abc import Mapping
@@ -14,13 +12,13 @@ from numpy.typing import ArrayLike
 
 from vla_lab.data.splits import partition_sha256, split_episodes
 from vla_lab.data.stats import TrainingStats
+from vla_lab.training.act import _frozen_training_dataset
 from vla_lab.types import JSONValue
 
 
 def _selected_rows(
     configs_root: Path, data_root: Path, task_alias: str, selected_ids: list[int]
 ) -> dict[int, dict[str, np.ndarray]]:
-    from vla_lab.training.act import _frozen_training_dataset
 
     dataset = _frozen_training_dataset(
         task_alias, configs_root, data_root, episode_ids=selected_ids

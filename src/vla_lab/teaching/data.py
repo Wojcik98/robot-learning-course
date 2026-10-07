@@ -1,7 +1,5 @@
 """Episode-safe data helpers for learner exercises."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import os
@@ -10,10 +8,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import yaml
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from numpy.typing import ArrayLike
 
 from vla_lab.data.stats import TrainingStats
 from vla_lab.teaching.interfaces import StatisticsFunction, WindowFunction
+from vla_lab.teaching.live import find_workspace
 from vla_lab.teaching.records import (
     ACTBatchData,
     EpisodeArrays,
@@ -155,7 +156,6 @@ def read_local_episode_rows(
     validation split. It keeps every action and state row so windows stop at
     true episode ends, and decodes images only at a few evenly-spaced starts.
     """
-    from vla_lab.teaching.live import find_workspace
 
     if image_samples_per_episode < 1:
         raise ValueError("image_samples_per_episode must be positive")
@@ -164,7 +164,6 @@ def read_local_episode_rows(
         raise ValueError("episode_ids must contain one to eight unique IDs")
     root = find_workspace(workspace) if workspace is None else Path(workspace).resolve()
     configs = root / "configs"
-    import yaml
 
     manifest = yaml.safe_load((configs / "data" / "episodes.yaml").read_text())
     task = manifest["tasks"].get(task_alias)
@@ -184,7 +183,6 @@ def read_local_episode_rows(
     os.environ["HF_DATASETS_CACHE"] = str(hf_root / "datasets")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     dataset = LeRobotDataset(
         "lerobot/libero",
@@ -254,7 +252,6 @@ def build_act_batches(
     Each episode mapping comes from ``read_local_episode_rows``. Validation
     episodes use statistics fitted only on training state/action rows.
     """
-    import torch
 
     if not training_episodes or not validation_episodes:
         raise ValueError("training and validation episodes are both required")

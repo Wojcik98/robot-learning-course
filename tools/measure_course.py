@@ -1,17 +1,14 @@
 """Run one explicitly selected course job in memory and save its GPU resource record.
 
-This tool does not save the executed notebook. It requires an explicit flag, uses offline
+This tool does not save the executed notebook. It requires an explicit experiment, uses offline
 model/data settings, and records the source notebook hash plus PyTorch CUDA allocator peaks.
 """
-
-from __future__ import annotations
 
 import argparse
 import ast
 import hashlib
 import json
 import os
-import re
 import sys
 import tempfile
 import time
@@ -20,7 +17,12 @@ from pathlib import Path
 from uuid import uuid4
 
 import nbformat
+from jupyter_client import AsyncKernelManager
+from jupyter_client.kernelspec import KernelSpecManager
+from nbclient import NotebookClient
+from nbclient.exceptions import CellExecutionError
 
+from vla_lab.teaching.notebooks import select_cells
 from vla_lab.types import JSONValue
 
 GPU_ALLOCATOR_SCOPE = (
@@ -28,49 +30,6 @@ GPU_ALLOCATOR_SCOPE = (
     "full notebook run; excludes non-PyTorch allocations and other processes."
 )
 RESOURCE_PREFIX = "COURSE_MEASURE_JSON="
-
-
-def enable_flag(notebook: nbformat.NotebookNode, flag: str) -> None:
-    """Change the one exact ``NAME = False`` code assignment to ``NAME = True``."""
-    if not flag.isidentifier():
-        raise ValueError(f"flag must be a Python identifier: {flag!r}")
-    pattern = re.compile(rf"(?m)^(?P<indent>[ \t]*){re.escape(flag)}[ \t]*=[ \t]*False[ \t]*$")
-    matches = [
-        (cell, match)
-        for cell in notebook.cells
-        if cell.cell_type == "code"
-        for match in pattern.finditer(cell.source)
-    ]
-    if not matches:
-        raise ValueError(f"flag assignment {flag} = False was not found")
-    if len(matches) != 1:
-        raise ValueError(
-            f"flag assignment {flag} = False must occur exactly once; found {len(matches)}"
-        )
-    cell, match = matches[0]
-    cell.source = (
-        cell.source[: match.start()]
-        + f"{match.group('indent')}{flag} = True"
-        + cell.source[match.end() :]
-    )
-
-
-def replace_once(notebook: nbformat.NotebookNode, old: str, new: str) -> None:
-    """Replace one exact source string across code cells; reject zero or multiple matches."""
-    if not old:
-        raise ValueError("replacement OLD text must not be empty")
-    matches = [
-        (cell, cell.source.count(old))
-        for cell in notebook.cells
-        if cell.cell_type == "code" and old in cell.source
-    ]
-    count = sum(hits for _, hits in matches)
-    if count != 1:
-        raise ValueError(
-            f"replacement OLD text must match exactly once in code cells; found {count}"
-        )
-    cell = next(cell for cell, hits in matches if hits)
-    cell.source = cell.source.replace(old, new, 1)
 
 
 def _validate_assertion(assertion: str | None) -> None:
@@ -82,14 +41,6 @@ def _validate_assertion(assertion: str | None) -> None:
         raise ValueError(f"--assertion is not valid Python: {error}") from error
     if not parsed.body or not all(isinstance(statement, ast.Assert) for statement in parsed.body):
         raise ValueError("--assertion must contain one or more Python assert statements")
-
-
-def _apply_edits(
-    notebook: nbformat.NotebookNode, flag: str, replacements: list[tuple[str, str]]
-) -> None:
-    for old, new in replacements:
-        replace_once(notebook, old, new)
-    enable_flag(notebook, flag)
 
 
 def _find_workspace(notebook_path: Path) -> Path:
@@ -109,7 +60,7 @@ def _kernel_python(workspace: Path) -> str:
 
 
 def _measurement_cells(
-    workload: str, flag: str, assertion: str | None
+    workload: str, experiment: str, assertion: str | None
 ) -> list[nbformat.NotebookNode]:
     prelude = """import json as _course_json
 import time as _course_time
@@ -119,21 +70,42 @@ if not _course_torch.cuda.is_available():
     raise RuntimeError("This measurement requires a CUDA GPU; no notebook cells were run.")
 _course_torch.cuda.init()
 _course_torch.cuda.synchronize()
-_course_torch.cuda.reset_peak_memory_stats()
+_course_original_reset_peak_memory_stats = _course_torch.cuda.reset_peak_memory_stats
+_course_original_reset_peak_memory_stats()
+_course_peak_cuda_bytes = {"allocated": 0, "reserved": 0}
+
+def _course_track_peak_reset(*args, **kwargs):
+    _course_torch.cuda.synchronize()
+    _course_peak_cuda_bytes["allocated"] = max(
+        _course_peak_cuda_bytes["allocated"], _course_torch.cuda.max_memory_allocated()
+    )
+    _course_peak_cuda_bytes["reserved"] = max(
+        _course_peak_cuda_bytes["reserved"], _course_torch.cuda.max_memory_reserved()
+    )
+    _course_original_reset_peak_memory_stats(*args, **kwargs)
+
+_course_torch.cuda.reset_peak_memory_stats = _course_track_peak_reset
 _course_started = _course_time.perf_counter()
 """
     cells = [nbformat.v4.new_code_cell(prelude)]
     if assertion is not None:
         cells.append(nbformat.v4.new_code_cell(assertion))
     summary = f"""_course_torch.cuda.synchronize()
+_course_peak_cuda_bytes["allocated"] = max(
+    _course_peak_cuda_bytes["allocated"], _course_torch.cuda.max_memory_allocated()
+)
+_course_peak_cuda_bytes["reserved"] = max(
+    _course_peak_cuda_bytes["reserved"], _course_torch.cuda.max_memory_reserved()
+)
+_course_torch.cuda.reset_peak_memory_stats = _course_original_reset_peak_memory_stats
 _course_report = {{
     "workload": {json.dumps(workload)},
-    "flag": {json.dumps(flag)},
+    "experiment": {json.dumps(experiment)},
     "notebook_elapsed_seconds": _course_time.perf_counter() - _course_started,
     "gpu": {{
         "device_name": _course_torch.cuda.get_device_name(),
-        "peak_allocated_mib": _course_torch.cuda.max_memory_allocated() / (1024 ** 2),
-        "peak_reserved_mib": _course_torch.cuda.max_memory_reserved() / (1024 ** 2),
+        "peak_allocated_mib": _course_peak_cuda_bytes["allocated"] / (1024 ** 2),
+        "peak_reserved_mib": _course_peak_cuda_bytes["reserved"] / (1024 ** 2),
     }},
 }}
 print({json.dumps(RESOURCE_PREFIX)} + _course_json.dumps(_course_report, sort_keys=True))
@@ -184,18 +156,13 @@ def _resource_streams(notebook: nbformat.NotebookNode) -> list[dict[str, JSONVal
 def measure_notebook(
     notebook_path: str | Path,
     *,
-    flag: str,
-    replacements: list[tuple[str, str]],
+    experiment: str,
     workload: str,
     report_path: str | Path,
     assertion: str | None = None,
     timeout: int = 1800,
 ) -> dict[str, JSONValue]:
     """Execute an explicitly enabled notebook in a fresh GPU kernel and write a JSON record."""
-    from jupyter_client import AsyncKernelManager
-    from jupyter_client.kernelspec import KernelSpecManager
-    from nbclient import NotebookClient
-    from nbclient.exceptions import CellExecutionError
 
     path = Path(notebook_path).expanduser().resolve()
     if path.suffix != ".ipynb" or not path.is_file():
@@ -206,8 +173,8 @@ def measure_notebook(
     source_bytes = path.read_bytes()
     notebook_hash = hashlib.sha256(source_bytes).hexdigest()
     notebook = nbformat.reads(source_bytes.decode("utf-8"), as_version=4)
-    _apply_edits(notebook, flag, replacements)
-    measurement = _measurement_cells(workload, flag, assertion)
+    notebook, selected, skipped = select_cells(notebook, profile="full", experiment=experiment)
+    measurement = _measurement_cells(workload, experiment, assertion)
     notebook.cells = measurement[:1] + notebook.cells + measurement[1:]
 
     workspace = _find_workspace(path)
@@ -218,8 +185,9 @@ def measure_notebook(
         "notebook_sha256": notebook_hash,
         "workload": workload,
         "settings": {
-            "flag_enabled": flag,
-            "replacements": [{"old": old, "new": new} for old, new in replacements],
+            "experiment": experiment,
+            "selected_experiments": selected,
+            "skipped_experiments": skipped,
             "assertion": assertion,
             "timeout_seconds": timeout,
             "offline_environment": True,
@@ -307,25 +275,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Run one explicitly selected real course job in a fresh CUDA kernel. "
-            "This is not a CPU validator: execution requires a CUDA GPU, the named False flag "
-            "must exist, and report output is saved without writing the executed notebook. "
+            "Execution requires a CUDA GPU and an experiment named in cell metadata. "
+            "Report output is saved without writing the executed notebook. "
             "Hugging Face and Diffusers downloads are disabled."
         )
     )
     parser.add_argument("notebook", help="notebook file whose actual cells will run in memory")
-    parser.add_argument(
-        "--flag",
-        required=True,
-        help="named notebook flag; its unique `= False` is enabled in memory",
-    )
-    parser.add_argument(
-        "--replace",
-        action="append",
-        nargs=2,
-        metavar=("OLD", "NEW"),
-        default=[],
-        help="exact code-cell source replacement; OLD must match once (repeat for bounded subset changes)",
-    )
+    parser.add_argument("--experiment", required=True, help="experiment name from cell metadata")
     parser.add_argument(
         "--assertion",
         help="optional Python assert statement appended after the notebook, for example a failed-trial-row check",
@@ -348,8 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = measure_notebook(
             args.notebook,
-            flag=args.flag,
-            replacements=[tuple(pair) for pair in args.replace],
+            experiment=args.experiment,
             workload=args.workload,
             report_path=args.report,
             assertion=args.assertion,

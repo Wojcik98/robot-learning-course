@@ -1,7 +1,5 @@
 """Evaluate an ACT checkpoint on frozen LIBERO development states."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import time
@@ -10,7 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from vla_lab.sim.episode import EpisodeResult
+from vla_lab.policy.bundle import load_act_bundle
+from vla_lab.sim.episode import EpisodeResult, open_libero_task, run_act_episode
 
 
 def evaluate_act_reference(
@@ -44,9 +43,6 @@ def evaluate_act_reference(
     output.mkdir(parents=True, exist_ok=True)
 
     if run_one is None:
-        from vla_lab.policy.bundle import load_act_bundle
-        from vla_lab.sim.episode import open_libero_task, run_act_episode
-
         policy, preprocessor, postprocessor, _ = load_act_bundle(checkpoint_path)
 
         def run_one(state_id: int) -> EpisodeResult:
@@ -81,6 +77,9 @@ def evaluate_act_reference(
                         "reset_seed": 20260930 + state_id,
                         "success": result.success,
                         "steps": result.steps,
+                        "control_hz": result.control_hz,
+                        "simulated_duration_s": result.simulated_duration_s,
+                        "inference_wall_s": result.inference_wall_s,
                         "clipped_values": result.clipped_values,
                         "elapsed_s": round(time.monotonic() - started, 3),
                     }

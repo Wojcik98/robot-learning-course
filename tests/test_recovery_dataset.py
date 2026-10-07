@@ -1,6 +1,5 @@
 """Check alignment and source checks for ACT recovery recordings."""
 
-import copy
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +8,9 @@ import torch
 
 from vla_lab.data.recording import RecordedEpisode
 from vla_lab.data.recovery_dataset import RecoveryDataset
+from vla_lab.experiments.recovery import _timing_provenance
+from vla_lab.teaching.data import action_window
+from vla_lab.teaching.recording import aligned_transition_rows
 
 
 def _episode(
@@ -52,7 +54,6 @@ def _dataset(
     *paths: Path,
     expected_seeds=(41,),
     transition_rows_fn=None,
-    resample_rows_fn=None,
     window_fn=None,
 ) -> RecoveryDataset:
     return RecoveryDataset(
@@ -61,7 +62,6 @@ def _dataset(
         expected_reset_seeds=expected_seeds,
         observation_transform=_transform,
         transition_rows_fn=transition_rows_fn,
-        resample_rows_fn=resample_rows_fn,
         window_fn=window_fn,
     )
 
@@ -88,8 +88,6 @@ def test_pads_tail_by_repeating_last_sampled_action(tmp_path: Path) -> None:
 
 
 def test_learner_alignment_and_window_callbacks_drive_recovery_batch(tmp_path: Path) -> None:
-    from vla_lab.teaching.data import action_window
-    from vla_lab.teaching.recording import aligned_transition_rows
 
     episode = _episode(tmp_path / "learner.npz", episode_id="learner", length=3)
     dataset = _dataset(episode, transition_rows_fn=aligned_transition_rows, window_fn=action_window)
@@ -99,78 +97,15 @@ def test_learner_alignment_and_window_callbacks_drive_recovery_batch(tmp_path: P
     assert sample["action_is_pad"].tolist() == [False] + [True] * 19
 
 
-def test_learner_resampling_drives_10hz_action_windows(tmp_path: Path) -> None:
-    from vla_lab.teaching.data import action_window
-    from vla_lab.teaching.recording import (
-        aligned_transition_rows,
-        resample_aligned_transitions_10hz,
-    )
-
-    episode = _episode(tmp_path / "resampled.npz", episode_id="resampled", length=6)
-    dataset = _dataset(
-        episode,
-        transition_rows_fn=aligned_transition_rows,
-        resample_rows_fn=resample_aligned_transitions_10hz,
-        window_fn=action_window,
-    )
-    assert len(dataset) == 3
-    sample = dataset[1]
-    assert sample["observation.state"].tolist() == [2.0] * 8
-    assert sample["action"][:2, 0].tolist() == pytest.approx([0.2, 0.4])
-    assert sample["action_is_pad"].tolist() == [False, False] + [True] * 18
-
-
-def test_resampler_may_return_equal_copies_of_aligned_rows(tmp_path: Path) -> None:
-    from vla_lab.teaching.recording import aligned_transition_rows
-
-    def copied_rows(rows):
-        return [copy.deepcopy(row) for row in rows[::2]]
-
-    episode = _episode(tmp_path / "copied.npz", episode_id="copied", length=6)
-    dataset = _dataset(
-        episode,
-        transition_rows_fn=aligned_transition_rows,
-        resample_rows_fn=copied_rows,
-    )
-
-    assert len(dataset) == 3
-    assert dataset[1]["observation.state"].tolist() == [2.0] * 8
-
-
-def test_resampler_rejects_changed_observation_values(tmp_path: Path) -> None:
-    from vla_lab.teaching.recording import aligned_transition_rows
-
-    def changed_observation(rows):
-        selected = [copy.deepcopy(row) for row in rows[::2]]
-        selected[0]["observation"]["marker"][0] = 99
-        return selected
-
-    episode = _episode(tmp_path / "changed.npz", episode_id="changed", length=6)
-    with pytest.raises(ValueError, match="original aligned rows"):
-        _dataset(
-            episode,
-            transition_rows_fn=aligned_transition_rows,
-            resample_rows_fn=changed_observation,
-        )
-
-
-def test_recovery_timing_provenance_records_20hz_controller_and_10hz_training():
-    from vla_lab.experiments.recovery import _timing_provenance
-
-    course_path = _timing_provenance(training_transition_hz=10)
-    assert course_path["recorded_control_hz"] == 20
-    assert course_path["training_transition_hz"] == 10
-    assert course_path["training_resample_stride"] == 2
-    assert course_path["act_action_chunk_steps"] == 20
-    assert course_path["act_action_chunk_duration_s"] == 2.0
-    assert course_path["controller_action_hz"] == 20
-
-    legacy_path = _timing_provenance(training_transition_hz=20)
-    assert legacy_path["training_resample_stride"] == 1
-    assert legacy_path["act_action_chunk_duration_s"] == 1.0
-
-    with pytest.raises(ValueError, match="divisor"):
-        _timing_provenance(training_transition_hz=7)
+def test_recovery_timing_uses_control_rate_for_new_recordings():
+    report = _timing_provenance(control_hz=20)
+    assert report["recorded_control_hz"] == 20
+    assert report["training_transition_hz"] == 20
+    assert report["source_storage_fps"] == 10
+    assert report["saved_transition_stride"] == 1
+    assert report["act_action_chunk_duration_s"] == 1.0
+    with pytest.raises(ValueError, match="20 Hz"):
+        _timing_provenance(control_hz=10)
 
 
 def test_returns_the_act_sample_shapes_and_dtypes(tmp_path: Path) -> None:

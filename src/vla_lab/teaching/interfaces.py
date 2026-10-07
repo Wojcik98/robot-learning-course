@@ -1,7 +1,5 @@
 """Shared contracts for the small examples and the real policy paths."""
 
-from __future__ import annotations
-
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, NotRequired, Protocol, TypedDict, TypeVar, Unpack
 
@@ -55,7 +53,7 @@ class ACTPredictionModel(Protocol):
 
 class DiffusionTrainingModel(Protocol):
     @property
-    def schedule(self) -> DDPMSchedule: ...
+    def schedule(self) -> "DDPMSchedule": ...
 
     def __call__(
         self, noisy_actions: Tensor, timesteps: Tensor, batch: Mapping[str, Tensor], /
@@ -197,12 +195,6 @@ class TransitionRowsFunction(Protocol):
         actions: ArrayLike,
         observation_ticks: Sequence[int] | NDArray[np.int64],
         action_ticks: Sequence[int] | NDArray[np.int64],
-    ) -> list[AlignedTransition[RecordedObservation]]: ...
-
-
-class ResampleRowsFunction(Protocol):
-    def __call__(
-        self, rows: Sequence[AlignedTransition[RecordedObservation]]
     ) -> list[AlignedTransition[RecordedObservation]]: ...
 
 

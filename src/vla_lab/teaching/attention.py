@@ -10,8 +10,6 @@ The installed LeRobot ACT blocks use ``nn.MultiheadAttention`` and a
 sequence-first layout. ``load_lerobot_*`` copies their weights into these modules.
 """
 
-from __future__ import annotations
-
 import math
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Unpack, cast
@@ -456,18 +454,18 @@ def _load_layer_common(target: nn.Module, source: nn.Module, norms: tuple[str, .
         _copy(getattr(target, name).bias, getattr(source, name).bias.detach(), f"{name}.bias")
 
 
-def load_lerobot_encoder_layer(target: EncoderLayer, source: ACTEncoderLayer) -> None:
+def load_lerobot_encoder_layer(target: EncoderLayer, source: "ACTEncoderLayer") -> None:
     load_lerobot_attention(target.self_attn, source.self_attn)
     _load_layer_common(target, source, ("norm1", "norm2"))
 
 
-def load_lerobot_decoder_layer(target: DecoderLayer, source: ACTDecoderLayer) -> None:
+def load_lerobot_decoder_layer(target: DecoderLayer, source: "ACTDecoderLayer") -> None:
     load_lerobot_attention(target.self_attn, source.self_attn)
     load_lerobot_attention(target.cross_attn, source.multihead_attn)
     _load_layer_common(target, source, ("norm1", "norm2", "norm3"))
 
 
-def load_lerobot_encoder(target: TransformerEncoder, source: ACTEncoder) -> None:
+def load_lerobot_encoder(target: TransformerEncoder, source: "ACTEncoder") -> None:
     """Copy a LeRobot ``ACTEncoder`` into a ``TransformerEncoder`` of the same shape."""
     if len(target.layers) != len(source.layers):
         raise ValueError("encoder layer count differs")
@@ -484,7 +482,7 @@ def load_lerobot_encoder(target: TransformerEncoder, source: ACTEncoder) -> None
         _copy(target.norm.bias, source.norm.bias.detach(), "norm.bias")
 
 
-def load_lerobot_decoder(target: TransformerDecoder, source: ACTDecoder) -> None:
+def load_lerobot_decoder(target: TransformerDecoder, source: "ACTDecoder") -> None:
     """Copy a LeRobot ``ACTDecoder`` into a ``TransformerDecoder`` of the same shape."""
     if len(target.layers) != len(source.layers):
         raise ValueError("decoder layer count differs")

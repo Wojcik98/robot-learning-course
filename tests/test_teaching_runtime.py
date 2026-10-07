@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import numpy as np
 import pytest
 import torch
@@ -110,6 +108,9 @@ def test_rollout_replans_after_execute_count_and_clips_actions():
         max_steps=4,
         execute_steps=2,
     )
+    assert result.control_hz == 20
+    assert result.simulated_duration_s == pytest.approx(0.2)
+    assert result.inference_wall_s >= 0
     assert prediction_inputs == [0, 2]
     assert result.policy_calls == 2
     assert result.steps == 4

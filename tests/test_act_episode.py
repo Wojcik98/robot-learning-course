@@ -66,6 +66,9 @@ def test_act_episode_uses_le_robot_transforms_and_physical_action() -> None:
 
     assert result.success is True
     assert result.steps == 1
+    assert result.control_hz == 20
+    assert result.simulated_duration_s == pytest.approx(0.05)
+    assert result.inference_wall_s >= 0
     assert policy.reset_count == 1
     assert policy.observation["observation.state"].shape == (1, 8)
     assert policy.observation["observation.images.image"][0, 0, -1, -1] == 1.0

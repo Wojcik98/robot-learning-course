@@ -1,10 +1,12 @@
 """The learner ACT must reproduce the pinned LeRobot ACT module when it holds the same weights."""
 
 import copy
+from types import SimpleNamespace
 
 import pytest
 import torch
 from lerobot.configs import FeatureType, PolicyFeature
+from lerobot.policies.act import ACTPolicy
 from lerobot.policies.act.configuration_act import ACTConfig
 from lerobot.policies.act.modeling_act import ACT, ACTSinusoidalPositionEmbedding2d
 
@@ -19,6 +21,7 @@ from vla_lab.teaching.act_model import (
     decode_actions,
     encode_posterior,
     lerobot_batch,
+    load_act_samples,
     load_lerobot_act,
     make_act_backbone,
     select_latent,
@@ -179,7 +182,6 @@ def test_encoder_tokens_shape_order_and_positions(learner):
 
 
 def test_encoder_camera_positions_follow_feature_device():
-    from types import SimpleNamespace
 
     model = SimpleNamespace(
         settings=SimpleNamespace(dim_model=32),
@@ -276,7 +278,6 @@ CHECKPOINT = (
     not (CHECKPOINT / "model.safetensors").is_file(), reason="local ACT checkpoint missing"
 )
 def test_prepared_checkpoint_weights_reproduce_in_the_learner():
-    from lerobot.policies.act import ACTPolicy
 
     config = ACTConfig.from_pretrained(CHECKPOINT, local_files_only=True)
     config.device = "cpu"
@@ -302,7 +303,6 @@ def test_prepared_checkpoint_weights_reproduce_in_the_learner():
     reason="local LIBERO data missing",
 )
 def test_real_samples_have_the_training_contract_and_feed_the_learner():
-    from vla_lab.teaching.act_model import load_act_samples
 
     root = CHECKPOINT.parents[3]
     samples = load_act_samples(

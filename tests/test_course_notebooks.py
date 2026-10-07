@@ -134,3 +134,16 @@ def test_cli_defaults_to_course_folder_from_nested_cwd(tmp_path, monkeypatch):
     payload = json.loads(report.read_text())
     assert len(payload["notebooks"]) == 1
     assert Path(payload["notebooks"][0]["path"]) == nested / "07-attention-reference.ipynb"
+
+
+def test_static_audit_rejects_execution_switches_and_local_imports(tmp_path):
+    sources = (
+        "from __future__ import annotations",
+        "RUN_TRAINING = False",
+        "def load_model():\n    import torch\n    return torch",
+    )
+    for index, source in enumerate(sources):
+        path = write_notebook(tmp_path / f"bad-{index}.ipynb", [nbformat.v4.new_code_cell(source)])
+        report = audit_notebook(path, workspace=tmp_path)
+        assert report["status"] == "failed"
+        assert report["errors"]

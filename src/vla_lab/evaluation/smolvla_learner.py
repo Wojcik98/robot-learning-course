@@ -1,7 +1,5 @@
 """Evaluate a trained SmolVLA learner on frozen development states."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import random
@@ -14,7 +12,8 @@ import yaml
 
 from vla_lab.contracts import EpisodeOutcome
 from vla_lab.evaluation.states import evaluate_states, selected_state_ids
-from vla_lab.sim.episode import EpisodeResult
+from vla_lab.policy.smolvla_learner import load_learner_bundle
+from vla_lab.sim.episode import EpisodeResult, open_libero_task, run_policy_episode
 from vla_lab.types import JSONValue
 
 
@@ -47,9 +46,6 @@ def evaluate_learner_reference(
     task_data = yaml.safe_load((configs / "data" / "episodes.yaml").read_text())
     task_prompt = task_data["tasks"][task_alias]["task_name"]
     if run_one is None:
-        from vla_lab.policy.smolvla_learner import load_learner_bundle
-        from vla_lab.sim.episode import open_libero_task, run_policy_episode
-
         policy, preprocessor, postprocessor, loaded = load_learner_bundle(source, vlm_dir)
         if loaded != manifest:
             raise ValueError("Learner manifest changed while the policy was loaded")
@@ -92,6 +88,9 @@ def evaluate_learner_reference(
             termination_reason=result.termination_reason,
             metrics={
                 "steps": result.steps,
+                "control_hz": result.control_hz,
+                "simulated_duration_s": result.simulated_duration_s,
+                "inference_wall_s": result.inference_wall_s,
                 "clipped_values": result.clipped_values,
                 "seed": episode_seed,
             },

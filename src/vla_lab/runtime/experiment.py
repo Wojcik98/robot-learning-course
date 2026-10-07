@@ -1,7 +1,5 @@
 """Run one deterministic LIBERO episode on virtual controller ticks."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
@@ -152,7 +150,7 @@ class EpisodeRunner:
             for request_id in record.accepted:
                 tracked[request_id] = []
                 starts[request_id] = tick
-            for request_id, values in tracked.items():
+            for values in tracked.values():
                 if len(values) < BOUNDARY_ACTIONS and jump is not None:
                     values.append(jump)
 

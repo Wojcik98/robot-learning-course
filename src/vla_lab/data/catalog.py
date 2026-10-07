@@ -1,11 +1,11 @@
 """Read a local LeRobot v3 episode catalogue."""
 
-from __future__ import annotations
-
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+
+from pyarrow import parquet
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class TaskEpisodes:
 
 def _read_rows(path: Path) -> list[dict[str, object]]:
     try:
-        from pyarrow import parquet
+        pass
     except ImportError as error:
         raise RuntimeError("PyArrow is required to read LeRobot parquet files") from error
     return parquet.read_table(path).to_pylist()

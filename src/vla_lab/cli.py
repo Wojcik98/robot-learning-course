@@ -1,7 +1,5 @@
 """Terminal commands for the robot learning course."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Annotated
@@ -9,6 +7,12 @@ from typing import Annotated
 import typer
 import yaml
 
+from vla_lab.data.fetch import fetch_local_data
+from vla_lab.data.models import fetch_pinned_models
+from vla_lab.doctor import doctor_report, report_json
+from vla_lab.evaluation.demo import run_act_demo
+from vla_lab.evaluation.paired import write_paired_report
+from vla_lab.evaluation.states import evaluate_act_states
 from vla_lab.jobs.manager import JobManager
 from vla_lab.policy.transport import install_act_references, pack_act_references
 
@@ -57,7 +61,6 @@ def doctor(
     ] = False,
 ) -> None:
     """Check local GPU, data, ACT bundles, and optional live rendering."""
-    from vla_lab.doctor import doctor_report, report_json
 
     root = workspace.expanduser().resolve()
     data = (data_root or root / ".local-data").expanduser().resolve()
@@ -107,7 +110,6 @@ def data_fetch(
     data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
 ) -> None:
     """Fetch exact Hub revisions for the selected course scope."""
-    from vla_lab.data.fetch import fetch_local_data
 
     root = workspace.expanduser().resolve()
     data = (data_root or root / ".local-data").expanduser().resolve()
@@ -124,7 +126,6 @@ def data_fetch_models(
     data_root: Annotated[Path | None, typer.Option(help="Local data directory.")] = None,
 ) -> None:
     """Fetch the pinned public SmolVLA and VLM files for VLA experiments."""
-    from vla_lab.data.models import fetch_pinned_models
 
     root = workspace.expanduser().resolve()
     data = (data_root or root / ".local-data").expanduser().resolve()
@@ -243,7 +244,6 @@ def demo(
     """Reset one LIBERO task, run ACT, and save a live video."""
     if profile != "local":
         raise typer.BadParameter("Cloud demo profile is not ready", param_hint="--profile")
-    from vla_lab.evaluation.demo import run_act_demo
 
     root = workspace.expanduser().resolve()
     if checkpoint is None:
@@ -300,7 +300,6 @@ def evaluate(
         raise typer.BadParameter("Only local ACT evaluation is ready")
     if not state_ids:
         raise typer.BadParameter("Give at least one --state-id", param_hint="--state-id")
-    from vla_lab.evaluation.states import evaluate_act_states
 
     root = workspace.expanduser().resolve()
     source = checkpoint if checkpoint.is_absolute() else root / checkpoint
@@ -323,7 +322,6 @@ def compare(
     output: Annotated[Path, typer.Option(help="New paired JSON report path.")],
 ) -> None:
     """Compare two policies on one exact state sequence."""
-    from vla_lab.evaluation.paired import write_paired_report
 
     typer.echo(json.dumps(write_paired_report(a, b, output), sort_keys=True))
 

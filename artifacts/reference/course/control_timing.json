@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-06",
+  "host_gpu": "NVIDIA GeForce RTX 3070",
+  "host_vram_mib": 8192,
+  "runs": [
+    {
+      "control_hz": 20,
+      "max_steps": 20,
+      "measured_simulator_duration_s": 1.0000000000000009,
+      "method": "act",
+      "peak_gpu_bytes": 86171648,
+      "recipe": {
+        "checkpoint": ".local-data/runs/act-bowl-plate-probe-200/checkpoint-000200",
+        "chunk_size": 20,
+        "model_sha256": "e14e1ef8866623882b92eeaad8deda1c22acbf798e9bef3d27d700eb64216107",
+        "n_action_steps": 10,
+        "pretraining": "none",
+        "robot_training_steps": 200
+      },
+      "reset_seed": 20260930,
+      "result": {
+        "clipped_values": 3,
+        "control_hz": 20,
+        "inference_wall_s": 0.4070376489980845,
+        "state_id": 0,
+        "steps": 20,
+        "success": false,
+        "task_alias": "bowl_plate",
+        "termination_reason": "timeout"
+      },
+      "simulated_duration_s": 1.0,
+      "state_id": 0,
+      "status": "passed",
+      "video": ".local-data/course-work/live-check/act.mp4",
+      "video_frames": 21,
+      "wall_s": 4.2230531300010625
+    },
+    {
+      "control_hz": 20,
+      "max_steps": 20,
+      "measured_simulator_duration_s": 1.0000000000000009,
+      "method": "diffusion",
+      "peak_gpu_bytes": 195167232,
+      "recipe": {
+        "checkpoint": ".local-data/runs/diffusion-bowl-plate-reference-2000/checkpoint-002000",
+        "horizon": 16,
+        "inference_steps": 20,
+        "model_sha256": "8323e38b082fbd731c81737ad9c5d47531083539349d330c2f33619657faffea",
+        "n_action_steps": 8,
+        "n_obs_steps": 2,
+        "pretraining": "pinned ImageNet ResNet-18 visual encoder",
+        "robot_training_steps": 2000
+      },
+      "reset_seed": 20260930,
+      "result": {
+        "clipped_values": 0,
+        "control_hz": 20,
+        "inference_wall_s": 0.4741855140237021,
+        "state_id": 0,
+        "steps": 20,
+        "success": false,
+        "task_alias": "bowl_plate",
+        "termination_reason": "timeout"
+      },
+      "simulated_duration_s": 1.0,
+      "state_id": 0,
+      "status": "passed",
+      "video": ".local-data/course-work/live-check/diffusion.mp4",
+      "video_frames": 21,
+      "wall_s": 3.8044996289972914
+    },
+    {
+      "control_hz": 20,
+      "max_steps": 20,
+      "measured_simulator_duration_s": 1.0000000000000009,
+      "method": "smolvla_published",
+      "peak_gpu_bytes": 1582467584,
+      "recipe": {
+        "checkpoint": ".local-data/models/smolvla-libero",
+        "method": "smolvla_published",
+        "model_revision": "6721902bc4d61e50a3bfdb11dfb4cb626f05d102",
+        "model_sha256": "71d9563c8295284acba8fc2d5c19de000d6fe9ba58a406832af7ef3d221ed52f",
+        "n_action_steps": 10,
+        "training_data": "unknown"
+      },
+      "reset_seed": 20260930,
+      "result": {
+        "clipped_values": 4,
+        "control_hz": 20,
+        "inference_wall_s": 1.0491144890038413,
+        "state_id": 0,
+        "steps": 20,
+        "success": false,
+        "task_alias": "bowl_plate",
+        "termination_reason": "timeout"
+      },
+      "simulated_duration_s": 1.0,
+      "state_id": 0,
+      "status": "passed",
+      "video": ".local-data/course-work/live-check/smolvla_published.mp4",
+      "video_frames": 21,
+      "wall_s": 20.147328861996357
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Twenty controller transitions per saved policy; this checks execution and simulator timing, not task quality or training.",
+  "source_sha256": {
+    "src/vla_lab/evaluation/demo.py": "c5c9bf22e66e983a5f14c15a2cc10baacd265ec7e60686e3ac50093a7bb9ce24",
+    "src/vla_lab/sim/episode.py": "0fdfbc238943c9a3058315f401688406c347b749a642a0746684da8960bde6ca",
+    "src/vla_lab/timing.py": "b3e839f49252a3fa0603f6c109e29bc81d4fc77f56c022a3959b7f37066a11ba"
+  },
+  "source_storage_fps_label": 10,
+  "task": "bowl_plate",
+  "timing_check": "Read sim.data.time before and after every environment.step; require 0.05 seconds per call and one call per action.",
+  "video_fps": 20,
+  "video_includes_reset_frame": true
+}

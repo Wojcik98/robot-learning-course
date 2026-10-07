@@ -1,7 +1,5 @@
 """Run one live ACT demonstration and save its video and run record."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import subprocess
@@ -14,6 +12,7 @@ import numpy as np
 from vla_lab.evaluation.errors import EvaluationRunError
 from vla_lab.policy.bundle import load_act_bundle
 from vla_lab.sim.episode import PolicyActionError, open_libero_task, run_act_episode
+from vla_lab.timing import LIBERO_CONTROL_HZ, require_libero_rate
 
 
 def encode_rgb_video(frames: Sequence[np.ndarray], output: str | Path, *, fps: int = 20) -> Path:
@@ -71,8 +70,10 @@ def run_act_demo(
     configs_root: str | Path,
     data_root: str | Path,
     output_dir: str | Path,
+    control_hz: int = LIBERO_CONTROL_HZ,
 ) -> dict[str, object]:
     """Reset the selected development state, run ACT, and save a live video."""
+    require_libero_rate(control_hz)
     output = Path(output_dir)
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"Demo output directory is not empty: {output}")
@@ -87,7 +88,9 @@ def run_act_demo(
     result = None
     started = time.monotonic()
     try:
-        environment = open_libero_task(task_alias, state_id, configs_root, data_root)
+        environment = open_libero_task(
+            task_alias, state_id, configs_root, data_root, control_hz=control_hz
+        )
         result = run_act_episode(
             environment,
             policy.eval(),
@@ -98,6 +101,7 @@ def run_act_demo(
             configs_root,
             on_frame=frames.append,
             reset_seed=20260930 + state_id,
+            control_hz=control_hz,
         )
     except Exception as error:  # noqa: BLE001
         failure = error
@@ -109,7 +113,7 @@ def run_act_demo(
                 if failure is None:
                     failure = error
     elapsed = time.monotonic() - started
-    video = encode_rgb_video(frames, output / "rollout.mp4", fps=20) if frames else None
+    video = encode_rgb_video(frames, output / "rollout.mp4", fps=control_hz) if frames else None
     model_hash = hashlib.sha256((checkpoint_path / "model.safetensors").read_bytes()).hexdigest()
     record: dict[str, object] = {
         "schema_version": 1,
@@ -132,7 +136,11 @@ def run_act_demo(
         "checkpoint": str(checkpoint_path.resolve()),
         "checkpoint_model_sha256": model_hash,
         "checkpoint_manifest": bundle,
-        "controller_hz": 20,
+        "controller_hz": control_hz,
+        "simulated_duration_s": result.simulated_duration_s if result else None,
+        "inference_wall_s": result.inference_wall_s if result else None,
+        "video_duration_s": len(frames) / control_hz,
+        "video_includes_reset_frame": True,
         "control_mode": "relative",
         "video": str(video.resolve()) if video is not None else None,
         "video_frames": len(frames),

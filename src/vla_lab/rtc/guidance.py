@@ -1,7 +1,5 @@
 """Apply the RTC v2 action mask and model derivative during sampling."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -115,7 +113,7 @@ class GuidedRTCProcessor(RTCProcessor):
 
 
 def install_guided_rtc(
-    policy: SmolVLAPolicy, *, execution_horizon: int, mask_mode: str = "soft", beta: float = 5.0
+    policy: "SmolVLAPolicy", *, execution_horizon: int, mask_mode: str = "soft", beta: float = 5.0
 ) -> GuidedRTCProcessor:
     """Connect the checked guidance path to a SmolVLA policy and its model."""
     config = RTCConfig(

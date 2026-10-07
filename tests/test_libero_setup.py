@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from vla_lab.sim.setup import prepare_local_libero, select_local_assets
+from vla_lab.sim.setup import libero_runtime, prepare_local_libero, select_local_assets
 
 
 def test_prepare_local_libero_writes_paths_before_import(tmp_path: Path, monkeypatch) -> None:
@@ -49,8 +49,6 @@ def test_select_local_assets_overrides_libero_default_cache(tmp_path: Path, monk
     (data_root / "libero-assets").mkdir(parents=True)
     (data_root / "libero-assets" / "wall.xml").write_text("<mujoco/>")
     prepare_local_libero(data_root, package_root=package_root)
-
-    import libero.libero as libero_runtime
 
     monkeypatch.setattr(libero_runtime, "_assets_path_cache", None)
     select_local_assets(data_root)

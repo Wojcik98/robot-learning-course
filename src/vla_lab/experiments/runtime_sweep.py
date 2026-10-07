@@ -1,7 +1,5 @@
 """Sweep stride and delay on development state 0 with one SmolVLA checkpoint."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -24,6 +22,8 @@ from vla_lab.experiments.runtime_modes import (
     save_atomic,
     verify_model_source,
 )
+from vla_lab.policy.smolvla_learner import load_learner_bundle
+from vla_lab.sim.episode import open_libero_task
 from vla_lab.types import JSONValue
 
 SCHEMA_VERSION = 1
@@ -263,9 +263,6 @@ def run_sweep(
         else:
             saved_results.append(saved)
     if pending:
-        from vla_lab.policy.smolvla_learner import load_learner_bundle
-        from vla_lab.sim.episode import open_libero_task
-
         verify_model_source(config)
         learner = config["learner"]
         policy, preprocessor, postprocessor, _ = load_learner_bundle(

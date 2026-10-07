@@ -1,8 +1,7 @@
 """Check course notebooks without running them unless ``--execute`` is set."""
 
-from __future__ import annotations
-
 import argparse
+import ast
 import json
 import os
 import re
@@ -16,7 +15,12 @@ from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 import nbformat
+from jupyter_client import AsyncKernelManager
+from jupyter_client.kernelspec import KernelSpecManager
+from nbclient import NotebookClient
+from nbclient.exceptions import CellExecutionError
 
+from vla_lab.teaching.notebooks import select_cells
 from vla_lab.types import JSONValue
 
 WORKSPACE_MARKER = Path("manifests/act_references.yaml")
@@ -135,7 +139,7 @@ def _static_checks(path: Path, workspace: Path) -> tuple[object | None, list[str
     except (OSError, UnicodeError, ValueError, nbformat.validator.NotebookValidationError) as error:
         return None, errors + [f"invalid notebook: {type(error).__name__}: {error}"]
 
-    for index, cell in enumerate(notebook.cells):
+    for cell in notebook.cells:
         cell_id = cell.get("id", "")
         if cell.cell_type == "code":
             if cell.get("execution_count") is not None:
@@ -143,7 +147,34 @@ def _static_checks(path: Path, workspace: Path) -> tuple[object | None, list[str
             if cell.get("outputs"):
                 errors.append(f"cell {cell_id}: saved code output must be empty")
             try:
-                compile(cell.source, f"{path}#{cell_id}", "exec")
+                tree = ast.parse(cell.source, filename=f"{path}#{cell_id}")
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+                        errors.append(f"cell {cell_id}: future imports are prohibited")
+                    if (
+                        isinstance(node, ast.Assign)
+                        and isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, bool)
+                    ):
+                        for target in node.targets:
+                            if isinstance(target, ast.Name) and target.id.startswith("RUN_"):
+                                errors.append(
+                                    f"cell {cell_id}: execution flags are prohibited: {target.id}"
+                                )
+                    if (
+                        isinstance(node, ast.If)
+                        and isinstance(node.test, ast.Name)
+                        and node.test.id.startswith("RUN_")
+                    ):
+                        errors.append(
+                            f"cell {cell_id}: execution flags are prohibited: {node.test.id}"
+                        )
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        if any(
+                            isinstance(child, (ast.Import, ast.ImportFrom))
+                            for child in ast.walk(node)
+                        ):
+                            errors.append(f"cell {cell_id}: imports must be at cell scope")
             except (SyntaxError, ValueError) as error:
                 errors.append(f"cell {cell_id}: code syntax error: {error}")
         elif cell.cell_type == "markdown":
@@ -161,13 +192,9 @@ def _static_checks(path: Path, workspace: Path) -> tuple[object | None, list[str
 
 
 def _execute_notebook(
-    notebook: nbformat.NotebookNode, path: Path, timeout: int
+    notebook: nbformat.NotebookNode, path: Path, timeout: int, profile: str = "quick"
 ) -> tuple[str, str | None, str | None, str | None]:
     """Execute in a fresh kernel that uses this validator's Python executable."""
-    from jupyter_client import AsyncKernelManager
-    from jupyter_client.kernelspec import KernelSpecManager
-    from nbclient import NotebookClient
-    from nbclient.exceptions import CellExecutionError
 
     kernel_name = f"course-validator-{uuid4().hex}"
     with tempfile.TemporaryDirectory(prefix="course-kernel-") as temp_dir:
@@ -192,11 +219,12 @@ def _execute_notebook(
         environment.update(
             OMP_NUM_THREADS="2",
             MPLBACKEND="Agg",
-            CUDA_VISIBLE_DEVICES="",
             HF_HUB_OFFLINE="1",
             HF_DATASETS_OFFLINE="1",
             TRANSFORMERS_OFFLINE="1",
         )
+        if profile == "quick":
+            environment["CUDA_VISIBLE_DEVICES"] = ""
         try:
             client.execute(cwd=str(path.parent), env=environment, cleanup_kc=True)
         except CellExecutionError as error:
@@ -223,6 +251,8 @@ def audit_notebook(
     workspace: str | Path | None = None,
     execute: bool = False,
     timeout: int = 180,
+    profile: str = "quick",
+    experiment: str | None = None,
 ) -> dict[str, JSONValue]:
     """Run static checks and, when requested, fresh-kernel checks on one notebook."""
     notebook_path = Path(path).resolve()
@@ -235,15 +265,26 @@ def audit_notebook(
         "errors": errors,
         "execution": "not-requested",
     }
+    if notebook is not None and not errors:
+        try:
+            notebook, selected, skipped = select_cells(
+                notebook, profile=profile, experiment=experiment
+            )
+            row.update(profile=profile, selected_experiments=selected, skipped_experiments=skipped)
+        except ValueError as error:
+            errors.append(str(error))
+            row["status"] = "failed"
     if execute and notebook is not None and not errors:
-        kind = _notebook_class(notebook_path)
+        kind = notebook.metadata.get("course", {}).get("role", _notebook_class(notebook_path))
+        if notebook_path.stem == "index" or notebook_path.parent.name == "01-playground":
+            kind = "playground"
         stub = _first_stub(notebook) if kind == "learner" else None
         if kind == "learner" and stub is None:
             row["errors"].append("learner notebook has no NotImplementedError exercise stub")
             row["status"] = "failed"
         else:
             execution, error_name, failed_id, error_message = _execute_notebook(
-                notebook, notebook_path, timeout
+                notebook, notebook_path, timeout, profile
             )
             row["execution_error"] = error_name
             row["execution_cell_id"] = failed_id
@@ -288,9 +329,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--report",
-        default=".local-data/course-redesign/validator-report.json",
+        default=".local-data/course-runs/checks.json",
         help="write a JSON report to this path",
     )
+    parser.add_argument("--profile", choices=("quick", "full"), default="quick")
+    parser.add_argument("--experiment", help="full profile experiment and its dependencies")
     args = parser.parse_args(argv)
     caller_dir = Path.cwd().resolve()
     workspace = find_workspace(caller_dir)
@@ -303,10 +346,23 @@ def main(argv: list[str] | None = None) -> int:
         report_path = caller_dir / report_path
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
-    rows = [
-        audit_notebook(path, workspace=workspace, execute=args.execute, timeout=args.timeout)
-        for path in paths
-    ]
+    rows = []
+    for path in paths:
+        row = audit_notebook(
+            path,
+            workspace=workspace,
+            execute=args.execute,
+            timeout=args.timeout,
+            profile=args.profile,
+            experiment=args.experiment,
+        )
+        rows.append(row)
+        if args.execute:
+            print(
+                f"{row['status']}: {path} ({row['seconds']} s)",
+                file=sys.stderr,
+                flush=True,
+            )
     report = {
         "workspace": str(workspace),
         "ok": all(row["status"] in {"passed", "expected-stub"} for row in rows),

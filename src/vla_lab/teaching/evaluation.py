@@ -1,16 +1,18 @@
 """Transparent case selection and paired-result aggregation for the course."""
 
-from __future__ import annotations
-
 import json
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import ParamSpec, TypeVar
 
+import numpy as np
+import torch
+import yaml
 from torch import Tensor
 
-from vla_lab.sim.episode import EpisodeResult
+from vla_lab.evaluation import comparison
+from vla_lab.sim.episode import EpisodeResult, open_libero_task, run_policy_episode
 from vla_lab.teaching.interfaces import JSONValue, TensorBatch
 from vla_lab.teaching.records import (
     CaseResult,
@@ -146,11 +148,6 @@ def evaluate_frozen_method_timed(
     checks. Per-call time wraps ``policy.select_action`` only. Episode wall time
     remains in the evaluator output and is not treated as inference time.
     """
-    import torch
-    import yaml
-
-    from vla_lab.evaluation import comparison
-    from vla_lab.sim.episode import open_libero_task, run_policy_episode
 
     config = comparison.load_comparison_config(config_path, configs_root)
     if method not in comparison.METHODS:
@@ -192,8 +189,10 @@ def evaluate_frozen_method_timed(
         samples.append(time.perf_counter() - started)
         return result
 
-    def timed_generation(batch: TensorBatch) -> Tensor:
-        return synchronized_call(inference_hook, inference_times[current_state], batch)
+    def timed_generation(batch: TensorBatch, *args: object, **kwargs: object) -> Tensor:
+        return synchronized_call(
+            inference_hook, inference_times[current_state], batch, *args, **kwargs
+        )
 
     setattr(policy, inference_hook_name, timed_generation)
 
@@ -279,7 +278,6 @@ def evaluate_frozen_method_timed(
 
 def summarize_latency_samples(samples: Sequence[float]) -> LatencySummary:
     """Report count, mean, p95, and maximum; empty samples remain unavailable."""
-    import numpy as np
 
     values = np.asarray(samples, dtype=np.float64)
     if values.ndim != 1 or not np.isfinite(values).all() or np.any(values < 0):

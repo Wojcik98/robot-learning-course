@@ -1,7 +1,5 @@
 """Run the fixed ACT data and action-horizon comparisons."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -11,7 +9,11 @@ from pathlib import Path
 
 import yaml
 
-from vla_lab.evaluation.states import selected_state_ids
+from vla_lab.data.inspection import audit_task_split
+from vla_lab.data.selection import prepare_act_selection
+from vla_lab.evaluation.paired import wilson_interval
+from vla_lab.evaluation.states import evaluate_act_states, selected_state_ids
+from vla_lab.training.act import train_act_reference
 from vla_lab.types import JSONValue
 
 
@@ -100,11 +102,6 @@ def run_act_suite(
     output_dir: str | Path,
 ) -> dict[str, JSONValue]:
     """Train and evaluate each ACT variant on the same development states."""
-    from vla_lab.data.inspection import audit_task_split
-    from vla_lab.data.selection import prepare_act_selection
-    from vla_lab.evaluation.paired import wilson_interval
-    from vla_lab.evaluation.states import evaluate_act_states
-    from vla_lab.training.act import train_act_reference
 
     source = Path(config_path).expanduser().resolve()
     configs = Path(configs_root).expanduser().resolve()

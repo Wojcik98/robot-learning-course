@@ -1,8 +1,7 @@
 """Use the installed Brev CLI for one named course instance."""
 
-from __future__ import annotations
-
 import json
+import shlex
 import subprocess
 import time
 from collections.abc import Sequence
@@ -74,7 +73,14 @@ class BrevCLI:
         return state.lower()
 
     def stop(self, name: str) -> None:
-        """Request a provider stop for one named course instance."""
+        """Request a provider stop for one named course instance through a PTY."""
         if not name or name.startswith("-"):
             raise ValueError("Brev stop needs one exact instance name")
-        self._run("stop", name, timeout_s=90)
+        command = shlex.join(["brev", "stop", name])
+        self.runner(
+            ["script", "--quiet", "--return", "--command", command, "/dev/null"],
+            text=True,
+            capture_output=True,
+            check=True,
+            timeout=90,
+        )

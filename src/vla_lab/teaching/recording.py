@@ -1,7 +1,5 @@
 """Small transition checks for recorded robot episodes."""
 
-from __future__ import annotations
-
 from collections.abc import Sequence
 
 import numpy as np
@@ -13,6 +11,7 @@ from vla_lab.teaching.records import (
     InterventionSummary,
     TransitionAlignment,
 )
+from vla_lab.timing import LIBERO_CONTROL_HZ, SOURCE_STORAGE_FPS, require_libero_rate
 
 
 def transition_alignment(
@@ -30,22 +29,20 @@ def transition_alignment(
     return {
         "aligned": bool(np.array_equal(act, expected)),
         "offset_ticks": sorted(set(map(int, offsets))),
-        "action_hz": 20,
-        "recorded_dataset_hz": 10,
-        "dataset_stride_ticks": 2,
+        "control_hz": LIBERO_CONTROL_HZ,
+        "source_storage_fps": SOURCE_STORAGE_FPS,
+        "simulated_duration_s": len(act) / LIBERO_CONTROL_HZ,
     }
 
 
 def dataset_tick_indices(control_ticks: Sequence[int]) -> np.ndarray:
-    """Map tick timestamps to 10 Hz row numbers; this does not change execution."""
+    """Map saved control ticks to row offsets without dropping transitions."""
     ticks = np.asarray(control_ticks, dtype=np.int64)
     if ticks.ndim != 1 or np.any(ticks < 0):
         raise ValueError("control_ticks must be a one-dimensional nonnegative sequence")
     if np.any(np.diff(ticks) <= 0):
         raise ValueError("control_ticks must increase")
-    if np.any(ticks % 2):
-        raise ValueError("10 Hz rows align to every second 20 Hz control tick")
-    return ticks // 2
+    return ticks.copy()
 
 
 def aligned_transition_indices(
@@ -87,24 +84,21 @@ def aligned_transition_rows[ObservationT](
     return rows
 
 
-def resample_aligned_transitions_10hz[ObservationT](
-    rows: Sequence[AlignedTransition[ObservationT]], *, control_hz: int = 20, dataset_hz: int = 10
+def preserve_aligned_transitions[ObservationT](
+    rows: Sequence[AlignedTransition[ObservationT]], *, control_hz: int = LIBERO_CONTROL_HZ
 ) -> list[AlignedTransition[ObservationT]]:
-    """Select aligned rows at the saved 10 Hz cadence from 20 Hz control rows.
+    """Save every aligned control transition in a new recording.
 
-    This conversion is for newly recorded recovery data. It does not change
-    the historical runner, which applies one recorded action per controller
-    tick. Rows must contain contiguous control ticks beginning at zero.
+    Source dataset storage labels do not set a row stride. One saved action
+    corresponds to one simulator step at the declared control rate.
     """
-    if control_hz < 1 or dataset_hz < 1 or control_hz % dataset_hz:
-        raise ValueError("dataset_hz must be a positive divisor of control_hz")
+    require_libero_rate(control_hz)
     if not rows:
         raise ValueError("at least one aligned transition is required")
-    stride = control_hz // dataset_hz
     ticks = [int(row["tick"]) for row in rows]
     if ticks != list(range(len(rows))):
         raise ValueError("transition rows must have contiguous aligned control ticks from zero")
-    return [rows[index].copy() for index in range(0, len(rows), stride)]
+    return [row.copy() for row in rows]
 
 
 def intervention_effect(

@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 import torch
+from lerobot.processor import NewLineTaskProcessorStep, TokenizerProcessorStep
+from transformers import AutoTokenizer
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
@@ -111,7 +113,6 @@ def policy(tiny_dir):
 def tokenizer():
     if not (VLM_DIR / "tokenizer.json").is_file():
         pytest.skip("local SmolVLM2 tokenizer files are missing")
-    from transformers import AutoTokenizer
 
     return AutoTokenizer.from_pretrained(str(VLM_DIR))
 
@@ -157,7 +158,6 @@ def test_pad_to_width_pads_with_zeros_and_rejects_wider_input():
 
 
 def test_tokenizer_output_matches_the_pinned_processor_and_padding_is_masked(tokenizer):
-    from lerobot.processor import NewLineTaskProcessorStep, TokenizerProcessorStep
 
     tokens, mask = tokenize_prompts(tokenizer, ["put the bowl on the plate", "open it\n"], 48)
     assert tokens.dtype == torch.long and mask.dtype == torch.bool and tokens.shape == mask.shape

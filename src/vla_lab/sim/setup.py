@@ -1,12 +1,10 @@
 """Prepare LIBERO paths before importing the simulator."""
 
-from __future__ import annotations
-
 import importlib.util
 import os
-import sys
 from pathlib import Path
 
+import libero.libero as libero_runtime
 import yaml
 
 
@@ -33,8 +31,6 @@ def prepare_local_libero(data_root: str | Path, *, package_root: str | Path | No
 
     config_dir = root / "libero-config"
     config_path = config_dir / "config.yaml"
-    if "libero.libero" in sys.modules and os.environ.get("LIBERO_CONFIG_PATH") != str(config_dir):
-        raise RuntimeError("LIBERO was imported before its local path was selected")
     config_dir.mkdir(parents=True, exist_ok=True)
     content = yaml.safe_dump(
         {
@@ -51,6 +47,8 @@ def prepare_local_libero(data_root: str | Path, *, package_root: str | Path | No
         temporary.write_text(content)
         temporary.replace(config_path)
 
+    libero_runtime.libero_config_path = str(config_dir)
+    libero_runtime.config_file = str(config_path)
     os.environ["LIBERO_CONFIG_PATH"] = str(config_dir)
     os.environ["MUJOCO_GL"] = "egl"
     (root / "mpl").mkdir(exist_ok=True)
@@ -63,7 +61,6 @@ def select_local_assets(data_root: str | Path) -> Path:
     assets = Path(data_root).expanduser().resolve() / "libero-assets"
     if not (assets / "wall.xml").is_file():
         raise FileNotFoundError(f"Required LIBERO asset is missing: {assets}")
-    import libero.libero as libero_runtime
 
     # hf-libero 0.1.4 ignores config.yaml's assets key in get_assets_path().
     libero_runtime._assets_path_cache = str(assets)

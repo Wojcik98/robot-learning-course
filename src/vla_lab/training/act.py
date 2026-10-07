@@ -1,7 +1,5 @@
 """Train a task-specific ACT reference on the frozen demonstration split."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import math
@@ -15,8 +13,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 import yaml
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.policies.act import ACTPolicy
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate
+
+from vla_lab.policy.act import make_act_config, make_act_processors
+from vla_lab.policy.bundle import load_act_bundle, save_act_bundle
+from vla_lab.timing import frame_offset_seconds
 
 if TYPE_CHECKING:
     from lerobot.policies.act import ACTPolicy
@@ -71,14 +75,12 @@ def _frozen_training_dataset(
     os.environ.setdefault("HF_HUB_CACHE", str(hub_cache))
     os.environ.setdefault("HF_DATASETS_CACHE", str(datasets_cache))
 
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
-
     return LeRobotDataset(
         "lerobot/libero",
         root=data_root / "hub" / "lerobot-libero",
         episodes=train_ids,
         revision=split["dataset_revision"],
-        delta_timestamps={"action": [index / 10 for index in range(chunk_size)]},
+        delta_timestamps={"action": frame_offset_seconds(list(range(chunk_size)))},
         video_backend="torchcodec",
     )
 
@@ -96,7 +98,7 @@ def train_act_reference(
     checkpoint_every: int = 1000,
     chunk_size: int = 20,
     dataset: Dataset | None = None,
-    policy: ACTPolicy | None = None,
+    policy: "ACTPolicy | None" = None,
     resume_from: str | Path | None = None,
 ) -> TrainResult:
     """Train ACT and save local checkpoints with the frozen processors."""
@@ -116,11 +118,6 @@ def train_act_reference(
     datasets_cache.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("HF_HUB_CACHE", str(hub_cache))
     os.environ.setdefault("HF_DATASETS_CACHE", str(datasets_cache))
-
-    from lerobot.policies.act import ACTPolicy
-
-    from vla_lab.policy.act import make_act_config, make_act_processors
-    from vla_lab.policy.bundle import load_act_bundle, save_act_bundle
 
     random.seed(seed)
     np.random.seed(seed)

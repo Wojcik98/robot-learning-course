@@ -1,67 +1,18 @@
-from __future__ import annotations
+"""Check selected experiment measurement and failure records."""
 
 import json
+import sys
+from contextlib import redirect_stdout
+from io import StringIO
+from types import ModuleType
 
 import nbformat
-import pytest
 
 from tools import measure_course
-from tools.measure_course import RESOURCE_PREFIX, enable_flag, replace_once
+from tools.measure_course import RESOURCE_PREFIX
 
 
-def test_enable_flag_changes_only_named_false_assignment():
-    notebook = nbformat.v4.new_notebook(
-        cells=[
-            nbformat.v4.new_markdown_cell("RUN_JOB = False"),
-            nbformat.v4.new_code_cell("OTHER = False\nRUN_JOB = False\n"),
-        ]
-    )
-
-    enable_flag(notebook, "RUN_JOB")
-
-    assert notebook.cells[0].source == "RUN_JOB = False"
-    assert notebook.cells[1].source == "OTHER = False\nRUN_JOB = True\n"
-
-
-@pytest.mark.parametrize(
-    "source, message",
-    [
-        ("RUN_JOB = True", "False"),
-        ("x = 1", "not found"),
-        ("RUN_JOB = False\nRUN_JOB = False", "once"),
-    ],
-)
-def test_enable_flag_rejects_missing_true_or_duplicate_assignments(source, message):
-    notebook = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(source)])
-
-    with pytest.raises(ValueError, match=message):
-        enable_flag(notebook, "RUN_JOB")
-
-
-def test_replace_once_requires_one_exact_match_across_code_cells():
-    notebook = nbformat.v4.new_notebook(
-        cells=[nbformat.v4.new_markdown_cell("replace me"), nbformat.v4.new_code_cell("steps = 5")]
-    )
-
-    replace_once(notebook, "steps = 5", "steps = 2")
-
-    assert notebook.cells[0].source == "replace me"
-    assert notebook.cells[1].source == "steps = 2"
-
-
-@pytest.mark.parametrize("sources", [["steps = 5"], ["steps = 5\nsteps = 5"]])
-def test_replace_once_rejects_missing_or_duplicate_text(sources):
-    notebook = nbformat.v4.new_notebook(
-        cells=[nbformat.v4.new_code_cell(source) for source in sources]
-    )
-
-    with pytest.raises(ValueError, match="exactly once"):
-        replace_once(notebook, "steps = 9", "steps = 2") if sources == [
-            "steps = 5"
-        ] else replace_once(notebook, "steps = 5", "steps = 2")
-
-
-def _cpu_measurement_cells(workload, flag, assertion):
+def _cpu_measurement_cells(workload, experiment, assertion):
     prelude = """import json as _course_json
 import time as _course_time
 _course_started = _course_time.perf_counter()
@@ -70,7 +21,7 @@ _course_started = _course_time.perf_counter()
 assert course_order == ["notebook body"], "measurement suffix ran before the notebook body"
 _course_report = {{
     "workload": {json.dumps(workload)},
-    "flag": {json.dumps(flag)},
+    "experiment": {json.dumps(experiment)},
     "body_value": body_value,
     "body_ran": course_order == ["notebook body"],
     "elapsed_seconds": _course_time.perf_counter() - _course_started,
@@ -84,7 +35,8 @@ def _measurement_notebook(path):
     notebook = nbformat.v4.new_notebook(
         cells=[
             nbformat.v4.new_code_cell(
-                'RUN_JOB = False\nbody_value = 37\ncourse_order = ["notebook body"]'
+                'body_value = 37\ncourse_order = ["notebook body"]',
+                metadata={"course": {"experiment": "job"}},
             )
         ]
     )
@@ -99,8 +51,7 @@ def test_measure_notebook_runs_body_before_assertion_and_records_metrics(tmp_pat
 
     result = measure_course.measure_notebook(
         notebook,
-        flag="RUN_JOB",
-        replacements=[],
+        experiment="job",
         workload="cpu regression",
         report_path=report_path,
         assertion="assert body_value == 37",
@@ -111,7 +62,7 @@ def test_measure_notebook_runs_body_before_assertion_and_records_metrics(tmp_pat
     assert result["gpu_allocator_measurement_status"] == "recorded"
     assert result["resource_measurement"] == {
         "workload": "cpu regression",
-        "flag": "RUN_JOB",
+        "experiment": "job",
         "body_value": 37,
         "body_ran": True,
         "elapsed_seconds": result["resource_measurement"]["elapsed_seconds"],
@@ -127,8 +78,7 @@ def test_measure_notebook_failing_assertion_cannot_pass_or_record_metrics(tmp_pa
 
     result = measure_course.measure_notebook(
         notebook,
-        flag="RUN_JOB",
-        replacements=[],
+        experiment="job",
         workload="cpu assertion failure",
         report_path=report_path,
         assertion="assert body_value == 0",
@@ -140,3 +90,70 @@ def test_measure_notebook_failing_assertion_cannot_pass_or_record_metrics(tmp_pa
     assert result["gpu_allocator_measurement_status"] == "not-recorded"
     assert result["resource_measurement"] is None
     assert json.loads(report_path.read_text()) == result
+
+
+def test_generated_measurement_cells_keep_peak_across_notebook_resets(monkeypatch):
+    class FakeCuda:
+        def __init__(self):
+            self.allocated = 0
+            self.reserved = 0
+            self.reset_calls = 0
+
+        @staticmethod
+        def is_available():
+            return True
+
+        @staticmethod
+        def init():
+            return None
+
+        @staticmethod
+        def synchronize():
+            return None
+
+        @staticmethod
+        def get_device_name():
+            return "fake CUDA"
+
+        def reset_peak_memory_stats(self, *_args, **_kwargs):
+            self.allocated = 0
+            self.reserved = 0
+            self.reset_calls += 1
+
+        def max_memory_allocated(self):
+            return self.allocated
+
+        def max_memory_reserved(self):
+            return self.reserved
+
+    fake_torch = ModuleType("torch")
+    fake_torch.cuda = FakeCuda()
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    prelude, summary = measure_course._measurement_cells("test workload", "job", None)
+    namespace = {}
+    original_reset = fake_torch.cuda.reset_peak_memory_stats
+    exec(prelude.source, namespace)
+    wrapped_reset = fake_torch.cuda.reset_peak_memory_stats
+    assert wrapped_reset is not original_reset
+
+    fake_torch.cuda.allocated, fake_torch.cuda.reserved = 120, 220
+    wrapped_reset()
+    assert (fake_torch.cuda.allocated, fake_torch.cuda.reserved) == (0, 0)
+    fake_torch.cuda.allocated, fake_torch.cuda.reserved = 80, 340
+    wrapped_reset()
+    assert (fake_torch.cuda.allocated, fake_torch.cuda.reserved) == (0, 0)
+    fake_torch.cuda.allocated, fake_torch.cuda.reserved = 90, 300
+
+    output = StringIO()
+    with redirect_stdout(output):
+        exec(summary.source, namespace)
+
+    report_line = next(
+        line for line in output.getvalue().splitlines() if line.startswith(RESOURCE_PREFIX)
+    )
+    report = json.loads(report_line[len(RESOURCE_PREFIX) :])
+    assert report["gpu"]["peak_allocated_mib"] == 120 / 1024**2
+    assert report["gpu"]["peak_reserved_mib"] == 340 / 1024**2
+    restored_reset = fake_torch.cuda.reset_peak_memory_stats
+    assert restored_reset.__func__ is original_reset.__func__
+    assert restored_reset.__self__ is original_reset.__self__

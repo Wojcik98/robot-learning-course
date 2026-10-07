@@ -1,7 +1,5 @@
 """Request full SmolVLA chunks for the virtual-tick experiment."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -49,7 +47,7 @@ class SmolVLAChunkPredictor:
 
     def __init__(
         self,
-        policy: SmolVLAPolicy,
+        policy: "SmolVLAPolicy",
         *,
         preprocessor: ObservationProcessor,
         postprocessor: ActionProcessor,

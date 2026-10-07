@@ -1,7 +1,5 @@
 """Evaluate the published SmolVLA checkpoint on LIBERO development states."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import random
@@ -13,7 +11,8 @@ import numpy as np
 import torch
 import yaml
 
-from vla_lab.sim.episode import EpisodeResult
+from vla_lab.policy.smolvla import load_published_smolvla
+from vla_lab.sim.episode import EpisodeResult, open_libero_task, run_policy_episode
 
 MODEL_REVISION = "6721902bc4d61e50a3bfdb11dfb4cb626f05d102"
 VLM_REVISION = "7b375e1b73b11138ff12fe22c8f2822d8fe03467"
@@ -58,9 +57,6 @@ def evaluate_published_reference(
     output.mkdir(parents=True, exist_ok=True)
 
     if run_one is None:
-        from vla_lab.policy.smolvla import load_published_smolvla
-        from vla_lab.sim.episode import open_libero_task, run_policy_episode
-
         policy, preprocessor, postprocessor = load_published_smolvla(
             model_dir, vlm_dir, n_action_steps=n_action_steps
         )
@@ -106,6 +102,9 @@ def evaluate_published_reference(
                         "seed": episode_seed,
                         "success": result.success,
                         "steps": result.steps,
+                        "control_hz": result.control_hz,
+                        "simulated_duration_s": result.simulated_duration_s,
+                        "inference_wall_s": result.inference_wall_s,
                         "clipped_values": result.clipped_values,
                         "elapsed_s": round(time.monotonic() - started, 3),
                     }
