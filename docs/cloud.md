@@ -1,6 +1,6 @@
 # Brev use and cost controls
 
-The course uses local compute by default. Use Brev only when local GPU memory or run time is insufficient. Real allocation, SSH, file transfer, and provider stop are not verified for this course. Use supervised sessions until these paths and an independent stop path are checked.
+The course uses local compute by default. Use Brev only when local GPU memory or run time is insufficient. A supervised L40S session has checked allocation, SSH, transfer of course assets, policy execution, and checkpoint training/reload. The [validation record](../artifacts/reference/course/l40s_validation.json) confirms export integrity and provider deletion for that session. Its US$3.62 cost is an estimate from the quote and elapsed time; an invoice was not obtained. Record cleanup and cost separately for each session. The local watchdog is a separate stop process; it still depends on the local host and network.
 
 ## Account and job checks
 
@@ -24,6 +24,8 @@ The cost bound includes startup, export, stop time, and quoted disk charges. The
 The [Brev adapter](../src/vla_lab/cloud/brev.py) gets quotes, reads instance state, and stops a named instance. The [monitor](../src/vla_lab/cloud/monitor.py) checks saved work counts, heartbeat age, lack of progress, projected overrun, cost, and the deadline. The [local watchdog](../src/vla_lab/cloud/watchdog.py) can stop a named instance at a saved deadline in a separate process. It depends on the local host and network; it is not a provider deadline.
 
 Before unattended use, check allocation, SSH, file transfer, bounded export, provider stop, and an independent stop path in a short supervised session. Keep a fixed deadline and the exact instance name. Stop the instance if progress stops or the cost or time limit is near. Export required files before deletion.
+
+The installed Brev CLI needs a terminal for stop and delete actions. Without one, it can print the instance name and return success without changing provider state. The Python adapter uses `script` from Ubuntu's `util-linux` package to supply a terminal for its stop call. The command keeps the instance name as one quoted argument and has a 90-second timeout. Read-only JSON commands do not use a terminal.
 
 Killing Python or shutting down the guest OS does not confirm that billing has stopped. Check the provider state after `brev stop INSTANCE_NAME`. Stopped instances can still incur storage charges. See [the operations guide](operations.md#71-cloud-failure-supervised-use-only) for failure steps.
 

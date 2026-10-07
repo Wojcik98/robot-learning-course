@@ -1,6 +1,6 @@
 # Record development demonstrations
 
-Use the [data-improvement unit](../tutorials/13-data-quality/13-data-quality.ipynb) to check alignment and test a data change. This guide gives the keyboard commands.
+Use the [data-improvement unit](../tutorials/21-data-quality/21-data-quality.ipynb) to check alignment and test a data change. This guide gives the keyboard commands.
 
 Use a desktop terminal with the pinned local LIBERO assets. Only development states are accepted:
 
@@ -24,7 +24,7 @@ just recovery-manifest \
   --output .local-data/keyboard-recordings/manifest.json
 ```
 
-The command checks file hashes, task IDs, reset seeds, and the development split. It reserves every unused development state for assessment. It cannot judge task success or human control quality; you must select accepted files. The command below trains on the full 20 Hz recording. Unit 13 supplies its own alignment and window functions. Use the notebook for that experiment.
+The command checks file hashes, task IDs, reset seeds, and the development split. It reserves every unused development state for assessment. It cannot judge task success or human control quality; you must select accepted files. The command below trains on the full 20 Hz recording. Lesson 21 explains alignment and compares a controlled data change. Use the notebook for that experiment.
 
 The ACT continuation command takes this manifest:
 

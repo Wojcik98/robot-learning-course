@@ -8,11 +8,11 @@ The guide covers local operation on the prepared host: Ubuntu 24.04, Python 3.12
 
 Read these limits before you use a result:
 
-- No paid cloud job has run for this project. Cloud cost is US$0.
-- No real Brev allocation, SSH session, file copy, or provider stop has been tested. Only fake-provider tests pass. See [the cloud record](cloud.md).
+- A supervised Brev L40S session has run course policy and training checks. Its export was verified and its instance was deleted. The [validation record](../artifacts/reference/course/l40s_validation.json) separates the quote-based cost estimate from an actual invoice.
+- Real Brev allocation, SSH, asset transfer, training, and checkpoint reload have been checked. See [the cloud record](cloud.md) for the scope and cost controls.
 - A local watchdog depends on this workstation and its network. It is not a provider deadline or a VM watchdog.
 - A managed command host can stop a detached worker when its launcher exits. See [job controls](jobs.md). Check that a long job survives launcher exit on your host before unattended use.
-- Hardware results come from one RTX 3070 with 8192 MiB. They do not predict another GPU, another driver, or a physical robot.
+- Hardware results come from an RTX 3070 with 8192 MiB and a Brev L40S with 46068 MiB. They do not predict another GPU, another driver, or a physical robot.
 - A hash proves that two files are the same bytes. It does not prove that a policy is good.
 - Simulator results come from LIBERO-Goal. They are not physical robot results. The source demonstrations may overlap the simulator initial states. This overlap is not resolved.
 
@@ -242,12 +242,12 @@ brev ls
 | Claim | Status |
 |---|---|
 | The course runs locally on an RTX 3070. | Measured on 2026-09-30 and 2026-10-01. One host. |
-| Brev can run a course job. | Not tested. No paid instance has run. |
-| A job can stay under US$5 and two hours. | Rules are coded and tested with a fake provider. Not measured on a real allocation. |
-| A stop works when the job fails. | Fake-provider tests pass. A real stop is not tested. |
+| Brev can run a course job. | A supervised L40S session ran all three policy, training, and adaptation paths. Its export and provider deletion were verified. |
+| A job can stay under US$5 and two hours. | The supervised session ended within two hours with a US$3.62 quote-based estimate. No invoice was obtained; this is not a guarantee for another run. |
+| A stop works when the job fails. | Fake-provider and terminal-forwarding tests pass. Terminal-backed deletion was verified; a live watchdog deadline stop was not exercised. |
 | An unattended run stops by itself. | Not verified. Do not do it. |
 | A local quote is the price. | A quote is a time-specific offer. Check it again before an allocation. |
-| Cost of a course run | Local cost is electricity and time. Cloud cost is not measured. |
+| Cost of a course run | The L40S record gives elapsed time and a US$3.62 quote-based estimate. Actual billed cost is unknown. |
 | Results transfer to a physical robot. | No. These are simulator results. |
 
 ## 9. Command list

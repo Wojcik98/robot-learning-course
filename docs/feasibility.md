@@ -2,11 +2,13 @@
 
 The reference environment uses Ubuntu 24.04, Python 3.12, and an RTX 3070 with 8 GiB of GPU memory. Use [the setup guide](initial-setup.md) to create the locked environment. Use [the experiment records](evidence.md) to inspect saved results and their limits.
 
+The required training experiments target a 48 GB GPU and a maximum of two hours per experiment. The 8 GB local GPU can run small interface checks and policy rollouts. It is not the reference for the full training memory budget. Use the local GPU first, then use a bounded cloud run when memory is insufficient.
+
 ## Data and simulator
 
-The pinned dataset has two 256 × 256 RGB cameras, an eight-value state, and a seven-value action. The selected tasks are bowl on plate, bowl on stove, and stove on. Each task has 50 simulator initial states. The [episode split](../configs/data/episodes.yaml) separates training and validation demonstrations. The [state split](../configs/eval/splits.yaml) reserves IDs 0–19 for development and 20–49 for final evaluation.
+The pinned dataset has two 256 × 256 RGB cameras, an eight-value state, and a seven-value action. The selected tasks are bowl on plate, bowl on stove, and stove on. Each task has 50 simulator initial states. The [episode split](../configs/data/episodes.yaml) separates training and validation demonstrations. The [state split](../configs/eval/splits.yaml) reserves states 0–9 for exploration, 10–14 for method checks, 15–19 for data-intervention checks, and 20–49 for final evaluation.
 
-LIBERO runs relative control at 20 Hz. Dataset timestamp labels use 10 Hz. The training pipeline does not resample the source actions. Keyboard recordings retain every 50 ms controller tick. Source filtering and overlap between demonstrations and simulator initial states are unknown. Final-state results do not prove transfer to new object placements.
+LIBERO executes relative control at 20 Hz. Dataset timestamp labels record 10 Hz storage frequency; this is not proof of physical recording frequency. The training pipeline does not resample source actions. Keyboard recordings retain every 50 ms controller tick. Source filtering and overlap between demonstrations and simulator initial states are unknown. Keep storage timing, simulator execution time, and wallclock inference time distinct. Final-state results do not prove transfer to new object placements.
 
 ## Policy requirements
 

@@ -14,7 +14,7 @@ Network access is needed for the first install and for public Hub assets. Later 
 
 Run `.venv/bin/robot-lab data fetch --scope demo` for the playground. It downloads the pinned simulator assets and one real AV1 sample used by `doctor`. Run `.venv/bin/robot-lab data fetch --scope training` before a training experiment. That scope adds the Parquet data, metadata, and the selected two-camera video pairs. Use `--offline` to check existing files without network access. The command uses the existing Hugging Face login store if one is present and keeps large files under `.local-data/`.
 
-Before the VLA experiments in Unit 12, run `.venv/bin/robot-lab data fetch-models`. It gets the exact published SmolVLA and SmolVLM2 Hub commits in [the VLA manifest](../manifests/smolvla_reference.yaml), then checks the model hashes and required processor files. Use `data fetch-models --offline` to verify local files without a download.
+Before the VLA experiments in Lesson 16, run `.venv/bin/robot-lab data fetch-models`. It gets the exact published SmolVLA and SmolVLM2 Hub commits in [the VLA manifest](../manifests/smolvla_reference.yaml), then checks the model hashes and required processor files. Use `data fetch-models --offline` to verify local files without a download.
 
 ## ACT reference commands
 
@@ -31,17 +31,17 @@ PYTHONPATH=src python -m vla_lab.evaluation.act \
   --output .local-data/runs/act-bowl-plate-probe-200/eval-development
 ```
 
-Use the activated project environment for `python`, or replace it with `.venv/bin/python`. Change `bowl_plate` to `bowl_stove` for the second task. Give each run a new output directory. The evaluator accepts development initial states only. Its JSONL file contains one result for each state. These commands use the demonstration training partition. The action timestamps use the dataset's 10 Hz labels; the simulator still executes one action at 20 Hz. The code does not resample actions.
+Use the activated project environment for `python`, or replace it with `.venv/bin/python`. Change `bowl_plate` to `bowl_stove` for the second task. Give each run a new output directory. The evaluator accepts development initial states only. Its JSONL file contains one result for each state. These commands use the demonstration training partition. Dataset timestamps record 10 Hz labels; the simulator executes actions at 20 Hz. The code does not resample actions.
 
 ## Disk and GPU use
 
 The selected source download uses about 20 MB of action/state Parquet files, 371 MB of task videos, and 409 MB of simulator assets. The reference `uv` cache uses about 9.5 GB. A 200-step ACT training run uses about 179 MB for its model, optimizer, and records. These figures are selected-run measurements, not the full course size. Keep additional space for other models, videos, and experiments.
 
-Use a terminal with GPU access for CUDA and EGL checks. A restricted command environment can hide the GPU. Dataset timestamps are 10 Hz labels; the simulator controller runs at 20 Hz.
+Use a terminal with GPU access for CUDA and EGL checks. A restricted command environment can hide the GPU. Keep storage timing, simulator execution time, and wallclock inference time distinct.
 
 ## Playground and checkpoint transfer
 
-Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Unit 1](../tutorials/01-playground/01-playground.ipynb) from the repository root. Use the marked live cells to run a policy in the simulator.
+Use `.venv/bin/robot-lab doctor --live` to check the GPU, one real AV1 frame, both ACT bundles, and one EGL reset. Then start [Lesson 1](../tutorials/01-playground/01-playground.ipynb) from the repository root. Use the marked live cells to run a policy in the simulator.
 
 The two complete ACT inference bundles contain 14 files. `robot-lab references pack` writes a 115,596,447-byte ZIP archive at `.local-data/bundles/act-references.zip`. `robot-lab references install --archive <path>` checks all 14 hashes against [the reference manifest](../manifests/act_references.yaml) before it writes checkpoint files. The [transport record](../artifacts/reference/act/transport.json) holds the archive hash. This archive is local only; a distribution source for new learner machines is still required. It contains no dataset or simulator assets.
 
