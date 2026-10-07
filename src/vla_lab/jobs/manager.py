@@ -1,7 +1,5 @@
 """Submit, reconnect to, and stop detached local jobs."""
 
-from __future__ import annotations
-
 import fcntl
 import hashlib
 import json

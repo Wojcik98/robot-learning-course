@@ -1,7 +1,5 @@
 """Apply delayed action chunks on deterministic 50 ms simulator ticks."""
 
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass
 

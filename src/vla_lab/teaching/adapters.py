@@ -1,7 +1,5 @@
 """Small array adapters used by the hands-on VLA course."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 
 import numpy as np

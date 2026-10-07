@@ -1,7 +1,5 @@
 """Check the fixed data split and one decoded training example."""
 
-from __future__ import annotations
-
 import json
 from collections.abc import Mapping
 from pathlib import Path

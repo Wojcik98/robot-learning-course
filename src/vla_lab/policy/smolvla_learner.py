@@ -1,7 +1,5 @@
 """Initialize a LIBERO action expert on the pinned SmolVLM2 backbone."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 from pathlib import Path

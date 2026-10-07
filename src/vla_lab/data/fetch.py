@@ -1,7 +1,5 @@
 """Fetch pinned public LIBERO files for the first lab and training tasks."""
 
-from __future__ import annotations
-
 import hashlib
 import shutil
 from pathlib import Path

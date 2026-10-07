@@ -1,7 +1,5 @@
 """Report paired simulator-state outcomes with exact small-sample checks."""
 
-from __future__ import annotations
-
 import json
 import math
 from collections.abc import Sequence

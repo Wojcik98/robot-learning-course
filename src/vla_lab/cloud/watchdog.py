@@ -1,7 +1,5 @@
 """Keep a separate local deadline process for a supervised Brev session."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import os

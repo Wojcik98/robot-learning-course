@@ -1,7 +1,5 @@
 """Align policy action chunks to the simulator's controller ticks."""
 
-from __future__ import annotations
-
 import math
 
 import numpy as np

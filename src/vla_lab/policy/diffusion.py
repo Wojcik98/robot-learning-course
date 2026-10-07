@@ -1,7 +1,5 @@
 """Diffusion Policy settings for the pinned LIBERO demonstrations."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 

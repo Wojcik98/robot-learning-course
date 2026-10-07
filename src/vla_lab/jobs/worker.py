@@ -1,7 +1,5 @@
 """Run one detached command and keep an atomic heartbeat."""
 
-from __future__ import annotations
-
 import json
 import os
 import subprocess

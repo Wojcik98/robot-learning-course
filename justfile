@@ -91,8 +91,8 @@ test:
 
 # Check Python lint and formatting.
 lint:
-    .venv/bin/ruff check src tests
-    .venv/bin/ruff format --check src tests
+    .venv/bin/ruff check src tests tools tutorials
+    .venv/bin/ruff format --check src tests tools tutorials
 
 # Check shared source and notebook types, and reject invalid policy interfaces.
 typecheck:

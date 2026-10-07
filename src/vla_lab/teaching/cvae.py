@@ -1,7 +1,5 @@
 """Compact conditional VAE components for the VLA course."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 
 import torch

@@ -1,7 +1,5 @@
 """Measure wall-clock calls apart from virtual controller availability."""
 
-from __future__ import annotations
-
 import math
 import time
 from collections.abc import Callable

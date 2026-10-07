@@ -1,7 +1,5 @@
 """Decide when a paid job must stop from saved progress and time bounds."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 

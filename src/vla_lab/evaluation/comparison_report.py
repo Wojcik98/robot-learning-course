@@ -1,7 +1,5 @@
 """Build a paired report from the three frozen final-state runs."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json

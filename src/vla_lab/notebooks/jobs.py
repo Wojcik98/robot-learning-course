@@ -1,7 +1,5 @@
 """Reconnect notebook cells to detached local jobs."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from vla_lab.jobs.manager import JobManager

@@ -1,7 +1,5 @@
 """Make a checked training manifest from accepted keyboard recordings."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json

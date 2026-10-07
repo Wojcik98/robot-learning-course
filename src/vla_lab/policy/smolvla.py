@@ -1,7 +1,5 @@
 """Load the pinned published SmolVLA reference from local files."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from lerobot.policies.smolvla import SmolVLAConfig, SmolVLAPolicy

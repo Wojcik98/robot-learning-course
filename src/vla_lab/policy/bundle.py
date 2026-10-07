@@ -1,7 +1,5 @@
 """Save and load a policy with its LeRobot processors and data identity."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 

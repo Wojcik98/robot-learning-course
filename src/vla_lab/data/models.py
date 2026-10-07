@@ -1,7 +1,5 @@
 """Fetch and verify the pinned public SmolVLA model files."""
 
-from __future__ import annotations
-
 import hashlib
 import re
 from pathlib import Path

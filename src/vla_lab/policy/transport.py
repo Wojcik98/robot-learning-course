@@ -1,7 +1,5 @@
 """Pack and restore complete ACT reference bundles for another machine."""
 
-from __future__ import annotations
-
 import hashlib
 import os
 import tempfile
