@@ -14,6 +14,31 @@ import torch
 from torch import nn
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -177,8 +202,10 @@ def check_optimizer_update(optimizer_update) -> None:
 
     assert len(record) == 1, "call loss_fn exactly once"
     assert record[0]["training"] is True, "put the model in training mode before calling loss_fn"
-    assert record[0]["batch"] is batch, "pass the batch to loss_fn"
-    assert record[0]["noise"] is noise and record[0]["time"] is time, "pass noise and time through"
+    assert _same(record[0]["batch"], batch), "pass the batch to loss_fn"
+    assert _same(record[0]["noise"], noise) and _same(record[0]["time"], time), (
+        "pass noise and time through"
+    )
     torch.testing.assert_close(
         model.weight.detach(),
         torch.tensor([1.0, -1.0]) - 0.1 * coefficients,

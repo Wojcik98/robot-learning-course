@@ -12,6 +12,31 @@ from torch import nn
 from vla_lab.teaching.diffusion import DDPMSchedule
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -187,7 +212,7 @@ def check_epsilon_loss_fn(epsilon_loss_fn) -> None:
         atol=1e-6,
     )
     assert torch.equal(got_t, timesteps), "pass the timesteps to the model"
-    assert got_batch is batch, "pass the batch to the model (it holds the observations)"
+    assert _same(got_batch, batch), "pass the batch to the model (it holds the observations)"
     valid = ~is_pad
     expected = noise.square()[valid].sum() / (int(valid.sum()) * 2)  # prediction is 0
     _close(

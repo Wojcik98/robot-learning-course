@@ -16,6 +16,31 @@ from torch import nn
 import vla_lab.teaching.attention as ref
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -180,7 +205,7 @@ def check_multi_head_forward(multi_head_forward) -> None:
     assert call["shapes"] == ((2, 3, 4, 4), (2, 3, 6, 4), (2, 3, 6, 4)), (
         f"attend must receive head-split (B, H, T, Dh) tensors, got {call['shapes']}"
     )
-    assert call["mask"] is pad, "pass key_padding_mask to attend unchanged"
+    assert _same(call["mask"], pad), "pass key_padding_mask to attend unchanged"
     _done("key and value are projected from their own inputs; attend gets split heads and the mask")
 
     attend.calls.clear()
@@ -306,7 +331,7 @@ def check_encoder_layer_forward(encoder_layer_forward) -> None:
             attn_in[2],
             f"{name}: the value must be {'norm1(x)' if pre_norm else 'x'}, without pos_embed",
         )
-        assert mask is pad, f"{name}: pass key_padding_mask to self_attn"
+        assert _same(mask, pad), f"{name}: pass key_padding_mask to self_attn"
         _close(
             out,
             expected,

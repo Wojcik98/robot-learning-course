@@ -14,6 +14,31 @@ import torch
 from torch import nn
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -115,7 +140,7 @@ def check_encode_posterior(encode_posterior) -> None:
         model.vae_action_proj(actions),
         "tokens 2.. must be vae_action_proj(actions), in order",
     )
-    assert calls[0]["pos"] is model.vae_pos_embed, "pass model.vae_pos_embed as the position"
+    assert _same(calls[0]["pos"], model.vae_pos_embed), "pass model.vae_pos_embed as the position"
     mask = calls[0]["mask"]
     assert mask.dtype == torch.bool, "the key padding mask must be bool"
     assert mask.tolist() == [[False] * 6, [False, False, False, True, True, True]], (
@@ -158,12 +183,12 @@ def check_select_latent(select_latent) -> None:
     assert len(calls) == 1, "call the posterior hook once in training"
     state, actions, is_pad = calls[0]
     assert (
-        state is batch["observation.state"]
-        and actions is batch["action"]
-        and is_pad is batch["action_is_pad"]
+        _same(state, batch["observation.state"])
+        and _same(actions, batch["action"])
+        and _same(is_pad, batch["action_is_pad"])
     ), "pass the batch's state, action and action_is_pad to the posterior hook"
     _close(z, torch.tensor([[1.5, 0.0, 2.0 - math.exp(-1.0)]]), "z = mu + exp(logvar / 2) * noise")
-    assert got_mu is mu and got_logvar is logvar, "return the hook's mu and logvar"
+    assert _same(got_mu, mu) and _same(got_logvar, logvar), "return the hook's mu and logvar"
     _done("training: z = mu + exp(logvar / 2) * noise from the hook's outputs")
 
     calls.clear()
@@ -264,7 +289,7 @@ def check_decode_actions(decode_actions) -> None:
     assert x.shape == (2, 4, 6) and x.dtype == torch.float64 and not x.any(), (
         "the decoder input must be zeros (B, T, D) with the encoder output's dtype"
     )
-    assert got_memory is memory and memory_pos is pos, (
+    assert _same(got_memory, memory) and _same(memory_pos, pos), (
         "pass encoder_out as memory and pos as memory_pos"
     )
     _close(query_pos, model.query_embed.weight[None], "query_pos must be query_embed.weight[None]")

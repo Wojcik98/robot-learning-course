@@ -11,6 +11,31 @@ import torch.nn.functional as F
 from torch import nn
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -62,7 +87,7 @@ def check_attend_with_positions(attend_with_positions) -> None:
         _close(q, x + query_pos if use_q else x, f"{label}: query")
         _close(k, memory + key_pos if use_k else memory, f"{label}: key")
         _close(v, memory, f"{label}: the value must be key_value_input, never with a position")
-        assert passed is mask, f"{label}: pass key_padding_mask through unchanged"
+        assert _same(passed, mask), f"{label}: pass key_padding_mask through unchanged"
         _close(out, _stand_in(q, k, v), f"{label}: return the attention output")
     assert torch.equal(x, originals[0]) and torch.equal(memory, originals[1]), (
         "do not modify the inputs in place (use x + pos, not x += pos)"
@@ -146,7 +171,7 @@ def check_decoder_layer_forward(decoder_layer_forward) -> None:
         )
         _close(k, memory + memory_pos, f"{name}: cross-attention key must be memory + memory_pos")
         _close(v, memory, f"{name}: cross-attention value must be memory, without a position")
-        assert passed is mask, f"{name}: pass memory_key_padding_mask to cross-attention"
+        assert _same(passed, mask), f"{name}: pass memory_key_padding_mask to cross-attention"
         _close(
             out,
             expected,

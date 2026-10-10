@@ -12,6 +12,31 @@ from torch import nn
 C, Y, L, HIDDEN = 3, 4, 2, 16
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -261,8 +286,10 @@ def check_cvae_loss_fn(cvae_loss_fn) -> None:
     batch = {"condition": torch.randn(3, C, generator=generator), "target": target}
     loss, metrics = cvae_loss_fn(model, batch, noise=noise, beta=0.25)
     reconstruction = (prediction - target).abs().mean()
-    assert model.calls and model.calls[-1]["noise"] is noise, "pass noise to the model"
-    assert model.calls[-1]["condition"] is batch["condition"], "pass the condition to the model"
+    assert model.calls and _same(model.calls[-1]["noise"], noise), "pass noise to the model"
+    assert _same(model.calls[-1]["condition"], batch["condition"]), (
+        "pass the condition to the model"
+    )
     assert isinstance(loss, torch.Tensor) and loss.ndim == 0, "return a scalar loss tensor"
     torch.testing.assert_close(
         loss, reconstruction + 0.25 * kl, msg="loss = L1 reconstruction + beta * KL"
@@ -296,7 +323,7 @@ def check_cvae_loss_fn(cvae_loss_fn) -> None:
     loss, metrics = cvae_loss_fn(chunk_model, chunk_batch, noise=noise, beta=0.5)
     valid = ~is_pad
     masked = (chunk_prediction - chunk_target).abs()[valid].mean()
-    assert chunk_model.calls[-1]["is_pad"] is is_pad, "pass is_pad from the batch to the model"
+    assert _same(chunk_model.calls[-1]["is_pad"], is_pad), "pass is_pad from the batch to the model"
     torch.testing.assert_close(
         torch.as_tensor(metrics["reconstruction"]),
         masked,

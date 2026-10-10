@@ -8,6 +8,31 @@ the mean absolute difference. Read a failing assertion message first.
 import torch
 
 
+def _same(actual: object, expected: object) -> bool:
+    """True when ``actual`` is ``expected`` or holds equal values (tensors, lists, dicts)."""
+    if actual is expected:
+        return True
+    if isinstance(expected, torch.Tensor):
+        return (
+            isinstance(actual, torch.Tensor)
+            and actual.shape == expected.shape
+            and torch.equal(actual.cpu(), expected.cpu())
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            isinstance(actual, (list, tuple))
+            and len(actual) == len(expected)
+            and all(_same(a, e) for a, e in zip(actual, expected, strict=True))
+        )
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and actual.keys() == expected.keys()
+            and all(_same(actual[k], expected[k]) for k in expected)
+        )
+    return actual == expected
+
+
 def _done(message: str) -> None:
     print(f"✓ {message}")
 
@@ -63,7 +88,7 @@ def check_state_condition_delta(state_condition_delta) -> None:
             "use the same x_t and time for both calls"
         )
         for key in ("images", "img_masks", "lang_tokens", "lang_masks"):
-            assert call["inputs"][key] is inputs[key], (
+            assert _same(call["inputs"][key], inputs[key]), (
                 f"keep inputs[{key!r}] unchanged in both calls"
             )
     assert torch.equal(inputs["state"], original_state) and inputs["state"] is state, (
