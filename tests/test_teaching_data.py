@@ -9,6 +9,7 @@ from vla_lab.teaching.data import (
     order_episode_rows,
     split_episode_ids,
 )
+from vla_lab.teaching.records import CameraFrame, TrainingEpisode
 
 
 def test_order_rows_and_reject_duplicate_frame():
@@ -34,9 +35,9 @@ def test_extract_episode_arrays_reads_ordered_raw_action_and_state_columns():
         },
     ]
     extracted = extract_episode_arrays(rows)
-    np.testing.assert_array_equal(extracted["frame_indices"], [0, 1])
-    np.testing.assert_array_equal(extracted["actions"][0], np.zeros(7))
-    np.testing.assert_array_equal(extracted["states"][1], np.ones(8))
+    np.testing.assert_array_equal(extracted.frame_indices, [0, 1])
+    np.testing.assert_array_equal(extracted.actions[0], np.zeros(7))
+    np.testing.assert_array_equal(extracted.states[1], np.ones(8))
 
 
 def test_action_window_never_crosses_episode_end_and_marks_padding():
@@ -55,23 +56,20 @@ def test_split_keeps_complete_ids_and_statistics_ignore_validation():
 
 def test_student_window_and_stats_build_the_batches_used_by_training():
     image = np.zeros((3, 2, 2), dtype=np.float32)
+    cameras = CameraFrame(image=image, image2=image)
     training = {
-        0: {
-            "actions": np.arange(21 * 7).reshape(21, 7),
-            "states": np.arange(21 * 8).reshape(21, 8),
-            "samples": [
-                {"start": 20, "observation.images.image": image, "observation.images.image2": image}
-            ],
-        }
+        0: TrainingEpisode(
+            actions=np.arange(21 * 7, dtype=np.float32).reshape(21, 7),
+            states=np.arange(21 * 8, dtype=np.float32).reshape(21, 8),
+            images={20: cameras},
+        )
     }
     validation = {
-        1: {
-            "actions": np.ones((2, 7)),
-            "states": np.ones((2, 8)),
-            "samples": [
-                {"start": 1, "observation.images.image": image, "observation.images.image2": image}
-            ],
-        }
+        1: TrainingEpisode(
+            actions=np.ones((2, 7), dtype=np.float32),
+            states=np.ones((2, 8), dtype=np.float32),
+            images={1: cameras},
+        )
     }
     built = build_act_batches(
         training,
@@ -81,7 +79,7 @@ def test_student_window_and_stats_build_the_batches_used_by_training():
         window_fn=action_window,
         stats_fn=fit_training_statistics,
     )
-    batch = built["train"][0]
+    batch = built.train[0]
     assert tuple(batch["action"].shape) == (1, 4, 7)
     assert batch["action_is_pad"].tolist() == [[False, True, True, True]]
     assert batch["observation.state"].shape == (1, 8)

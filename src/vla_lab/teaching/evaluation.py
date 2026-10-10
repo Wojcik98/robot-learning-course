@@ -51,7 +51,7 @@ def validate_case_results(
 ) -> list[CaseResult]:
     """Check exact case coverage and retain every failed attempt in order."""
     expected = list(expected_case_ids)
-    actual = [row["case_id"] for row in results]
+    actual = [row.case_id for row in results]
     if not expected or len(expected) != len(set(expected)):
         raise ValueError("expected case IDs must be nonempty and unique")
     if len(actual) != len(set(actual)):
@@ -60,7 +60,7 @@ def validate_case_results(
     extra = sorted(set(actual) - set(expected))
     if missing or extra:
         raise ValueError(f"case coverage mismatch: missing={missing}, extra={extra}")
-    by_id = {row["case_id"]: row for row in results}
+    by_id = {row.case_id: row for row in results}
     return [by_id[case_id] for case_id in expected]
 
 
@@ -73,37 +73,24 @@ def paired_summary(
     """Summarize paired successes, failures, and disagreements without omissions."""
     a = validate_case_results(left, expected_case_ids=expected_case_ids)
     b = validate_case_results(right, expected_case_ids=expected_case_ids)
-    by_a = {row["case_id"]: row for row in a}
-    by_b = {row["case_id"]: row for row in b}
+    by_a = {row.case_id: row for row in a}
+    by_b = {row.case_id: row for row in b}
     ids = list(expected_case_ids)
-    identity_fields = (
-        "state_id",
-        "reset_seed",
-        "task_id",
-        "partition",
-        "prompt",
-    )
-    required_fields = (*identity_fields, "action_steps", "policy_revision", "success")
+    required_fields = ("partition", "prompt", "action_steps", "policy_revision")
     for label, rows in (("left", a), ("right", b)):
         for row in rows:
-            missing = [key for key in required_fields if key not in row]
+            missing = [key for key in required_fields if getattr(row, key) is None]
             if missing:
                 raise ValueError(f"{label} result row misses paired identity fields: {missing}")
-        revisions = {row["policy_revision"] for row in rows}
+        revisions = {row.policy_revision for row in rows}
         if len(revisions) != 1:
             raise ValueError(f"{label} results mix policy revisions")
-        action_steps = {row["action_steps"] for row in rows}
+        action_steps = {row.action_steps for row in rows}
         if len(action_steps) != 1:
             raise ValueError(f"{label} results mix action execution lengths")
 
     def identity(row: CaseResult) -> tuple[int, int, str, str | None, str | None]:
-        return (
-            row["state_id"],
-            row["reset_seed"],
-            row["task_id"],
-            row.get("partition"),
-            row.get("prompt"),
-        )
+        return row.state_id, row.reset_seed, row.task_id, row.partition, row.prompt
 
     for case_id in ids:
         if identity(by_a[case_id]) != identity(by_b[case_id]):
@@ -112,26 +99,26 @@ def paired_summary(
             )
     a_only = b_only = 0
     for case_id in ids:
-        a_ok = by_a[case_id]["success"] is True
-        b_ok = by_b[case_id]["success"] is True
+        a_ok = by_a[case_id].success is True
+        b_ok = by_b[case_id].success is True
         a_only += int(a_ok and not b_ok)
         b_only += int(b_ok and not a_ok)
-    a_successes = sum(by_a[case_id]["success"] is True for case_id in ids)
-    b_successes = sum(by_b[case_id]["success"] is True for case_id in ids)
-    return {
-        "cases": len(ids),
-        "case_ids": ids,
-        "left_successes": a_successes,
-        "right_successes": b_successes,
-        "left_policy_revision": a[0]["policy_revision"],
-        "right_policy_revision": b[0]["policy_revision"],
-        "left_success_rate": a_successes / len(ids),
-        "right_success_rate": b_successes / len(ids),
-        "left_only": a_only,
-        "right_only": b_only,
-        "paired_difference": (a_successes - b_successes) / len(ids),
-        "failed_attempts_included": True,
-    }
+    a_successes = sum(by_a[case_id].success is True for case_id in ids)
+    b_successes = sum(by_b[case_id].success is True for case_id in ids)
+    return PairedSummary(
+        cases=len(ids),
+        case_ids=ids,
+        left_successes=a_successes,
+        right_successes=b_successes,
+        left_policy_revision=str(a[0].policy_revision),
+        right_policy_revision=str(b[0].policy_revision),
+        left_success_rate=a_successes / len(ids),
+        right_success_rate=b_successes / len(ids),
+        left_only=a_only,
+        right_only=b_only,
+        paired_difference=(a_successes - b_successes) / len(ids),
+        failed_attempts_included=True,
+    )
 
 
 def evaluate_frozen_method_timed(

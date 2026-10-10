@@ -16,10 +16,12 @@ from vla_lab.data.stats import TrainingStats
 from vla_lab.teaching.interfaces import StatisticsFunction, WindowFunction
 from vla_lab.teaching.live import find_workspace
 from vla_lab.teaching.records import (
+    CAMERA_KEYS,
     ACTBatchData,
+    CameraFrame,
     EpisodeArrays,
     EpisodeRow,
-    ImageSample,
+    FeatureKey,
     TrainingEpisode,
 )
 
@@ -60,12 +62,12 @@ def extract_episode_arrays(rows: Sequence[EpisodeRow]) -> EpisodeArrays:
         or not np.isfinite(states).all()
     ):
         raise ValueError("raw action and state rows must be finite feature matrices")
-    return {
-        "episode_index": episode_ids.pop(),
-        "frame_indices": np.asarray([int(row["frame_index"]) for row in ordered], dtype=np.int64),
-        "actions": actions,
-        "states": states,
-    }
+    return EpisodeArrays(
+        episode_index=episode_ids.pop(),
+        frame_indices=np.asarray([int(row["frame_index"]) for row in ordered], dtype=np.int64),
+        actions=actions,
+        states=states,
+    )
 
 
 def action_window(
@@ -154,7 +156,8 @@ def read_local_episode_rows(
 
     This helper never downloads files. IDs must belong to the frozen train or
     validation split. It keeps every action and state row so windows stop at
-    true episode ends, and decodes images only at a few evenly-spaced starts.
+    true episode ends, and decodes images only at ``image_samples_per_episode``
+    evenly spaced frames, always including the first and last frame.
     """
 
     if image_samples_per_episode < 1:
@@ -209,32 +212,24 @@ def read_local_episode_rows(
     for episode_id, positions in episode_positions.items():
         raw_rows = [raw_dataset[index] for index in positions]
         extracted = row_fn(raw_rows)
-        if int(extracted["episode_index"]) != episode_id:
+        if int(extracted.episode_index) != episode_id:
             raise ValueError("row_fn returned a different episode ID")
-        actions = np.asarray(extracted["actions"], dtype=np.float32)
-        states = np.asarray(extracted["states"], dtype=np.float32)
-        frame_indices = list(map(int, extracted["frame_indices"]))
+        actions = np.asarray(extracted.actions, dtype=np.float32)
+        states = np.asarray(extracted.states, dtype=np.float32)
+        frame_indices = list(map(int, extracted.frame_indices))
         if frame_indices != list(range(len(frame_indices))):
             raise ValueError("selected episode frame rows must start at zero and be contiguous")
         sample_starts = np.linspace(
             0, len(positions) - 1, min(image_samples_per_episode, len(positions)), dtype=int
         )
-        samples: list[ImageSample] = []
-        for local_index in sorted(set(map(int, sample_starts))):
-            decoded = dataset[positions[local_index]]
-            samples.append(
-                {
-                    "start": local_index,
-                    "observation.images.image": array(decoded["observation.images.image"]),
-                    "observation.images.image2": array(decoded["observation.images.image2"]),
-                }
+        images: dict[int, CameraFrame] = {}
+        for frame in sorted(set(map(int, sample_starts))):
+            decoded = dataset[positions[frame]]
+            images[frame] = CameraFrame(
+                image=array(decoded[FeatureKey.IMAGE]),
+                image2=array(decoded[FeatureKey.IMAGE2]),
             )
-        episodes[episode_id] = {
-            "actions": actions,
-            "states": states,
-            "samples": samples,
-            "frame_count": len(positions),
-        }
+        episodes[episode_id] = TrainingEpisode(actions=actions, states=states, images=images)
     return episodes
 
 
@@ -259,14 +254,14 @@ def build_act_batches(
         raise ValueError("training and validation episode IDs overlap")
     if horizon < 1 or batch_size < 1:
         raise ValueError("horizon and batch_size must be positive")
-    state_stats = stats_fn({key: value["states"] for key, value in training_episodes.items()})
-    action_stats = stats_fn({key: value["actions"] for key, value in training_episodes.items()})
+    state_stats = stats_fn({key: value.states for key, value in training_episodes.items()})
+    action_stats = stats_fn({key: value.actions for key, value in training_episodes.items()})
 
     def convert(episodes: Mapping[int, TrainingEpisode]) -> list[dict[str, torch.Tensor]]:
         samples: list[dict[str, np.ndarray]] = []
         for episode in episodes.values():
-            actions = np.asarray(episode["actions"], dtype=np.float32)
-            states = np.asarray(episode["states"], dtype=np.float32)
+            actions = np.asarray(episode.actions, dtype=np.float32)
+            states = np.asarray(episode.states, dtype=np.float32)
             if (
                 actions.ndim != 2
                 or actions.shape[1] != 7
@@ -274,14 +269,13 @@ def build_act_batches(
                 or states.shape[1] != 8
             ):
                 raise ValueError("ACT actions and states must have widths seven and eight")
-            by_start = {int(item["start"]): item for item in episode["samples"]}
-            for start, image_sample in by_start.items():
+            for start, frame in episode.images.items():
                 window, mask = window_fn(actions, start=start, horizon=horizon)
                 if window.shape != (horizon, 7) or mask.shape != (horizon,):
                     raise ValueError("window_fn returned an invalid ACT window or mask")
-                item = {
-                    key: np.asarray(image_sample[key], dtype=np.float32)
-                    for key in ("observation.images.image", "observation.images.image2")
+                item: dict[str, np.ndarray] = {
+                    key: np.asarray(image, dtype=np.float32)
+                    for key, image in zip(CAMERA_KEYS, (frame.image, frame.image2), strict=True)
                 }
                 if any(image.ndim != 3 or image.shape[0] != 3 for image in item.values()):
                     raise ValueError("sample images must have shape (3, height, width)")
@@ -292,11 +286,9 @@ def build_act_batches(
                     raise ValueError("sample images must be finite float values in [0, 1]")
                 item.update(
                     {
-                        "observation.state": state_stats.normalize(states[start]).astype(
-                            np.float32
-                        ),
-                        "action": action_stats.normalize(window).astype(np.float32),
-                        "action_is_pad": np.asarray(mask, dtype=np.bool_),
+                        FeatureKey.STATE: state_stats.normalize(states[start]).astype(np.float32),
+                        FeatureKey.ACTION: action_stats.normalize(window).astype(np.float32),
+                        FeatureKey.ACTION_IS_PAD: np.asarray(mask, dtype=np.bool_),
                     }
                 )
                 samples.append(item)
@@ -310,11 +302,11 @@ def build_act_batches(
             )
         return batches
 
-    return {
-        "train": convert(training_episodes),
-        "validation": convert(validation_episodes),
-        "state_stats": state_stats,
-        "action_stats": action_stats,
-        "training_episode_ids": sorted(training_episodes),
-        "validation_episode_ids": sorted(validation_episodes),
-    }
+    return ACTBatchData(
+        train=convert(training_episodes),
+        validation=convert(validation_episodes),
+        state_stats=state_stats,
+        action_stats=action_stats,
+        training_episode_ids=sorted(training_episodes),
+        validation_episode_ids=sorted(validation_episodes),
+    )

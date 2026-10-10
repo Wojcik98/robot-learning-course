@@ -151,11 +151,11 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
             transitions: list[AlignedTransition[RecordedObservation]]
             if transition_rows_fn is None:
                 transitions = [
-                    {
-                        "tick": tick,
-                        "observation": episode.observations[tick],
-                        "action": episode.actions[tick],
-                    }
+                    AlignedTransition(
+                        tick=tick,
+                        observation=episode.observations[tick],
+                        action=episode.actions[tick],
+                    )
                     for tick in range(len(episode.actions))
                 ]
             else:
@@ -169,31 +169,31 @@ class RecoveryDataset(Dataset[dict[str, torch.Tensor]]):
                 raise ValueError(
                     "transition_rows_fn must return one aligned row per applied action"
                 )
+            if not all(isinstance(row, AlignedTransition) for row in transitions):
+                raise TypeError("transition_rows_fn must return AlignedTransition rows")
             for tick, row in enumerate(transitions):
-                action = np.asarray(row.get("action"), dtype=np.float32)
+                action = np.asarray(row.action, dtype=np.float32)
                 if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
                     raise ValueError("transition_rows_fn changed an applied action or its order")
             selected = list(transitions)
-            source_rows = {int(row["tick"]): row for row in transitions}
+            source_rows = {int(row.tick): row for row in transitions}
             selected_actions = []
             for selected_tick, selected_row in enumerate(selected):
-                tick = int(selected_row.get("tick", -1))
+                tick = int(selected_row.tick)
                 if (
                     tick != selected_tick
                     or tick not in source_rows
-                    or not _values_equal(
-                        selected_row.get("observation"), episode.observations[tick]
-                    )
+                    or not _values_equal(selected_row.observation, episode.observations[tick])
                 ):
                     raise ValueError("transition_rows_fn must select original aligned rows")
-                if selected_tick and tick <= int(selected[selected_tick - 1]["tick"]):
+                if selected_tick and tick <= int(selected[selected_tick - 1].tick):
                     raise ValueError("transition_rows_fn must preserve transition order")
-                action = np.asarray(selected_row.get("action"), dtype=np.float32)
+                action = np.asarray(selected_row.action, dtype=np.float32)
                 if action.shape != (7,) or not np.array_equal(action, episode.actions[tick]):
                     raise ValueError("transition_rows_fn changed an applied action")
                 selected_actions.append(action.copy())
                 self._starts.append((episode_index, selected_tick))
-                self._observations.append(selected_row["observation"])
+                self._observations.append(selected_row.observation)
             self._actions_by_episode.append(np.stack(selected_actions))
 
     def __len__(self) -> int:

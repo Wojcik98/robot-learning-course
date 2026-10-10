@@ -34,7 +34,9 @@ from vla_lab.teaching.records import (
     AlignedTransition,
     CaseResult,
     ComparisonConfig,
+    FeatureKey,
     InterventionCase,
+    Partition,
 )
 from vla_lab.timing import LIBERO_CONTROL_HZ, frame_offset_seconds
 from vla_lab.training.diffusion import (
@@ -460,16 +462,16 @@ def intervention_case_rows(
     for record in records:
         state_id = int(_number(record["initial_state_id"]))
         seed = _result_seed(record, state_id, base_seed)
-        row: InterventionCase = {
-            "case_id": case_id(state_id, seed),
-            "state_id": state_id,
-            "reset_seed": seed,
-            "task_id": str(record["task_id"]),
-            "success": record["success"] is True,
-        }
-        if prompt is not None:
-            row["prompt"] = prompt
-        rows.append(row)
+        rows.append(
+            InterventionCase(
+                case_id=case_id(state_id, seed),
+                state_id=state_id,
+                reset_seed=seed,
+                task_id=str(record["task_id"]),
+                success=record["success"] is True,
+                prompt=prompt,
+            )
+        )
     return rows
 
 
@@ -486,17 +488,17 @@ def episode_case_rows(
         state_id = int(_number(record["initial_state_id"]))
         seed = _result_seed(record, state_id, base_seed)
         rows.append(
-            {
-                "case_id": case_id(state_id, seed),
-                "state_id": state_id,
-                "reset_seed": seed,
-                "task_id": str(record["task_id"]),
-                "partition": str(record["partition"]),
-                "prompt": prompt,
-                "action_steps": action_steps,
-                "policy_revision": str(record["policy_revision"]),
-                "success": record["success"] is True,
-            }
+            CaseResult(
+                case_id=case_id(state_id, seed),
+                state_id=state_id,
+                reset_seed=seed,
+                task_id=str(record["task_id"]),
+                partition=Partition(str(record["partition"])),
+                prompt=prompt,
+                action_steps=action_steps,
+                policy_revision=str(record["policy_revision"]),
+                success=record["success"] is True,
+            )
         )
     return rows
 
@@ -613,13 +615,7 @@ def verify_recipe_files(config: ComparisonConfig) -> dict[str, str]:
 
 # --- Supplied pieces for Lesson 21 ---------------------------------------------------------------
 
-ACT_SAMPLE_KEYS = (
-    "observation.images.image",
-    "observation.images.image2",
-    "observation.state",
-    "action",
-    "action_is_pad",
-)
+ACT_SAMPLE_KEYS = tuple(FeatureKey)
 
 
 def aligned_transition_rows[ObservationT](
@@ -643,11 +639,11 @@ def aligned_transition_rows[ObservationT](
     if len(observations) != count + 1:
         raise ValueError("observations must have N + 1 items")
     return [
-        {
-            "tick": int(acted[index]),
-            "observation": observations[index],
-            "action": np.array(action_array[index], dtype=np.float32, copy=True),
-        }
+        AlignedTransition(
+            tick=int(acted[index]),
+            observation=observations[index],
+            action=np.array(action_array[index], dtype=np.float32, copy=True),
+        )
         for index in range(count)
     ]
 

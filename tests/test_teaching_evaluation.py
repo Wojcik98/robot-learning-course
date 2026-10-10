@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from vla_lab.teaching.evaluation import (
@@ -7,22 +9,22 @@ from vla_lab.teaching.evaluation import (
     summarize_latency_samples,
     validate_case_results,
 )
+from vla_lab.teaching.records import CaseResult, Partition
 
 
 def rows(successes):
     return [
-        {
-            "case_id": f"state-{index}-seed-0",
-            "state_id": index,
-            "reset_seed": 0,
-            "task_id": "bowl_plate",
-            "partition": "development",
-            "prompt": "put the bowl on the plate",
-            "action_steps": 10,
-            "policy_revision": revision,
-            "success": success,
-        }
-        for revision in ("policy",)
+        CaseResult(
+            case_id=f"state-{index}-seed-0",
+            state_id=index,
+            reset_seed=0,
+            task_id="bowl_plate",
+            partition=Partition.DEVELOPMENT,
+            prompt="put the bowl on the plate",
+            action_steps=10,
+            policy_revision="policy",
+            success=success,
+        )
         for index, success in enumerate(successes)
     ]
 
@@ -38,14 +40,14 @@ def test_state_groups_and_final_gate():
 
 def test_paired_summary_keeps_failed_attempts_and_reports_disagreements():
     left, right = rows([True, False, False]), rows([False, False, True])
-    right = [{**row, "policy_revision": "other"} for row in right]
+    right = [replace(row, policy_revision="other") for row in right]
     result = paired_summary(
         left, right, expected_case_ids=["state-0-seed-0", "state-1-seed-0", "state-2-seed-0"]
     )
-    assert result["cases"] == 3
-    assert result["left_successes"] == 1 and result["right_successes"] == 1
-    assert result["left_only"] == 1 and result["right_only"] == 1
-    assert result["failed_attempts_included"] is True
+    assert result.cases == 3
+    assert result.left_successes == 1 and result.right_successes == 1
+    assert result.left_only == 1 and result.right_only == 1
+    assert result.failed_attempts_included is True
 
 
 def test_case_validation_rejects_missing_or_duplicate_rows():
@@ -59,16 +61,16 @@ def test_case_validation_rejects_missing_or_duplicate_rows():
 
 def test_paired_summary_rejects_seed_or_action_length_mismatch():
     left = rows([True])
-    right = [{**left[0], "reset_seed": 4, "policy_revision": "other"}]
+    right = [replace(left[0], reset_seed=4, policy_revision="other")]
     with pytest.raises(ValueError, match="differ"):
         paired_summary(left, right, expected_case_ids=["state-0-seed-0"])
 
 
 def test_methods_can_use_different_fixed_action_lengths():
     left = rows([True])
-    right = [{**left[0], "action_steps": 8, "policy_revision": "other", "success": False}]
+    right = [replace(left[0], action_steps=8, policy_revision="other", success=False)]
     result = paired_summary(left, right, expected_case_ids=["state-0-seed-0"])
-    assert result["left_only"] == 1
+    assert result.left_only == 1
 
 
 def test_latency_summary_reports_tail_and_missing_values():

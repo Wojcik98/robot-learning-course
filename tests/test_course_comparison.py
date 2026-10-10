@@ -39,6 +39,7 @@ from vla_lab.teaching.course_comparison import (
     verify_recipe_files,
     write_run_identity,
 )
+from vla_lab.teaching.records import Partition
 
 
 def record(state_id, success, seed=None):
@@ -66,12 +67,12 @@ def test_case_rows_keep_failures_and_check_the_seed_rule():
     rows = intervention_case_rows(
         [record(15, False), record(16, True, 20260946)], base_seed=20260930
     )
-    assert [row["case_id"] for row in rows] == [case_id(15, 20260945), case_id(16, 20260946)]
-    assert [row["success"] for row in rows] == [False, True]
+    assert [row.case_id for row in rows] == [case_id(15, 20260945), case_id(16, 20260946)]
+    assert [row.success for row in rows] == [False, True]
     with pytest.raises(ValueError, match="frozen rule"):
         intervention_case_rows([record(15, True, 5)], base_seed=20260930)
     paired = episode_case_rows([record(20, True)], base_seed=20260930, prompt="p", action_steps=10)
-    assert paired[0]["partition"] == "final" and paired[0]["action_steps"] == 10
+    assert paired[0].partition is Partition.FINAL and paired[0].action_steps == 10
 
 
 def test_unique_run_directories_and_identity(tmp_path):
@@ -315,8 +316,8 @@ def test_aligned_rows_copy_actions_and_refuse_offsets():
     source = np.array([[4.0], [5.0]])
     rows = aligned_transition_rows(["s0", "s1", "s2"], source, [0, 1, 2], [0, 1])
     source[1, 0] = 99.0
-    assert [row["tick"] for row in rows] == [0, 1] and rows[1]["observation"] == "s1"
-    assert rows[1]["action"].dtype == np.float32 and rows[1]["action"][0] == 5.0
+    assert [row.tick for row in rows] == [0, 1] and rows[1].observation == "s1"
+    assert rows[1].action.dtype == np.float32 and rows[1].action[0] == 5.0
     with pytest.raises(ValueError, match=r"offset by \[1\]"):
         aligned_transition_rows(["s0", "s1", "s2"], [[4.0], [5.0]], [0, 1, 2], [1, 2])
     with pytest.raises(ValueError):
