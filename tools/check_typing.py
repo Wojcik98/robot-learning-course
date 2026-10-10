@@ -130,6 +130,9 @@ def main() -> int:
                 exported = Path(temporary) / (path.stem.replace("-", "_") + ".py")
                 exported.write_text(notebook_code(path))
                 paths.append(str(exported))
+                # Lesson check modules sit next to the notebook; keep them importable.
+                for checks in path.parent.glob("lesson*_checks.py"):
+                    (Path(temporary) / checks.name).write_text(checks.read_text())
         result = subprocess.run(command + list(CHECKED_MODULES) + paths, cwd=ROOT, check=False)
         if result.returncode:
             return result.returncode
