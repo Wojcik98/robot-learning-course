@@ -59,7 +59,7 @@ def check_state_condition_delta(state_condition_delta) -> None:
         "the zero state must have the shape, dtype and device of inputs['state']"
     )
     for call in adapter.calls:
-        assert call["x_t"] is x_t and call["time"] is time, (
+        assert torch.equal(call["x_t"], x_t) and torch.equal(call["time"], time), (
             "use the same x_t and time for both calls"
         )
         for key in ("images", "img_masks", "lang_tokens", "lang_masks"):
