@@ -8,3 +8,4 @@ __pycache__/
 .ipynb_checkpoints/
 config.local.toml
 artifacts/runs/
+.claude/worktrees/
