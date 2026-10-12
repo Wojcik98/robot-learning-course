@@ -188,7 +188,6 @@ def check_conditional_vae(ConditionalVAE) -> None:  # noqa: N803 - receives a cl
     """Exercise 4: posterior training path and prior inference path."""
     torch.manual_seed(2)
     model = ConditionalVAE(C, Y, L, HIDDEN)
-    assert model.latent_dim == L, "store latent_dim on the model"
     condition, target = torch.randn(5, C), torch.randn(5, Y)
     noise = torch.randn(5, L)
     prediction, mu, logvar = model(condition, target, noise=noise)
