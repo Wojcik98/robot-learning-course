@@ -35,7 +35,7 @@ doctor-live:
 
 # Start the course server without a password or token, on localhost.
 jupyter notebook="tutorials/index.ipynb":
-    .venv/bin/jupyter lab "$1" --ServerApp.root_dir=. --ServerApp.ip=127.0.0.1 --IdentityProvider.token='' --PasswordIdentityProvider.hashed_password='' --PasswordIdentityProvider.password_required=False
+    .venv/bin/jupyter lab "$1" --ServerApp.root_dir=. --ip=100.120.25.105 --IdentityProvider.token='' --PasswordIdentityProvider.hashed_password='' --PasswordIdentityProvider.password_required=False
 
 # Run one ACT demo. Use a new output directory.
 demo *args:
