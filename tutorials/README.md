@@ -7,6 +7,12 @@ This course starts with a working policy playground and introduces all three mod
 
 Open the learner notebook first. Save a copy before you work so your answers remain available. You do not need to run notebooks in one shared kernel. Lessons that reuse an earlier concept import its tested package function.
 
+## Read for context before you implement
+
+Start with [From demonstrations to control](concepts/control-and-learning.md). Then open the relevant [concept guide](concepts/README.md) beside your notebook: [ACT](concepts/act.md), [Diffusion Policy](concepts/diffusion-policy.md), [SmolVLA](concepts/smolvla.md), or [data and evaluation](concepts/data-and-evaluation.md). These guides explain the problem, the complete model path, and where each lesson fits. They include system diagrams and short examples.
+
+Each notebook starts with the method's purpose, the component you will work on, and a question to explain before coding. Read that introduction before the tensor contract. Use the guide for the wider view, and return to the notebook for the exact exercise. Mermaid diagrams stay in the Markdown guides; notebook Markdown uses SVG diagrams and tables.
+
 ## What you need
 
 The course assumes Python and NumPy. It explains required PyTorch operations in the notebook where they first appear. Follow the repository [setup guide](../docs/initial-setup.md) and [environment guide](../docs/environment.md). Some live policy cells need local model and simulator assets. Check them with `just doctor-live` and follow its setup guidance if they are absent.

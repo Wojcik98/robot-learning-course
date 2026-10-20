@@ -4,6 +4,8 @@ Start with the [22-lesson implementation course](tutorials/index.ipynb). Lesson 
 
 The course assumes Python and NumPy. Each notebook explains the PyTorch operations that it needs. Small CPU examples precede the required simulator and training cells. Each cell runs its stated operation. Automation provides quick and full profiles; quick reports which experiments it skips. The notebooks do not download assets. Bring the local assets required by an experiment before you run it; use the setup and asset notes below.
 
+For the ideas behind the exercises, open the [concept guides](tutorials/concepts/README.md). Keep a guide beside its notebook to follow the full control system, the model, and the component you are implementing.
+
 ## Setup
 
 - [Initial setup checklist and GPU access](docs/initial-setup.md)

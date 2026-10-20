@@ -9,6 +9,9 @@ Use the order in [the course index](../tutorials/index.ipynb): 01-playground, 02
 ## Lesson rules
 
 - Assume Python and NumPy. Explain each PyTorch operation when learners first need it.
+- Before implementation instructions, explain the problem the method solves, its full input-to-action path, and the component taught in this lesson. Define new terms before using them in tensor contracts.
+- Link a shared [concept guide](../tutorials/concepts/README.md) for each major method. Keep essential context and required exercise instructions in the notebook. Update the learner and reference Markdown together.
+- Use SVG diagrams in notebook Markdown. Keep Mermaid in separate Markdown guides; do not use Mermaid or text-art diagrams in notebooks. Add a text explanation of each diagram.
 - Show a working result before the first exercise. Label cells **Supplied**, **Implement**, **Check**, and **Use your function**.
 - Each short exercise implements one named function. State input keys, shapes, units, masks, and return values beside the stub. Use `NotImplementedError` so an unfinished function fails clearly.
 - Give plain-text hints first. Put more revealing hints in a collapsed section. Put full answers in the reference notebook with the same basename and folder.
